@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sabor que Vicia - Clientes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="js/db.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#120c08',
+                            card: '#1a120e',
+                            border: '#2a1e17',
+                            accentOrange: '#f97316'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-brand-dark text-gray-200 font-sans antialiased min-h-screen flex flex-col md:flex-row">
+
+    <!-- BARRA LATERAL -->
+    <aside class="w-full md:w-64 bg-brand-card border-r border-brand-border flex flex-col justify-between shrink-0 p-5 z-20">
+        <div>
+            <div class="flex items-center gap-3 mb-8">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center shadow-lg">
+                    <span class="text-white font-black text-xl">S</span>
+                </div>
+                <div>
+                    <span class="text-xs uppercase text-brand-accentOrange tracking-wider font-bold">Esfiha</span>
+                    <h1 class="text-white font-black leading-none text-base">Sabor que Vicia</h1>
+                </div>
+            </div>
+            <nav class="space-y-1">
+                <a href="index.html" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard
+                </a>
+                <a href="pedidos.html" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="shopping-cart" class="w-5 h-5"></i> Pedidos
+                </a>
+                <a href="cozinha.html" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="chef-hat" class="w-5 h-5"></i> Cozinha
+                </a>
+                <a href="sabores.html" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="pizza" class="w-5 h-5"></i> Sabores
+                </a>
+                <a href="clientes.html" class="bg-gradient-to-br from-red-600 to-orange-500 text-white w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm">
+                    <i data-lucide="users" class="w-5 h-5"></i> Clientes
+                </a>
+                <a href="relatorios.html" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Relatórios
+                </a>
+            </nav>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-6 md:p-8 overflow-y-auto max-h-screen space-y-6">
+        <div>
+            <h2 class="text-2xl font-black text-white">Gestão de Clientes</h2>
+            <p class="text-gray-400 text-sm">Registo de fidelidade e histórico de compras.</p>
+        </div>
+
+        <div class="bg-brand-card rounded-2xl border border-brand-border overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-black/20 text-xs font-bold uppercase text-gray-400 border-b border-brand-border">
+                            <th class="py-4 px-6">Nome</th>
+                            <th class="py-4 px-6">Telemóvel / Contacto</th>
+                            <th class="py-4 px-6">Total Encomendas</th>
+                            <th class="py-4 px-6">Faturação Acumulada</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-clientes-body" class="divide-y divide-brand-border/40 text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        window.onload = function() {
+            const customers = getCustomers();
+            const tbody = document.getElementById('table-clientes-body');
+            tbody.innerHTML = '';
+            customers.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-white/5 transition-all";
+                tr.innerHTML = `
+                    <td class="py-4 px-6 font-bold text-white flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-full bg-brand-border flex items-center justify-center text-brand-accentOrange font-bold text-xs">${c.name.charAt(0)}</div>
+                        ${c.name}
+                    </td>
+                    <td class="py-4 px-6 text-gray-400">${c.phone}</td>
+                    <td class="py-4 px-6 font-semibold">${c.totalOrders} pedidos</td>
+                    <td class="py-4 px-6 font-black text-brand-accentOrange">R$ ${c.totalSpent.toFixed(2).replace('.', ',')}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esfihas Delivery - Dashboard</title>
+    <!-- Tailwind CSS para um design responsivo e moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons para ícones vetorizados de alta qualidade -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#120c08',       // Fundo geral escuro e quente
+                            card: '#1a120e',       // Fundo dos cartões e elementos
+                            border: '#2a1e17',     // Bordas delicadas em tons quentes
+                            accentRed: '#e11d48',   // Vermelho para destaque de botões
+                            accentOrange: '#f97316',// Laranja vibrante
+                            accentYellow: '#eab308' // Amarelo dourado
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilização personalizada para barra de rolagem */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #120c08;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #2a1e17;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #f97316;
+        }
+    </style>
+</head>
+
+<body class="bg-brand-dark text-gray-200 font-sans antialiased min-h-screen flex flex-col md:flex-row">
+
+    <!-- BARRA LATERAL (SIDEBAR) -->
+    <aside
+        class="w-full md:w-64 bg-brand-card border-r border-brand-border flex flex-col justify-between shrink-0 p-5 z-20">
+        <div>
+            <!-- Logotipo do Estabelecimento -->
+            <div class="flex items-center gap-3 mb-8">
+                <div
+                    class="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center shadow-lg shadow-red-900/30">
+                    <span class="text-white font-black text-xl">S</span>
+                </div>
+                <div>
+                    <h1 class="text-white font-black leading-none text-base">Esfiha Delivery</h1>
+                </div>
+            </div>
+
+            <!-- Navegação Principal estática apontando para arquivos externos -->
+            <nav class="space-y-1">
+                <a href="index.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm bg-gradient-to-br from-red-600 to-orange-500 text-white shadow-lg shadow-red-950/40">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard
+                </a>
+                <a href="pedidos.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="shopping-cart" class="w-5 h-5"></i> Pedidos
+                </a>
+                <a href="cozinha.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="chef-hat" class="w-5 h-5"></i> Cozinha
+                </a>
+                <a href="sabores.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="pizza" class="w-5 h-5"></i> Sabores
+                </a>
+                <a href="clientes.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="users" class="w-5 h-5"></i> Clientes
+                </a>
+                <a href="relatorios.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Relatórios
+                </a>
+            </nav>
+        </div>
+
+        <!-- Botão "+ Novo Pedido" na parte inferior da barra lateral -->
+        <div class="mt-8">
+            <button onclick="openNewOrderModal()"
+                class="w-full bg-gradient-to-r from-yellow-500 to-amber-600 text-brand-dark font-extrabold py-3.5 px-4 rounded-xl shadow-lg hover:shadow-yellow-500/20 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 text-sm">
+                <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                Novo Pedido
+            </button>
+        </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL (EXCLUSIVO DASHBOARD) -->
+    <main class="flex-1 p-6 md:p-8 overflow-y-auto max-h-screen">
+
+        <!-- SEÇÃO: DASHBOARD -->
+        <section id="tab-dashboard" class="space-y-6">
+            <!-- Cabeçalho do Painel -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <span class="text-xs uppercase text-brand-accentOrange tracking-wider font-extrabold">Painel</span>
+                    <h2 class="text-2xl md:text-3xl font-black text-white flex items-center gap-2">
+                        Bom dia, chef <span class="text-xl md:text-2xl">👨‍🍳</span>
+                    </h2>
+                    <p class="text-gray-400 text-sm mt-1">Visão geral da operação de hoje em tempo real.</p>
+                </div>
+                <button onclick="openNewOrderModal()"
+                    class="self-start sm:self-center bg-gradient-to-r from-red-600 to-orange-500 text-white font-extrabold py-3 px-6 rounded-xl shadow-lg shadow-red-950/40 hover:shadow-red-500/20 active:scale-95 transition-all duration-200 flex items-center gap-2 text-sm">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Novo Pedido
+                </button>
+            </div>
+
+            <!-- Grade de Cartões de Métricas -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Pedidos Hoje -->
+                <div
+                    class="bg-brand-card p-5 rounded-2xl border border-brand-border flex items-center justify-between shadow-md relative overflow-hidden group">
+                    <div class="space-y-1">
+                        <span class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Pedidos hoje</span>
+                        <h3 id="stat-pedidos-hoje" class="text-3xl font-black text-white">0</h3>
+                    </div>
+                    <div
+                        class="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 group-hover:scale-110 transition-all duration-300">
+                        <i data-lucide="shopping-bag" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <!-- Faturamento -->
+                <div
+                    class="bg-brand-card p-5 rounded-2xl border border-brand-border flex items-center justify-between shadow-md relative overflow-hidden group">
+                    <div class="space-y-1">
+                        <span class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Faturamento</span>
+                        <h3 id="stat-faturamento" class="text-3xl font-black text-white">R$ 0,00</h3>
+                    </div>
+                    <div
+                        class="w-12 h-12 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-500 group-hover:scale-110 transition-all duration-300">
+                        <i data-lucide="dollar-sign" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <!-- Em andamento -->
+                <div
+                    class="bg-brand-card p-5 rounded-2xl border border-brand-border flex items-center justify-between shadow-md relative overflow-hidden group">
+                    <div class="space-y-1">
+                        <span class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Em andamento</span>
+                        <h3 id="stat-em-andamento" class="text-3xl font-black text-white">0</h3>
+                    </div>
+                    <div
+                        class="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500 group-hover:scale-110 transition-all duration-300">
+                        <i data-lucide="clock" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <!-- Entregues -->
+                <div
+                    class="bg-brand-card p-5 rounded-2xl border border-brand-border flex items-center justify-between shadow-md relative overflow-hidden group">
+                    <div class="space-y-1">
+                        <span class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Entregues</span>
+                        <h3 id="stat-entregues" class="text-3xl font-black text-white">0</h3>
+                    </div>
+                    <div
+                        class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-all duration-300">
+                        <i data-lucide="check-circle" class="w-6 h-6"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grade Intermediária: Gráfico de Vendas e Sabores mais vendidos -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Gráfico de Vendas (Últimos 7 dias) -->
+                <div class="bg-brand-card p-6 rounded-2xl border border-brand-border lg:col-span-2 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="text-white font-bold text-base">Vendas — últimos 7 dias</h4>
+                            <p class="text-xs text-gray-500">Apenas pedidos entregues</p>
+                        </div>
+                        <i data-lucide="trending-up" class="w-5 h-5 text-brand-accentOrange"></i>
+                    </div>
+
+                    <!-- Área do Gráfico Dinâmico SVG -->
+                    <div class="relative h-48 w-full mt-2">
+                        <svg id="sales-chart" class="w-full h-full" viewBox="0 0 700 180" preserveAspectRatio="none">
+                            <line x1="0" y1="30" x2="700" y2="30" stroke="#2a1e17" stroke-dasharray="4" />
+                            <line x1="0" y1="75" x2="700" y2="75" stroke="#2a1e17" stroke-dasharray="4" />
+                            <line x1="0" y1="120" x2="700" y2="120" stroke="#2a1e17" stroke-dasharray="4" />
+                            <line x1="0" y1="160" x2="700" y2="160" stroke="#ef4444" stroke-width="1.5" />
+
+                            <text x="5" y="25" fill="#6b7280" font-size="10">R$ 150</text>
+                            <text x="5" y="70" fill="#6b7280" font-size="10">R$ 100</text>
+                            <text x="5" y="115" fill="#6b7280" font-size="10">R$ 50</text>
+                            <text x="5" y="155" fill="#6b7280" font-size="10">R$ 0</text>
+
+                            <path id="chart-path" d="" fill="none" stroke="url(#gradient-accent)" stroke-width="3"
+                                stroke-linecap="round" />
+                            <path id="chart-area-path" d="" fill="url(#gradient-area)" opacity="0.15" />
+                            <g id="chart-points"></g>
+
+                            <defs>
+                                <linearGradient id="gradient-accent" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0%" stop-color="#ef4444" />
+                                    <stop offset="100%" stop-color="#f97316" />
+                                </linearGradient>
+                                <linearGradient id="gradient-area" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="#ef4444" />
+                                    <stop offset="100%" stop-color="#120c08" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+
+                    <!-- Eixo X (Dias da Semana) -->
+                    <div
+                        class="grid grid-cols-7 text-center text-xs font-semibold text-gray-500 pt-2 border-t border-brand-border/40">
+                        <div>dom</div>
+                        <div>seg</div>
+                        <div>ter</div>
+                        <div>qua</div>
+                        <div>qui</div>
+                        <div>sex</div>
+                        <div>sáb</div>
+                    </div>
+                </div>
+
+                <!-- Sabor mais vendido de Hoje -->
+                <div
+                    class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-4 flex flex-col justify-between">
+                    <div class="space-y-1">
+                        <h4 class="text-white font-bold text-base">Sabor mais vendido</h4>
+                        <p class="text-xs text-gray-500">Hoje</p>
+                    </div>
+
+                    <!-- Conteúdo Dinâmico / Estado Vazio -->
+                    <div id="container-top-sabor" class="flex-1 flex flex-col items-center justify-center py-6">
+                        <div class="text-center space-y-3">
+                            <div
+                                class="w-12 h-12 rounded-full bg-brand-border/40 flex items-center justify-center mx-auto">
+                                <i data-lucide="pie-chart" class="w-5 h-5 text-gray-500"></i>
+                            </div>
+                            <p class="text-xs text-gray-400 font-medium px-4 max-w-xs leading-relaxed">Nenhuma esfiha
+                                vendida hoje ainda.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Últimos Pedidos -->
+            <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-4">
+                <h4 class="text-white font-extrabold text-base">Últimos pedidos</h4>
+
+                <div id="container-ultimos-pedidos" class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr
+                                class="border-b border-brand-border/60 text-xs uppercase tracking-wider text-gray-500 font-bold">
+                                <th class="pb-3 pl-4">ID</th>
+                                <th class="pb-3">Cliente</th>
+                                <th class="pb-3">Itens</th>
+                                <th class="pb-3">Valor Total</th>
+                                <th class="pb-3">Status</th>
+                                <th class="pb-3 text-right pr-4">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-ultimos-pedidos-tbody" class="divide-y divide-brand-border/30 text-sm">
+                            <!-- Renderizado via JavaScript -->
+                        </tbody>
+                    </table>
+
+                    <!-- Placeholder para tabela de pedidos vazia -->
+                    <div id="ultimos-pedidos-vazio" class="py-12 flex flex-col items-center justify-center text-center">
+                        <div class="w-12 h-12 rounded-full bg-brand-border/40 flex items-center justify-center mb-3">
+                            <i data-lucide="shopping-bag" class="w-5 h-5 text-gray-500"></i>
+                        </div>
+                        <p class="text-sm text-gray-400">Sem pedidos hoje. Comece agora!</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL: NOVO PEDIDO -->
+    <div id="modal-novo-pedido"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div
+            class="bg-brand-card w-full max-w-lg rounded-2xl border border-brand-border overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
+                <h3 class="text-white font-bold text-lg flex items-center gap-2">
+                    <i data-lucide="shopping-bag" class="text-brand-accentOrange w-5 h-5"></i>
+                    Criar Novo Pedido
+                </h3>
+                <button onclick="closeNewOrderModal()" class="text-gray-400 hover:text-white transition-all">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-4 overflow-y-auto flex-1">
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase text-gray-400">Nome do Cliente</label>
+                    <input type="text" id="order-customer" placeholder="Ex: José da Silva"
+                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase text-gray-400">Telefone para Contato</label>
+                    <input type="tel" id="order-phone" placeholder="Ex: (81) 98765-4321"
+                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                </div>
+
+                <div class="space-y-3">
+                    <label class="text-xs font-bold uppercase text-gray-400 block">Escolher Sabores</label>
+                    <div id="order-flavors-selection" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                        <!-- Gerado dinamicamente -->
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase text-gray-400">Observações adicionais</label>
+                    <textarea id="order-notes" rows="2" placeholder="Sem cebola, bem assada, etc..."
+                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm resize-none"></textarea>
+                </div>
+            </div>
+
+            <!-- Campo Endereço -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-bold uppercase text-gray-400">Endereço de Entrega</label>
+                <input type="text" id="order-address" placeholder="Rua, Número, Bairro"
+                    class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+            </div>
+
+            <!-- Campo Forma de Pagamento -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-bold uppercase text-gray-400">Forma de Pagamento</label>
+                <select id="order-payment"
+                    class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                    <option value="Pix">Pix</option>
+                    <option value="Cartão de Crédito">Cartão de Crédito</option>
+                    <option value="Cartão de Débito">Cartão de Débito</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                </select>
+            </div>
+
+            <div class="p-5 border-t border-brand-border flex items-center justify-between bg-black/20">
+                <div class="text-left">
+                    <span class="text-[10px] uppercase text-gray-500 font-bold block">Total Estimado</span>
+                    <span id="order-preview-total" class="text-brand-accentOrange font-black text-xl">R$ 0,00</span>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="closeNewOrderModal()"
+                        class="border border-brand-border text-gray-400 hover:text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all">
+                        Cancelar
+                    </button>
+                    <button onclick="submitNewOrder()"
+                        class="bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:opacity-90 active:scale-95 transition-all">
+                        Salvar Pedido
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- NOTIFICAÇÃO POPUP CUSTOMIZADA -->
+    <div id="toast"
+        class="fixed bottom-6 right-6 bg-brand-card border border-emerald-500 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform translate-y-20 opacity-0 pointer-events-none transition-all duration-300 z-50">
+        <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <i data-lucide="check" class="w-5 h-5"></i>
+        </div>
+        <div>
+            <h5 class="font-bold text-sm text-white" id="toast-title">Sucesso!</h5>
+            <p class="text-xs text-gray-400" id="toast-message">Operação executada com sucesso.</p>
+        </div>
+    </div>
+
+    <!-- SCRIPT DE LÓGICA DO DASHBOARD -->
+    <script>
+        // Sabores oficiais compartilhados com sabores.html
+        const defaultFlavors = [
+            { id: 1, name: "Frango com Catupiry", description: "Frango desfiado com catupiry original e cheiro verde fresco.", price: 7.99, category: "Salgada", available: true },
+            { id: 2, name: "Carne", description: "Carne moída premium temperada com tomate, cebola e limão.", price: 7.99, category: "Salgada", available: true },
+            { id: 3, name: "Queijo", description: "Mix de mussarela, queijo minas, creme de leite e orégano.", price: 7.99, category: "Salgada", available: true },
+            { id: 4, name: "Queijo com Presunto", description: "Mussarela selecionada, presunto picado e orégano.", price: 7.99, category: "Salgada", available: true },
+            { id: 5, name: "Calabresa com Cebola", description: "Calabresa fatiada, cebola e um toque de mussarela.", price: 7.99, category: "Salgada", available: true },
+            { id: 6, name: "Bacon", description: "Bacon crocante em fatias com generosa camada de mussarela.", price: 7.99, category: "Salgada", available: true },
+            { id: 7, name: "Frango com Bacon", description: "Combinação perfeita de frango desfiado, bacon e mussarela.", price: 7.99, category: "Salgada", available: true },
+            { id: 8, name: "3 Queijos", description: "A união nobre de Mussarela, Catupiry e Provolone defumado.", price: 8.99, category: "Premium", available: true },
+            { id: 9, name: "Brócolis com Queijo", description: "Brócolis fresco no vapor, mussarela e pedaços de bacon.", price: 8.99, category: "Premium", available: true },
+            { id: 10, name: "Lombinho Canadense", description: "Lombo canadense fatiado com mussarela.", price: 8.99, category: "Premium", available: true },
+            { id: 11, name: "Carne Seca", description: "Carne seca desfiada artesanalmente com catupiry.", price: 10.50, category: "Premium", available: true },
+            { id: 12, name: "Chocolate c/ Morango", description: "Ganache de chocolate ao leite com morangos frescos fatiados.", price: 9.99, category: "Doce", available: true },
+            { id: 13, name: "Chocolate com MM", description: "Chocolate cremoso coberto com M&Ms coloridos.", price: 9.99, category: "Doce", available: true },
+            { id: 14, name: "Banana Nevada", description: "Banana fatiada, chocolate branco gratinado, açúcar e canela.", price: 8.99, category: "Doce", available: true },
+            { id: 15, name: "Abacaxi Nevado", description: "Abacaxi em calda artesanal com chocolate branco gratinado.", price: 8.99, category: "Doce", available: true },
+            { id: 16, name: "Churros", description: "Doce de leite cremoso com toque de canela e açúcar.", price: 8.99, category: "Doce", available: true },
+            { id: 17, name: "Romeu e Julieta", description: "A clássica combinação de queijo minas com goiabada.", price: 8.99, category: "Doce", available: true }
+        ];
+
+        const defaultOrders = [
+            {
+                id: "#1001",
+                customer: "Ana Paula de Melo",
+                phone: "(81) 98111-2233",
+                items: [
+                    { name: "Frango com Catupiry", quantity: 5, price: 7.99 },
+                    { name: "Queijo", quantity: 3, price: 7.99 }
+                ],
+                total: 63.92,
+                status: "Pendente",
+                notes: "Queijo bem derretido por favor",
+                createdAt: "Hoje às 10:20"
+            },
+            {
+                id: "#1002",
+                customer: "Carlos Alberto",
+                phone: "(81) 99222-3344",
+                items: [
+                    { name: "Calabresa com Cebola", quantity: 10, price: 7.99 }
+                ],
+                total: 79.90,
+                status: "Em Preparo",
+                notes: "Sem cebola",
+                createdAt: "Hoje às 10:15"
+            }
+        ];
+
+        let flavors = [];
+        let orders = [];
+
+        // Carrega dados integrados do LocalStorage ou define os padrões
+        function loadDatabase() {
+            // Busca os sabores compartilhados de 'sabor_que_vicia_flavors'
+            const localFlavors = localStorage.getItem('sabor_que_vicia_flavors');
+            if (localFlavors) {
+                flavors = JSON.parse(localFlavors);
+            } else {
+                flavors = defaultFlavors;
+                localStorage.setItem('sabor_que_vicia_flavors', JSON.stringify(defaultFlavors));
+            }
+
+            // Busca os pedidos de 'esfiha_orders'
+            const localOrders = localStorage.getItem('esfiha_orders');
+            if (localOrders) {
+                orders = JSON.parse(localOrders);
+            } else {
+                orders = defaultOrders;
+                localStorage.setItem('esfiha_orders', JSON.stringify(defaultOrders));
+            }
+        }
+
+        // Salva dados no LocalStorage
+        function saveOrders() {
+            localStorage.setItem('esfiha_orders', JSON.stringify(orders));
+        }
+
+        // --- INICIALIZAÇÃO ---
+        document.addEventListener("DOMContentLoaded", () => {
+            loadDatabase();
+            lucide.createIcons();
+            updateDashboard();
+            renderFlavorsSelection();
+        });
+
+        // --- FUNÇÕES DO DASHBOARD ---
+        function updateDashboard() {
+            const totalPedidos = orders.length;
+            const emAndamento = orders.filter(o => o.status === "Pendente" || o.status === "Em Preparo" || o.status === "Pronto").length;
+            const entregues = orders.filter(o => o.status === "Entregue").length;
+            const faturamento = orders.filter(o => o.status === "Entregue").reduce((acc, o) => acc + o.total, 0);
+
+            document.getElementById("stat-pedidos-hoje").innerText = totalPedidos;
+            document.getElementById("stat-em-andamento").innerText = emAndamento;
+            document.getElementById("stat-entregues").innerText = entregues;
+            document.getElementById("stat-faturamento").innerText = `R$ ${faturamento.toFixed(2).replace('.', ',')}`;
+
+            renderRecentOrdersTable();
+            updateTopFlavor();
+            drawSalesChart();
+            lucide.createIcons();
+        }
+
+        function renderRecentOrdersTable() {
+            const tbody = document.getElementById("lista-ultimos-pedidos-tbody");
+            const placeholder = document.getElementById("ultimos-pedidos-vazio");
+
+            if (orders.length === 0) {
+                tbody.innerHTML = "";
+                placeholder.classList.remove("hidden");
+                return;
+            }
+
+            placeholder.classList.add("hidden");
+            tbody.innerHTML = orders.map(order => {
+                const itemSummary = order.items.map(i => `${i.quantity}x ${i.name}`).join(", ");
+
+                let statusColor = "bg-gray-500/10 text-gray-400 border border-gray-500/20";
+                if (order.status === "Pendente") statusColor = "bg-red-500/10 text-red-500 border border-red-500/20";
+                if (order.status === "Em Preparo") statusColor = "bg-orange-500/10 text-orange-400 border border-orange-500/20";
+                if (order.status === "Pronto") statusColor = "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20";
+                if (order.status === "Entregue") statusColor = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+
+                return `
+                    <tr class="hover:bg-white/[0.02] transition-colors">
+                        <td class="py-4 pl-4 font-bold text-gray-400">${order.id}</td>
+                        <td class="py-4 font-semibold text-white">${order.customer}</td>
+                        <td class="py-4 text-gray-400 max-w-xs truncate" title="${itemSummary}">${itemSummary}</td>
+                        <td class="py-4 font-bold text-brand-accentOrange">R$ ${order.total.toFixed(2).replace('.', ',')}</td>
+                        <td class="py-4">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${statusColor}">
+                                ${order.status}
+                            </span>
+                        </td>
+                        
+<td class="py-4 text-right pr-4">
+    <div class="flex items-center justify-end gap-2">
+        
+        <!-- EDITAR -->
+        <button 
+            onclick="editOrder('${order.id}')"
+            class="text-xs font-bold bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white px-3 py-1.5 rounded-lg transition-all flex items-center gap-1">
+            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+        </button>
+
+        <!-- EXCLUIR -->
+        <button 
+            onclick="deleteOrder('${order.id}')"
+            class="text-xs font-bold bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg transition-all flex items-center gap-1">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        </button>
+
+        <!-- AVANÇAR -->
+        ${order.status !== 'Entregue' && order.status !== 'Cancelado' ? `
+            <button 
+                onclick="advanceOrderStatus('${order.id}')"
+                class="text-xs font-bold bg-brand-border hover:bg-brand-accentOrange hover:text-white px-3 py-1.5 rounded-lg transition-all text-gray-300">
+                Avançar
+            </button>
+        ` : `<span class="text-xs text-gray-600 font-medium">Finalizado</span>`}
+
+    </div>
+</td>
+<td class="py-4 text-gray-400 text-xs">
+    <div class="font-bold text-white">${order.payment}</div>
+    <div>${order.address}</div>
+</td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        function advanceOrderStatus(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+
+            if (order.status === "Pendente") order.status = "Em Preparo";
+            else if (order.status === "Em Preparo") order.status = "Pronto";
+            else if (order.status === "Pronto") order.status = "Entregue";
+
+            saveOrders();
+            showToast("Status Atualizado", `O pedido ${orderId} agora está ${order.status}.`);
+            updateDashboard();
+        }
+
+        function getFlavorsVolume() {
+            const volume = {};
+            orders.forEach(o => {
+                if (o.status !== "Cancelado") {
+                    o.items.forEach(i => {
+                        volume[i.name] = (volume[i.name] || 0) + i.quantity;
+                    });
+                }
+            });
+            return volume;
+        }
+
+        function updateTopFlavor() {
+            const container = document.getElementById("container-top-sabor");
+            const volumes = getFlavorsVolume();
+
+            let topFlavor = null;
+            let maxQty = 0;
+
+            for (const [name, qty] of Object.entries(volumes)) {
+                if (qty > maxQty) {
+                    maxQty = qty;
+                    topFlavor = name;
+                }
+            }
+
+            if (!topFlavor) {
+                container.innerHTML = `
+                    <div class="text-center space-y-3">
+                        <div class="w-12 h-12 rounded-full bg-brand-border/40 flex items-center justify-center mx-auto">
+                            <i data-lucide="pie-chart" class="w-5 h-5 text-gray-500"></i>
+                        </div>
+                        <p class="text-xs text-gray-400 font-medium px-4 max-w-xs leading-relaxed">Nenhuma esfiha vendida hoje ainda.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="text-center space-y-4 w-full px-4">
+                    <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center mx-auto shadow-lg shadow-orange-950/40">
+                        <i data-lucide="pizza" class="w-10 h-10 text-white"></i>
+                    </div>
+                    <div>
+                        <h5 class="text-lg font-black text-white leading-tight">${topFlavor}</h5>
+                        <p class="text-brand-accentOrange font-extrabold text-sm mt-1">${maxQty} unidades vendidas</p>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        function drawSalesChart() {
+            const chartPath = document.getElementById("chart-path");
+            const chartAreaPath = document.getElementById("chart-area-path");
+            const pointsGroup = document.getElementById("chart-points");
+
+            const xCoords = [50, 150, 250, 350, 450, 550, 650];
+            const dailyRevenue = [45, 90, 35, 120, 80, 145, 110];
+            const mapY = (val) => 160 - (val / 150) * 130;
+
+            let pathData = "";
+            let areaData = "M 50 160 ";
+
+            pointsGroup.innerHTML = "";
+
+            dailyRevenue.forEach((revenue, index) => {
+                const x = xCoords[index];
+                const y = mapY(revenue);
+
+                if (index === 0) {
+                    pathData += `M ${x} ${y} `;
+                } else {
+                    pathData += `L ${x} ${y} `;
+                }
+                areaData += `L ${x} ${y} `;
+
+                pointsGroup.innerHTML += `
+                    <circle cx="${x}" cy="${y}" r="5" fill="#f97316" stroke="#120c08" stroke-width="2" class="cursor-pointer hover:r-7 transition-all"/>
+                `;
+            });
+
+            areaData += "L 650 160 Z";
+
+            chartPath.setAttribute("d", pathData);
+            chartAreaPath.setAttribute("d", areaData);
+        }
+
+        // --- OPERAÇÃO DO MODAL DE NOVO PEDIDO ---
+        function openNewOrderModal() {
+            loadDatabase(); // Recarrega sabores antes de abrir para garantir novidades!
+            renderFlavorsSelection();
+            document.getElementById("modal-novo-pedido").classList.remove("hidden");
+        }
+
+        function closeNewOrderModal() {
+            document.getElementById("modal-novo-pedido").classList.add("hidden");
+            document.getElementById("order-customer").value = "";
+            document.getElementById("order-phone").value = "";
+            document.getElementById("order-notes").value = "";
+            document.getElementById("order-preview-total").innerText = "R$ 0,00";
+        }
+
+        function renderFlavorsSelection() {
+            const container = document.getElementById("order-flavors-selection");
+            const availableFlavors = flavors.filter(f => f.available);
+
+            if (availableFlavors.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4 text-gray-400 text-xs">
+                        Nenhum sabor disponível no cardápio atualmente.
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = availableFlavors.map(flavor => `
+                <div class="flex items-center justify-between bg-brand-dark/40 p-2.5 rounded-xl border border-brand-border/60">
+                    <div>
+                        <span class="text-sm font-semibold text-white block">${flavor.name}</span>
+                        <span class="text-xs text-brand-accentOrange font-medium">R$ ${flavor.price.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="updateQuantity(${flavor.id}, -1)" class="w-7 h-7 bg-brand-border text-white rounded-lg flex items-center justify-center font-bold hover:bg-brand-border/80 active:scale-90 transition-all">-</button>
+                        <input type="number" id="flavor-qty-${flavor.id}" data-id="${flavor.id}" data-name="${flavor.name}" data-price="${flavor.price}" value="0" min="0" readonly class="w-10 bg-transparent text-center text-white font-bold text-sm focus:outline-none">
+                        <button type="button" onclick="updateQuantity(${flavor.id}, 1)" class="w-7 h-7 bg-brand-border text-white rounded-lg flex items-center justify-center font-bold hover:bg-brand-border/80 active:scale-90 transition-all">+</button>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        function updateQuantity(flavorId, change) {
+            const input = document.getElementById(`flavor-qty-${flavorId}`);
+            if (!input) return;
+            let currentVal = parseInt(input.value) || 0;
+            currentVal += change;
+            if (currentVal < 0) currentVal = 0;
+            input.value = currentVal;
+            calculateTotalPreview();
+        }
+
+        function calculateTotalPreview() {
+            let total = 0;
+            flavors.filter(f => f.available).forEach(flavor => {
+                const input = document.getElementById(`flavor-qty-${flavor.id}`);
+                if (input) {
+                    const qty = parseInt(input.value) || 0;
+                    const price = parseFloat(input.dataset.price);
+                    total += qty * price;
+                }
+            });
+            document.getElementById("order-preview-total").innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+            return total;
+        }
+
+        function submitNewOrder() {
+    const customer = document.getElementById("order-customer").value;
+    const phone = document.getElementById("order-phone").value;
+    const address = document.getElementById("order-address").value; // Novo campo
+    const payment = document.getElementById("order-payment").value; // Novo campo
+    const notes = document.getElementById("order-notes").value;
+
+    if (!customer || !address) {
+        showToast("Erro", "Nome e endereço são obrigatórios!");
+        return;
+    }
+
+    const newOrder = {
+        id: "#" + Math.floor(Math.random() * 9000 + 1000), // Exemplo de ID aleatório
+        customer,
+        phone,
+        address,   // Salvo no objeto
+        payment,   // Salvo no objeto
+        items: [], // Você deve implementar a lógica de pegar os itens selecionados
+        total: 0,
+        status: "Pendente",
+        notes,
+        createdAt: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    orders.push(newOrder);
+    saveOrders();
+    closeNewOrderModal();
+    updateDashboard();
+    showToast("Sucesso!", "Pedido criado com sucesso.");
+}
+
+        // Sistema de Notificações Customizadas
+        function showToast(title, message, isWarning = false) {
+            const toast = document.getElementById("toast");
+            document.getElementById("toast-title").innerText = title;
+            document.getElementById("toast-message").innerText = message;
+
+            if (isWarning) {
+                toast.classList.add("border-red-500");
+                toast.classList.remove("border-emerald-500");
+            } else {
+                toast.classList.add("border-emerald-500");
+                toast.classList.remove("border-red-500");
+            }
+
+            toast.classList.remove("translate-y-20", "opacity-0", "pointer-events-none");
+
+            setTimeout(() => {
+                toast.classList.add("translate-y-20", "opacity-0", "pointer-events-none");
+            }, 3000);
+        }
+
+        function editOrder(orderId) {
+            const order = orders.find(o => o.id === orderId);
+
+            if (!order) return;
+
+            // Abre modal
+            openNewOrderModal();
+
+            // Preenche dados
+            document.getElementById("order-customer").value = order.customer;
+            document.getElementById("order-phone").value = order.phone;
+            document.getElementById("order-notes").value = order.notes || "";
+
+            // Reset quantidades
+            flavors.forEach(flavor => {
+                const input = document.getElementById(`flavor-qty-${flavor.id}`);
+                if (input) input.value = 0;
+            });
+
+            // Preenche itens do pedido
+            order.items.forEach(item => {
+                const flavor = flavors.find(f => f.name === item.name);
+
+                if (flavor) {
+                    const input = document.getElementById(`flavor-qty-${flavor.id}`);
+
+                    if (input) {
+                        input.value = item.quantity;
+                    }
+                }
+            });
+
+            calculateTotalPreview();
+
+            // Remove pedido antigo temporariamente
+            orders = orders.filter(o => o.id !== orderId);
+
+            saveOrders();
+
+            showToast(
+                "Modo edição",
+                `Você está editando o pedido ${orderId}.`
+            );
+        }
+
+        function deleteOrder(orderId) {
+            const order = orders.find(o => o.id === orderId);
+
+            if (!order) return;
+
+            const confirmDelete = confirm(
+                `Tem certeza que deseja excluir o pedido ${order.id} de ${order.customer}?`
+            );
+
+            if (!confirmDelete) return;
+
+            orders = orders.filter(o => o.id !== orderId);
+
+            saveOrders();
+            updateDashboard();
+
+            showToast(
+                "Pedido excluído",
+                `O pedido ${orderId} foi removido com sucesso.`,
+                true
+            );
+        }
+
+        // Exibe o Sabor mais Vendido
+        function updateTopFlavor() {
+            const container = document.getElementById("container-top-sabor");
+            const volumes = getFlavorsVolume();
+            let topFlavor = null;
+            let maxQty = 0;
+
+            for (const [name, qty] of Object.entries(volumes)) {
+                if (qty > maxQty) {
+                    maxQty = qty;
+                    topFlavor = name;
+                }
+            }
+
+            if (!topFlavor) return;
+
+            container.innerHTML = `
+        <div class="text-center">
+            <div class="text-4xl mb-2">🏆</div>
+            <h5 class="text-white font-black text-lg">${topFlavor}</h5>
+            <p class="text-xs text-brand-accentOrange font-bold uppercase">${maxQty} unidades vendidas</p>
+        </div>
+    `;
+        }
+
+        // Modal: Gerenciar Abertura/Fechamento
+        function openNewOrderModal() {
+            document.getElementById('modal-novo-pedido').classList.remove('hidden');
+        }
+
+        function closeNewOrderModal() {
+            document.getElementById('modal-novo-pedido').classList.add('hidden');
+        }
+
+        // Notificações Toast
+        function showToast(title, message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-message').innerText = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
+
+        // Simulação de desenho de gráfico (Placeholder)
+        function drawSalesChart() {
+            const path = document.getElementById('chart-path');
+            const area = document.getElementById('chart-area-path');
+            // Dados simplificados para o path do SVG
+            path.setAttribute('d', 'M0 140 C 100 130, 200 100, 350 80 C 500 60, 600 40, 700 20');
+            area.setAttribute('d', 'M0 160 L 0 140 C 100 130, 200 100, 350 80 C 500 60, 600 40, 700 20 L 700 160 Z');
+        }
+    </script>
+</body>
+
+</html>

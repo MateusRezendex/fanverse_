@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esfihas Delivery - Relatórios</title>
+    <!-- Tailwind CSS para um design responsivo e moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons para ícones vetorizados de alta qualidade -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#120c08',       // Fundo geral escuro e quente
+                            card: '#1a120e',       // Fundo dos cartões e elementos
+                            border: '#2a1e17',     // Bordas delicadas em tons quentes
+                            accentRed: '#e11d48',   // Vermelho para destaque de botões
+                            accentOrange: '#f97316',// Laranja vibrante
+                            accentYellow: '#eab308' // Amarelo dourado
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilização personalizada para a barra de rolagem */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #120c08;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #2a1e17;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #f97316;
+        }
+    </style>
+</head>
+
+<body class="bg-brand-dark text-gray-200 font-sans antialiased min-h-screen flex flex-col md:flex-row">
+
+    <!-- BARRA LATERAL (SIDEBAR) -->
+    <aside class="w-full md:w-64 bg-brand-card border-r border-brand-border flex flex-col justify-between shrink-0 p-5 z-20">
+        <div>
+            <!-- Logotipo do Estabelecimento -->
+            <div class="flex items-center gap-3 mb-8">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center shadow-lg shadow-red-900/30 shrink-0">
+                    <span class="text-white font-black text-xl">S</span>
+                </div>
+                <div>
+                    <span class="text-[10px] tracking-widest text-orange-500 font-extrabold block leading-none">ESFIHA</span>
+                    <h1 class="text-white font-black leading-none text-base mt-1">Sabor que Vicia</h1>
+                </div>
+            </div>
+
+            <!-- Navegação Principal -->
+            <nav class="space-y-1">
+                <a href="index.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard
+                </a>
+                <a href="pedidos.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="shopping-cart" class="w-5 h-5"></i> Pedidos
+                </a>
+                <a href="cozinha.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="chef-hat" class="w-5 h-5"></i> Cozinha
+                </a>
+                <a href="sabores.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="pizza" class="w-5 h-5"></i> Sabores
+                </a>
+                <a href="clientes.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="users" class="w-5 h-5"></i> Clientes
+                </a>
+                <a href="relatorios.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm bg-gradient-to-r from-red-500 to-orange-600 text-white shadow-lg shadow-orange-950/20">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Relatórios
+                </a>
+            </nav>
+        </div>
+
+        <!-- Botão "+ Novo Pedido" na parte inferior da barra lateral -->
+        <div class="mt-8">
+            <button onclick="openNewOrderModal()"
+                class="w-full bg-yellow-500 hover:bg-yellow-400 text-brand-dark font-black py-3.5 px-4 rounded-xl shadow-lg transition-all active:scale-95 duration-200 flex items-center justify-center gap-2 text-sm">
+                <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                Novo Pedido
+            </button>
+        </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL (MÉTRICAS AVANÇADAS) -->
+    <main class="flex-1 p-6 md:p-8 overflow-y-auto max-h-screen">
+        <section id="tab-relatorios" class="space-y-6">
+            <!-- Cabeçalho -->
+            <div>
+                <h2 class="text-2xl font-black text-white">Métricas Avançadas</h2>
+                <p class="text-gray-400 text-sm">Análise detalhada do desempenho de vendas e faturamento.</p>
+            </div>
+
+            <!-- Grade de Insights Rápidos (Conforme a imagem enviada) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Tíquete Médio -->
+                <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-2">
+                    <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Tíquete Médio</span>
+                    <h4 id="insights-ticket-medio" class="text-3xl font-black text-white">R$ 0,00</h4>
+                    <p class="text-xs text-gray-500">Valor médio gasto por pedido.</p>
+                </div>
+                <!-- Quantidade Total de Itens Vendidos -->
+                <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-2">
+                    <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Quantidade total de itens vendidos</span>
+                    <h4 id="insights-total-esfihas" class="text-3xl font-black text-white">0 unidades</h4>
+                    <p class="text-xs text-gray-500">Unidades de esfihas preparadas hoje.</p>
+                </div>
+                <!-- Taxa de Cancelamento -->
+                <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-2">
+                    <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Taxa de Cancelamento</span>
+                    <h4 id="insights-cancelamentos" class="text-3xl font-black text-white">0%</h4>
+                    <p class="text-xs text-gray-500">Pedidos cancelados ou estornados hoje.</p>
+                </div>
+            </div>
+
+            <!-- Quadro de Ranking de Vendas por Sabor (Conforme a imagem enviada) -->
+            <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-6">
+                <h3 class="text-white font-extrabold text-lg">Ranking de Vendas por Sabor</h3>
+                <div class="space-y-6" id="ranking-sabores-container">
+                    <!-- Gerado de forma responsiva por JavaScript -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL: NOVO PEDIDO (Sincronizado) -->
+    <div id="modal-novo-pedido" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-brand-card w-full max-w-lg rounded-2xl border border-brand-border overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
+                <h3 class="text-white font-bold text-lg flex items-center gap-2">
+                    <i data-lucide="shopping-bag" class="text-brand-accentOrange w-5 h-5"></i>
+                    Criar Novo Pedido
+                </h3>
+                <button onclick="closeNewOrderModal()" class="text-gray-400 hover:text-white transition-all">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-4 overflow-y-auto flex-1">
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase text-gray-400">Nome do Cliente</label>
+                    <input type="text" id="order-customer" placeholder="Ex: José da Silva"
+                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase text-gray-400">Telefone para Contato</label>
+                    <input type="tel" id="order-phone" placeholder="Ex: (81) 98765-4321"
+                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                </div>
+
+                <div class="space-y-3">
+                    <label class="text-xs font-bold uppercase text-gray-400 block">Escolher Sabores</label>
+                    <div id="order-flavors-selection" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                        <!-- Gerado dinamicamente -->
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase text-gray-400">Observações adicionais</label>
+                    <textarea id="order-notes" rows="2" placeholder="Sem cebola, bem assada, etc..."
+                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm resize-none"></textarea>
+                </div>
+            </div>
+
+            <div class="p-5 border-t border-brand-border flex items-center justify-between bg-black/20">
+                <div class="text-left">
+                    <span class="text-[10px] uppercase text-gray-500 font-bold block">Total Estimado</span>
+                    <span id="order-preview-total" class="text-brand-accentOrange font-black text-xl">R$ 0,00</span>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="closeNewOrderModal()"
+                        class="border border-brand-border text-gray-400 hover:text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all">
+                        Cancelar
+                    </button>
+                    <button onclick="submitNewOrder()"
+                        class="bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:opacity-90 active:scale-95 transition-all">
+                        Salvar Pedido
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTIFICAÇÃO POPUP CUSTOMIZADA -->
+    <div id="toast"
+        class="fixed bottom-6 right-6 bg-brand-card border border-emerald-500 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform translate-y-20 opacity-0 pointer-events-none transition-all duration-300 z-50">
+        <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <i data-lucide="check" class="w-5 h-5"></i>
+        </div>
+        <div>
+            <h5 class="font-bold text-sm text-white" id="toast-title">Sucesso!</h5>
+            <p class="text-xs text-gray-400" id="toast-message">Operação executada com sucesso.</p>
+        </div>
+    </div>
+
+    <!-- SCRIPT DE LÓGICA DO RELATÓRIO -->
+    <script>
+        // --- BASE DE DADOS PERSISTIDA NO LOCALSTORAGE ---
+        const defaultOrders = [
+            {
+                id: "#1001",
+                customer: "Ana Paula de Melo",
+                phone: "(81) 98111-2233",
+                items: [
+                    { name: "Esfiha de Carne", quantity: 5, price: 4.50 },
+                    { name: "Esfiha de Queijo", quantity: 3, price: 4.90 }
+                ],
+                total: 37.20,
+                status: "Pendente",
+                notes: "Queijo bem derretido por favor",
+                createdAt: "Hoje às 10:20"
+            },
+            {
+                id: "#1002",
+                customer: "Carlos Alberto",
+                phone: "(81) 99222-3344",
+                items: [
+                    { name: "Esfiha de Calabresa", quantity: 10, price: 4.70 }
+                ],
+                total: 47.00,
+                status: "Em Preparo",
+                notes: "Sem cebola",
+                createdAt: "Hoje às 10:15"
+            },
+            {
+                id: "#1003",
+                customer: "Juliana Santos",
+                phone: "(81) 98777-6655",
+                items: [
+                    { name: "Esfiha de Frango c/ Catupiry", quantity: 4, price: 5.20 },
+                    { name: "Esfiha de Chocolate", quantity: 2, price: 6.00 }
+                ],
+                total: 32.80,
+                status: "Pronto",
+                notes: "",
+                createdAt: "Hoje às 10:02"
+            }
+        ];
+
+        const defaultFlavors = [
+            { id: 1, name: "Esfiha de Carne", price: 4.50, category: "Salgada", available: true },
+            { id: 2, name: "Esfiha de Queijo", price: 4.90, category: "Salgada", available: true },
+            { id: 3, name: "Esfiha de Calabresa", price: 4.70, category: "Salgada", available: true },
+            { id: 4, name: "Esfiha de Frango c/ Catupiry", price: 5.20, category: "Salgada", available: true },
+            { id: 5, name: "Esfiha de Chocolate", price: 6.00, category: "Doce", available: true },
+            { id: 6, name: "Esfiha de Romeu e Julieta", price: 5.80, category: "Doce", available: true }
+        ];
+
+        let orders = JSON.parse(localStorage.getItem('esfiha_orders')) || defaultOrders;
+        let flavors = JSON.parse(localStorage.getItem('esfiha_flavors')) || defaultFlavors;
+
+        function saveData() {
+            localStorage.setItem('esfiha_orders', JSON.stringify(orders));
+            localStorage.setItem('esfiha_flavors', JSON.stringify(flavors));
+        }
+
+        // --- INICIALIZAÇÃO ---
+        document.addEventListener("DOMContentLoaded", () => {
+            if (!localStorage.getItem('esfiha_orders')) saveData();
+            
+            lucide.createIcons();
+            renderReports();
+            renderFlavorsSelection();
+        });
+
+        // --- RENDERIZAR MÉTRICAS & RANKING ---
+        function renderReports() {
+            // Filtragem de pedidos para cálculo do faturamento correto
+            const nonCancelledOrders = orders.filter(o => o.status !== "Cancelado");
+            const deliveredOrders = orders.filter(o => o.status === "Entregue");
+
+            // Se ainda não houver pedidos entregues, baseamos as métricas em todos os ativos para o mock coincidir com a imagem
+            const referenceOrders = deliveredOrders.length > 0 ? deliveredOrders : nonCancelledOrders;
+            
+            const totalRevenue = referenceOrders.reduce((acc, o) => acc + o.total, 0);
+            const avgTicket = referenceOrders.length > 0 ? (totalRevenue / referenceOrders.length) : 0;
+
+            // Contagem total das unidades vendidas de todas as esfihas
+            let totalItemsCount = 0;
+            nonCancelledOrders.forEach(o => {
+                o.items.forEach(i => totalItemsCount += i.quantity);
+            });
+
+            // Percentual de Cancelamento
+            const totalOrdersCount = orders.length;
+            const cancelledOrdersCount = orders.filter(o => o.status === "Cancelado").length;
+            const cancellationRate = totalOrdersCount > 0 ? ((cancelledOrdersCount / totalOrdersCount) * 100) : 0;
+
+            // Atribuição aos cards superiores
+            document.getElementById("insights-ticket-medio").innerText = `R$ ${avgTicket.toFixed(2).replace('.', ',')}`;
+            document.getElementById("insights-total-esfihas").innerText = `${totalItemsCount} unidades`;
+            document.getElementById("insights-cancelamentos").innerText = `${cancellationRate.toFixed(0)}%`;
+
+            // Processamento do Ranking de Vendas por Sabor
+            const volumes = {};
+            nonCancelledOrders.forEach(o => {
+                o.items.forEach(i => {
+                    volumes[i.name] = (volumes[i.name] || 0) + i.quantity;
+                });
+            });
+
+            const rankingContainer = document.getElementById("ranking-sabores-container");
+            const sortedFlavors = Object.entries(volumes).sort((a, b) => b[1] - a[1]);
+            
+            // O sabor número 1 dita o limite de 100% da barra de progresso
+            const maxVolume = sortedFlavors[0] ? sortedFlavors[0][1] : 1;
+
+            if (sortedFlavors.length === 0) {
+                rankingContainer.innerHTML = `
+                    <p class="text-sm text-gray-500 py-8 text-center">Nenhum dado de venda coletado hoje.</p>
+                `;
+                return;
+            }
+
+            rankingContainer.innerHTML = sortedFlavors.map(([name, qty], index) => {
+                const percentage = (qty / maxVolume) * 100;
+                return `
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center text-sm font-semibold">
+                            <span class="text-white">
+                                <span class="text-brand-accentOrange mr-1.5 font-bold">#${index + 1}</span> ${name}
+                            </span>
+                            <span class="text-brand-accentOrange font-bold">${qty} unidades</span>
+                        </div>
+                        <div class="w-full bg-brand-dark rounded-full h-2.5 overflow-hidden border border-brand-border/40">
+                            <div class="bg-gradient-to-r from-red-600 to-orange-500 h-full rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        // --- OPERAÇÃO DO MODAL DE NOVO PEDIDO ---
+        function openNewOrderModal() {
+            document.getElementById("modal-novo-pedido").classList.remove("hidden");
+        }
+
+        function closeNewOrderModal() {
+            document.getElementById("modal-novo-pedido").classList.add("hidden");
+            document.getElementById("order-customer").value = "";
+            document.getElementById("order-phone").value = "";
+            document.getElementById("order-notes").value = "";
+            document.getElementById("order-preview-total").innerText = "R$ 0,00";
+            renderFlavorsSelection();
+        }
+
+        function renderFlavorsSelection() {
+            const container = document.getElementById("order-flavors-selection");
+            const availableFlavors = flavors.filter(f => f.available);
+
+            container.innerHTML = availableFlavors.map(flavor => `
+                <div class="flex items-center justify-between bg-brand-dark/40 p-2.5 rounded-xl border border-brand-border/60">
+                    <label class="flex items-center gap-3 cursor-pointer text-sm text-gray-200 font-semibold select-none">
+                        <input type="checkbox" value="${flavor.id}" onchange="calculateOrderTotal()" class="w-4 h-4 rounded border-brand-border text-brand-accentOrange focus:ring-0 focus:ring-offset-0 bg-brand-dark">
+                        ${flavor.name}
+                    </label>
+                    <input type="number" id="qty-flavor-${flavor.id}" min="1" value="1" onchange="calculateOrderTotal()" class="w-16 bg-brand-dark border border-brand-border rounded-lg px-2 py-1 text-center text-white text-xs font-bold focus:outline-none">
+                </div>
+            `).join("");
+        }
+
+        function calculateOrderTotal() {
+            let total = 0;
+            const checkboxes = document.querySelectorAll("#order-flavors-selection input[type='checkbox']:checked");
+            
+            checkboxes.forEach(cb => {
+                const flavorId = parseInt(cb.value);
+                const flavor = flavors.find(f => f.id === flavorId);
+                const qtyInput = document.getElementById(`qty-flavor-${flavorId}`);
+                const quantity = parseInt(qtyInput.value) || 1;
+
+                if (flavor) {
+                    total += flavor.price * quantity;
+                }
+            });
+
+            document.getElementById("order-preview-total").innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+        }
+
+        function submitNewOrder() {
+            const customer = document.getElementById("order-customer").value.trim();
+            const phone = document.getElementById("order-phone").value.trim();
+            const notes = document.getElementById("order-notes").value.trim();
+            
+            if (!customer || !phone) {
+                alert("Por favor, preencha o nome e o telefone do cliente.");
+                return;
+            }
+
+            const checkboxes = document.querySelectorAll("#order-flavors-selection input[type='checkbox']:checked");
+            const selectedItems = [];
+            let total = 0;
+
+            checkboxes.forEach(cb => {
+                const flavorId = parseInt(cb.value);
+                const flavor = flavors.find(f => f.id === flavorId);
+                const qtyInput = document.getElementById(`qty-flavor-${flavorId}`);
+                const quantity = parseInt(qtyInput.value) || 1;
+
+                if (flavor) {
+                    selectedItems.push({
+                        name: flavor.name,
+                        quantity: quantity,
+                        price: flavor.price
+                    });
+                    total += flavor.price * quantity;
+                }
+            });
+
+            if (selectedItems.length === 0) {
+                alert("Selecione pelo menos um sabor para registrar o pedido.");
+                return;
+            }
+
+            const newId = `#${1000 + orders.length + 1}`;
+            orders.unshift({
+                id: newId,
+                customer: customer,
+                phone: phone,
+                items: selectedItems,
+                total: total,
+                status: "Pendente",
+                notes: notes,
+                createdAt: "Hoje às " + new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})
+            });
+
+            saveData();
+            closeNewOrderModal();
+            renderReports();
+            showToast("Pedido Criado", `Sucesso ao registrar o pedido ${newId}.`);
+        }
+
+        // --- SISTEMA INTERNO DE TOAST ---
+        function showToast(title, message) {
+            const toast = document.getElementById("toast");
+            document.getElementById("toast-title").innerText = title;
+            document.getElementById("toast-message").innerText = message;
+
+            toast.classList.remove("translate-y-20", "opacity-0", "pointer-events-none");
+            
+            setTimeout(() => {
+                toast.classList.add("translate-y-20", "opacity-0", "pointer-events-none");
+            }, 3500);
+        }
+    </script>
+</body>
+
+</html>

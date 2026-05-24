@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sabor que Vicia - Sabores</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#120c08',
+                            card: '#1a120e',
+                            border: '#2a1e17',
+                            accentOrange: '#f97316'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-brand-dark text-gray-200 font-sans antialiased min-h-screen flex flex-col md:flex-row">
+
+    <!-- BARRA LATERAL -->
+    <aside
+        class="w-full md:w-64 bg-brand-card border-b md:border-b-0 md:border-r border-brand-border flex flex-col justify-between shrink-0 p-5 z-20">
+        <div>
+            <div class="flex items-center gap-3 mb-8">
+                <div
+                    class="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center shadow-lg">
+                    <span class="text-white font-black text-xl">S</span>
+                </div>
+                <div>
+                    <span class="text-xs uppercase text-brand-accentOrange tracking-wider font-bold">Esfiha</span>
+                    <h1 class="text-white font-black leading-none text-base">Sabor que Vicia</h1>
+                </div>
+            </div>
+            <nav class="space-y-1">
+                <a href="./index.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard
+                </a>
+                <a href="./pedidos.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="shopping-cart" class="w-5 h-5"></i> Pedidos
+                </a>
+                <a href="./cozinha.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="chef-hat" class="w-5 h-5"></i> Cozinha
+                </a>
+                <a href="./sabores.html"
+                    class="bg-gradient-to-br from-red-600 to-orange-500 text-white w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm">
+                    <i data-lucide="pizza" class="w-5 h-5"></i> Sabores
+                </a>
+                <a href="/clientes.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="users" class="w-5 h-5"></i> Clientes
+                </a>
+                <a href="./pedidos.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Relatórios
+                </a>
+            </nav>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-6 md:p-8 overflow-y-auto max-h-screen space-y-6">
+        <!-- HEADER -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h2 class="text-2xl font-black text-white">Menu & Sabores</h2>
+                <p class="text-gray-400 text-sm">Portfólio completo de esfihas doces, salgadas e especiais.</p>
+            </div>
+            <button onclick="openNewFlavorModal()"
+                class="bg-gradient-to-r from-red-600 to-orange-500 hover:opacity-90 active:scale-95 transition-all text-white font-bold py-2.5 px-5 rounded-xl flex items-center justify-center gap-2 text-sm self-start sm:self-auto shadow-lg">
+                <i data-lucide="plus" class="w-4 h-4"></i> Adicionar Sabor
+            </button>
+        </div>
+
+        <!-- FILTROS E PESQUISA -->
+        <div
+            class="bg-brand-card p-4 rounded-2xl border border-brand-border flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div class="relative w-full md:w-80">
+                <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"></i>
+                <input type="text" id="search-input" oninput="filterFlavors()" placeholder="Buscar esfiha..."
+                    class="w-full bg-brand-dark border border-brand-border rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-brand-accentOrange text-sm transition-all">
+            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+                <button onclick="setCategoryFilter('Todos')" id="filter-all"
+                    class="px-4 py-2 text-xs font-bold rounded-xl transition-all border border-brand-accentOrange bg-brand-accentOrange text-white shrink-0">
+                    Todos
+                </button>
+                <button onclick="setCategoryFilter('Salgada')" id="filter-salgada"
+                    class="px-4 py-2 text-xs font-bold rounded-xl transition-all border border-brand-border hover:border-gray-500 text-gray-400 hover:text-white shrink-0">
+                    Salgadas
+                </button>
+                <button onclick="setCategoryFilter('Doce')" id="filter-doce"
+                    class="px-4 py-2 text-xs font-bold rounded-xl transition-all border border-brand-border hover:border-gray-500 text-gray-400 hover:text-white shrink-0">
+                    Doces
+                </button>
+                <button onclick="setCategoryFilter('Premium')" id="filter-premium"
+                    class="px-4 py-2 text-xs font-bold rounded-xl transition-all border border-brand-border hover:border-gray-500 text-gray-400 hover:text-white shrink-0">
+                    Premium
+                </button>
+
+            </div>
+        </div>
+
+        <!-- GRID DOS SABORES -->
+        <div id="sabores-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </main>
+
+    <!-- MODAL NOVO SABOR -->
+    <div id="modal-flavor"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-brand-card w-full max-w-md rounded-2xl border border-brand-border overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
+                <h3 class="text-white font-bold text-lg">Adicionar Novo Sabor</h3>
+                <button onclick="closeNewFlavorModal()" class="text-gray-400 hover:text-white"><i data-lucide="x"
+                        class="w-6 h-6"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Nome da Esfiha</label>
+                    <input type="text" id="f-name" placeholder="Ex: Frango com Requeijão"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-400 uppercase">Preço (R$)</label>
+                        <input type="number" step="0.10" id="f-price" placeholder="Ex: 5.90"
+                            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-400 uppercase">Categoria</label>
+                        <select id="f-category"
+                            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                            <option value="Salgada">Salgada</option>
+                            <option value="Doce">Doce</option>
+                            <option value="Especial">Especial</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Ingredientes / Descrição</label>
+                    <textarea id="f-ingredients"
+                        placeholder="Ex: Peito de frango desfiado com requeijão cremoso e orégano" rows="2"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm resize-none"></textarea>
+                </div>
+            </div>
+            <div class="p-5 border-t border-brand-border flex justify-end gap-3 bg-black/20">
+                <button onclick="closeNewFlavorModal()"
+                    class="border border-brand-border text-gray-400 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold">Cancelar</button>
+                <button onclick="submitNewFlavor()"
+                    class="bg-gradient-to-r from-red-600 to-orange-500 hover:opacity-90 text-white font-bold px-5 py-2 rounded-xl text-xs">Criar
+                    Sabor</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST DE NOTIFICAÇÃO -->
+    <div id="toast"
+        class="fixed bottom-5 right-5 bg-brand-card border border-brand-border text-white px-5 py-4 rounded-xl shadow-2xl flex items-center gap-3 translate-y-20 opacity-0 transition-all duration-300 z-50 pointer-events-none">
+        <div id="toast-icon-container" class="w-8 h-8 rounded-full flex items-center justify-center">
+            <i id="toast-icon" data-lucide="check" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+            <h4 id="toast-title" class="font-bold text-sm"></h4>
+            <p id="toast-desc" class="text-gray-400 text-xs mt-0.5"></p>
+        </div>
+    </div>
+
+    <script>
+        // Sabores importados e mapeados de https://esfiha.vercel.app/cardapio.html
+        let defaultFlavors = [
+            // Tradicionais
+            {
+                id: 1,
+                name: "Frango com Catupiry",
+                description: "Frango desfiado com catupiry original e cheiro verde fresco.",
+                price: 7.99,
+                category: "Salgada",
+                available: true
+            },
+            {
+                id: 2,
+                name: "Carne",
+                description: "Carne moída premium temperada com tomate, cebola e limão.",
+                price: 7.99,
+                category: "Salgada",
+                available: true
+            },
+            {
+                id: 3,
+                name: "Queijo",
+                description: "Mix de mussarela, queijo minas, creme de leite e orégano.",
+                price: 7.99,
+                category: "Salgada",
+                available: true
+            },
+            {
+                id: 4,
+                name: "Queijo com Presunto",
+                description: "Mussarela selecionada, presunto picado e orégano.",
+                price: 7.99,
+                category: "Salgada",
+                available: true
+            },
+            {
+                id: 5,
+                name: "Calabresa com Cebola",
+                description: "Calabresa fatiada, cebola e um toque de mussarela.",
+                price: 7.99,
+                category: "Salgada",
+                available: true
+            },
+            {
+                id: 6,
+                name: "Bacon",
+                description: "Bacon crocante em fatias com generosa camada de mussarela.",
+                price: 7.99,
+                category: "Salgada",
+                available: true
+            },
+            {
+                id: 7,
+                name: "Frango com Bacon",
+                description: "Combinação perfeita de frango desfiado, bacon e mussarela.",
+                price: 7.99,
+                category: "Salgada",
+                available: true
+            },
+
+            // Premium
+            {
+                id: 8,
+                name: "3 Queijos",
+                description: "A união nobre de Mussarela, Catupiry e Provolone defumado.",
+                price: 8.99,
+                category: "Premium",
+                available: true
+            },
+            {
+                id: 9,
+                name: "Brócolis com Queijo",
+                description: "Brócolis fresco no vapor, mussarela e pedaços de bacon.",
+                price: 8.99,
+                category: "Premium",
+                available: true
+            },
+            {
+                id: 10,
+                name: "Lombinho Canadense",
+                description: "Lombo canadense fatiado com mussarela.",
+                price: 8.99,
+                category: "Premium",
+                available: true
+            },
+            {
+                id: 11,
+                name: "Carne Seca",
+                description: "Carne seca desfiada artesanalmente com catupiry.",
+                price: 10.50,
+                category: "Premium",
+                available: true
+            },
+
+            // Doces
+            {
+                id: 12,
+                name: "Chocolate c/ Morango",
+                description: "Ganache de chocolate ao leite com morangos frescos fatiados.",
+                price: 9.99,
+                category: "Doce",
+                available: true
+            },
+            {
+                id: 13,
+                name: "Chocolate com MM",
+                description: "Chocolate cremoso coberto com M&Ms coloridos.",
+                price: 9.99,
+                category: "Doce",
+                available: true
+            },
+            {
+                id: 14,
+                name: "Banana Nevada",
+                description: "Banana fatiada, chocolate branco gratinado, açúcar e canela.",
+                price: 8.99,
+                category: "Doce",
+                available: true
+            },
+            {
+                id: 15,
+                name: "Abacaxi Nevado",
+                description: "Abacaxi em calda artesanal com chocolate branco gratinado.",
+                price: 8.99,
+                category: "Doce",
+                available: true
+            },
+            {
+                id: 16,
+                name: "Churros",
+                description: "Doce de leite cremoso com toque de canela e açúcar.",
+                price: 8.99,
+                category: "Doce",
+                available: true
+            },
+            {
+                id: 17,
+                name: "Romeu e Julieta",
+                description: "A clássica combinação de queijo minas com goiabada.",
+                price: 8.99,
+                category: "Doce",
+                available: true
+            }
+        ];
+
+        let flavors = [];
+        let currentFilter = 'Todos';
+
+        // Simulação de banco de dados integrado
+        function getFlavors() {
+            const localData = localStorage.getItem('sabor_que_vicia_flavors');
+            if (localData) {
+                return JSON.parse(localData);
+            } else {
+                localStorage.setItem('sabor_que_vicia_flavors', JSON.stringify(defaultFlavors));
+                return defaultFlavors;
+            }
+        }
+
+        function saveFlavors(data) {
+            localStorage.setItem('sabor_que_vicia_flavors', JSON.stringify(data));
+            flavors = data;
+        }
+        window.onload = function () {
+
+            flavors = getFlavors();
+
+            // Caso não exista nada salvo, carrega sabores padrão
+            if (!flavors || flavors.length === 0) {
+                flavors = defaultFlavors;
+                saveFlavors(flavors);
+            }
+
+            renderFlavors();
+
+            lucide.createIcons();
+        }
+
+        function renderFlavors() {
+            const grid = document.getElementById('sabores-grid');
+            grid.innerHTML = '';
+
+            const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
+
+            const filtered = flavors.filter(f => {
+                const matchesCategory = (currentFilter === 'Todos' || f.category === currentFilter);
+                const matchesSearch = f.name.toLowerCase().includes(searchTerm) ||
+                    (f.description && f.description.toLowerCase().includes(searchTerm));
+                return matchesCategory && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-12 flex flex-col items-center justify-center text-center">
+                        <div class="w-16 h-16 bg-brand-card border border-brand-border rounded-full flex items-center justify-center mb-4">
+                            <i data-lucide="info" class="w-8 h-8 text-gray-500"></i>
+                        </div>
+                        <h4 class="text-white font-bold">Nenhum sabor encontrado</h4>
+                        <p class="text-gray-400 text-xs mt-1">Experimente buscar por outros termos ou mudar de categoria.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            filtered.forEach(f => {
+                const card = document.createElement('div');
+                card.className = `bg-brand-card p-5 rounded-2xl border ${f.available ? 'border-brand-border' : 'border-red-900/40 opacity-75'} flex flex-col justify-between h-full transition-all hover:scale-[1.01] hover:shadow-lg relative overflow-hidden group`;
+
+                // Badge de categoria
+                let categoryBadgeColor = "bg-red-500/10 text-red-400";
+                if (f.category === "Doce") {
+                    categoryBadgeColor = "bg-amber-500/10 text-amber-400";
+                } else if (f.category === "Especial") {
+                    categoryBadgeColor = "bg-purple-500/10 text-purple-400";
+                }
+
+                card.innerHTML = `
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2.5 py-1 text-[10px] rounded-full font-bold uppercase tracking-wider ${categoryBadgeColor}">${f.category}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[11px] ${f.available ? 'text-emerald-500' : 'text-red-500'} font-semibold">
+                                    ${f.available ? 'Disponível' : 'Indisponível'}
+                                </span>
+                                <button onclick="toggleAvailability(${f.id})" title="Alternar Disponibilidade" class="p-1 rounded-lg bg-black/30 hover:bg-black/50 border border-brand-border text-gray-400 hover:text-white transition-all">
+                                    <i data-lucide="${f.available ? 'eye' : 'eye-off'}" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-white font-extrabold text-lg mt-1 group-hover:text-brand-accentOrange transition-colors">${f.name}</h4>
+                            <p class="text-gray-400 text-xs mt-1 leading-relaxed line-clamp-2">${f.description || 'Nenhum ingrediente listado.'}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between mt-6 pt-4 border-t border-brand-border/40">
+                        <div>
+                            <span class="block text-[10px] uppercase font-bold text-gray-500 tracking-wider">Preço</span>
+                            <span class="text-brand-accentOrange font-black text-xl">R$ ${f.price.toFixed(2).replace('.', ',')}</span>
+                        </div>
+<div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
+    
+    <button 
+        onclick="editFlavorPrice(${f.id})" 
+        title="Alterar valor"
+        class="p-2 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 hover:text-orange-300 transition-all">
+        <i data-lucide="pencil" class="w-4 h-4"></i>
+    </button>
+
+    <button 
+        onclick="deleteFlavor(${f.id})" 
+        title="Excluir sabor" 
+        class="p-2 rounded-xl bg-red-950/20 hover:bg-red-950/60 border border-red-900/30 text-red-400 hover:text-red-300 transition-all">
+        <i data-lucide="trash-2" class="w-4 h-4"></i>
+    </button>
+
+</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        // Troca de Filtros
+        function setCategoryFilter(category) {
+            currentFilter = category;
+
+            // Atualizar classes dos botões de filtro
+            const buttons = {
+                'Todos': 'filter-all',
+                'Salgada': 'filter-salgada',
+                'Doce': 'filter-doce',
+                'Premium': 'filter-premium'
+            };
+
+            Object.entries(buttons).forEach(([cat, id]) => {
+                const btn = document.getElementById(id);
+                if (cat === category) {
+                    btn.className = "px-4 py-2 text-xs font-bold rounded-xl transition-all border border-brand-accentOrange bg-brand-accentOrange text-white shrink-0";
+                } else {
+                    btn.className = "px-4 py-2 text-xs font-bold rounded-xl transition-all border border-brand-border hover:border-gray-500 text-gray-400 hover:text-white shrink-0";
+                }
+            });
+
+            renderFlavors();
+        }
+
+        function filterFlavors() {
+            renderFlavors();
+        }
+
+        // Alterna entre Disponível e Indisponível
+        function toggleAvailability(id) {
+            const index = flavors.findIndex(f => f.id === id);
+            if (index !== -1) {
+                flavors[index].available = !flavors[index].available;
+                saveFlavors(flavors);
+                showToast(
+                    flavors[index].available ? "Disponível" : "Indisponível",
+                    `${flavors[index].name} foi atualizada com sucesso!`,
+                    !flavors[index].available
+                );
+                renderFlavors();
+            }
+        }
+
+        // Apaga Sabor
+        function deleteFlavor(id) {
+            const index = flavors.findIndex(f => f.id === id);
+            if (index !== -1) {
+                const flavorName = flavors[index].name;
+                flavors.splice(index, 1);
+                saveFlavors(flavors);
+                showToast("Sabor Removido", `${flavorName} foi removido do seu cardápio.`, true);
+                renderFlavors();
+            }
+        }
+
+        function editFlavorPrice(id) {
+    const flavor = flavors.find(f => f.id === id);
+
+    if (!flavor) return;
+
+    const newPrice = prompt(
+        `Novo valor para "${flavor.name}"`,
+        flavor.price.toFixed(2)
+    );
+
+    if (newPrice === null) return;
+
+    const parsedPrice = parseFloat(
+        newPrice.replace(',', '.')
+    );
+
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+        showToast(
+            "Valor inválido",
+            "Digite um preço válido.",
+            true
+        );
+        return;
+    }
+
+    flavor.price = parsedPrice;
+
+    saveFlavors(flavors);
+
+    renderFlavors();
+
+    showToast(
+        "Preço atualizado",
+        `${flavor.name} agora custa R$ ${parsedPrice.toFixed(2).replace('.', ',')}`
+    );
+}
+
+        function openNewFlavorModal() {
+            document.getElementById('modal-flavor').classList.remove('hidden');
+        }
+
+        function closeNewFlavorModal() {
+            document.getElementById('modal-flavor').classList.add('hidden');
+            // Limpa formulário
+            document.getElementById('f-name').value = '';
+            document.getElementById('f-price').value = '';
+            document.getElementById('f-ingredients').value = '';
+        }
+
+        function submitNewFlavor() {
+            const rawName = document.getElementById('f-name').value.trim();
+            const price = parseFloat(document.getElementById('f-price').value);
+            const category = document.getElementById('f-category').value;
+            const description = document.getElementById('f-ingredients').value.trim();
+
+            if (!rawName || isNaN(price)) {
+                showToast("Erro", "Por favor preencha os campos obrigatórios (Nome e Preço).", true);
+                return;
+            }
+
+            // Garante o prefixo "Esfiha de " apenas se já não o tiver
+            const name = rawName.toLowerCase().startsWith('esfiha') ? rawName : `Esfiha de ${rawName}`;
+
+            // Criar ID incremental único
+            const newId = flavors.length > 0 ? Math.max(...flavors.map(f => f.id)) + 1 : 1;
+
+            flavors.push({
+                id: newId,
+                name,
+                price,
+                category,
+                description: description || "Esfiha preparada na hora com ingredientes frescos.",
+                available: true
+            });
+
+            saveFlavors(flavors);
+            closeNewFlavorModal();
+            showToast("Sucesso", `${name} adicionada ao seu cardápio!`);
+            renderFlavors();
+        }
+
+        // Sistema de Notificações Customizadas (Sem alert!)
+        function showToast(title, desc, isWarning = false) {
+            const toast = document.getElementById('toast');
+            const iconContainer = document.getElementById('toast-icon-container');
+            const icon = document.getElementById('toast-icon');
+
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-desc').innerText = desc;
+
+            if (isWarning) {
+                iconContainer.className = "w-8 h-8 rounded-full flex items-center justify-center bg-red-500/20";
+                icon.className = "w-5 h-5 text-red-500";
+                icon.setAttribute('data-lucide', 'alert-triangle');
+            } else {
+                iconContainer.className = "w-8 h-8 rounded-full flex items-center justify-center bg-emerald-500/20";
+                icon.className = "w-5 h-5 text-emerald-500";
+                icon.setAttribute('data-lucide', 'check');
+            }
+
+            lucide.createIcons();
+
+            // Mostra o Toast
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            // Esconde após 3 segundos
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 3000);
+        }
+    </script>
+</body>
+
+</html>

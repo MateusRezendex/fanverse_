@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sabor que Vicia - Pedidos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="js/db.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#120c08',
+                            card: '#1a120e',
+                            border: '#2a1e17',
+                            accentOrange: '#f97316'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-brand-dark text-gray-200 font-sans antialiased min-h-screen flex flex-col md:flex-row">
+
+    <!-- BARRA LATERAL -->
+    <aside
+        class="w-full md:w-64 bg-brand-card border-r border-brand-border flex flex-col justify-between shrink-0 p-5 z-20">
+        <div>
+            <div class="flex items-center gap-3 mb-8">
+                <div
+                    class="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center shadow-lg">
+                    <span class="text-white font-black text-xl">S</span>
+                </div>
+                <div>
+                    <span class="text-xs uppercase text-brand-accentOrange tracking-wider font-bold">Esfiha</span>
+                    <h1 class="text-white font-black leading-none text-base">Sabor que Vicia</h1>
+                </div>
+            </div>
+            <nav class="space-y-1">
+                <a href="index.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard
+                </a>
+                <a href="pedidos.html"
+                    class="bg-gradient-to-br from-red-600 to-orange-500 text-white w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm">
+                    <i data-lucide="shopping-cart" class="w-5 h-5"></i> Pedidos
+                </a>
+                <a href="cozinha.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="chef-hat" class="w-5 h-5"></i> Cozinha
+                </a>
+                <a href="sabores.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="pizza" class="w-5 h-5"></i> Sabores
+                </a>
+                <a href="clientes.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="users" class="w-5 h-5"></i> Clientes
+                </a>
+                <a href="relatorios.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Relatórios
+                </a>
+            </nav>
+        </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="flex-1 p-6 md:p-8 overflow-y-auto max-h-screen space-y-6">
+        <div>
+            <h2 class="text-2xl font-black text-white">Controle de Pedidos</h2>
+            <p class="text-gray-400 text-sm">Histórico e gestão do progresso operacional.</p>
+        </div>
+
+        <div class="bg-brand-card rounded-2xl border border-brand-border overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-black/20 text-xs font-bold uppercase text-gray-400 border-b border-brand-border">
+                            <th class="py-4 px-6">ID</th>
+                            <th class="py-4 px-6">Cliente</th>
+                            <th class="py-4 px-6">Itens</th>
+                            <th class="py-4 px-6">Total</th>
+                            <th class="py-4 px-6">Status</th>
+                            <th class="py-4 px-6 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-pedidos-body" class="divide-y divide-brand-border/40 text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let orders = [];
+        let flavors = [];
+
+        window.onload = function () {
+
+            orders = getOrders();
+
+            flavors = JSON.parse(
+                localStorage.getItem('sabor_que_vicia_flavors')
+            ) || [];
+
+            renderTable();
+
+            lucide.createIcons();
+        }
+
+        function renderTable() {
+
+            const tbody = document.getElementById('table-pedidos-body');
+
+            tbody.innerHTML = '';
+
+            orders.slice().reverse().forEach(o => {
+
+                const tr = document.createElement('tr');
+
+                tr.className = "hover:bg-white/5 transition-all";
+
+                const itemsList = o.items.map(item => {
+
+                    // Busca sabor atualizado
+                    const flavor = flavors.find(
+                        f => f.id === item.flavorId
+                    );
+
+                    // Caso sabor tenha sido removido
+                    const flavorName = flavor
+                        ? flavor.name
+                        : 'Sabor removido';
+
+                    const currentPrice = flavor
+                        ? flavor.price
+                        : item.price || 0;
+
+                    return `
+                <div class="mb-1">
+                    <span class="text-white font-semibold">
+                        ${item.quantity}x ${flavorName}
+                    </span>
+                    <span class="text-gray-500 text-xs block">
+                        R$ ${currentPrice.toFixed(2).replace('.', ',')} cada
+                    </span>
+                </div>
+            `;
+
+                }).join('');
+
+                // Recalcula total automaticamente
+                const updatedTotal = o.items.reduce((acc, item) => {
+
+                    const flavor = flavors.find(
+                        f => f.id === item.flavorId
+                    );
+
+                    const price = flavor
+                        ? flavor.price
+                        : item.price || 0;
+
+                    return acc + (price * item.quantity);
+
+                }, 0);
+
+                tr.innerHTML = `
+            <td class="py-4 px-6 font-bold text-gray-400">
+                ${o.id}
+            </td>
+
+            <td class="py-4 px-6 text-white font-semibold">
+                ${o.customer}
+                <span class="block text-xs text-gray-500 font-normal">
+                    ${o.phone}
+                </span>
+            </td>
+
+            <td class="py-4 px-6 text-gray-400">
+                ${itemsList}
+            </td>
+
+            <td class="py-4 px-6 font-black text-brand-accentOrange">
+                R$ ${updatedTotal.toFixed(2).replace('.', ',')}
+            </td>
+
+            <td class="py-4 px-6">
+                <span class="px-2 py-1 rounded bg-orange-500/10 text-orange-400 font-bold text-xs">
+                    ${o.status}
+                </span>
+            </td>
+
+            <td class="py-4 px-6 text-right">
+                <button
+                    onclick="cancel('${o.id}')"
+                    class="text-red-400 hover:text-red-500 text-xs font-bold">
+                    Cancelar
+                </button>
+            </td>
+        `;
+
+                tbody.appendChild(tr);
+
+            });
+        }
+
+        function cancel(id) {
+            const idx = orders.findIndex(o => o.id === id);
+            if (idx !== -1) {
+                orders[idx].status = 'Cancelado';
+                saveOrders(orders);
+                showToast("Cancelado", `Pedido ${id} cancelado.`);
+                renderTable();
+            }
+        }
+
+        function getFlavors() {
+            return JSON.parse(
+                localStorage.getItem('sabor_que_vicia_flavors')
+            ) || [];
+        }
+    </script>
+</body>
+
+</html>
