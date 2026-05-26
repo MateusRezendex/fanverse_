@@ -67,6 +67,10 @@
                     class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
                     <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Relatórios
                 </a>
+                <a href="financeiro.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="dollar-sign" class="w-5 h-5"></i> Financeiro
+                </a>
             </nav>
         </div>
     </aside>
@@ -114,65 +118,89 @@
 
     <script>
         let orders = [];
-        window.onload = function () {
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try { await initDb(); }
+            catch (e) { showToast('Erro de conexão', 'Falha ao conectar ao servidor.', true); console.error(e); return; }
+            onDataChange(() => { orders = getOrders(); renderKanban(); });
             orders = getOrders();
             renderKanban();
             lucide.createIcons();
-        }
+        });
 
         function renderKanban() {
             const listPendente = document.getElementById('list-pendente');
-            const listPreparo = document.getElementById('list-preparo');
-            const listPronto = document.getElementById('list-pronto');
+            const listPreparo  = document.getElementById('list-preparo');
+            const listPronto   = document.getElementById('list-pronto');
 
-            listPendente.innerHTML = ''; listPreparo.innerHTML = ''; listPronto.innerHTML = '';
+            listPendente.innerHTML = '';
+            listPreparo.innerHTML  = '';
+            listPronto.innerHTML   = '';
             let p = 0, pr = 0, pt = 0;
 
+            // Mostra apenas pedidos ativos de hoje — pedidos de ontem não poluem o kanban
             orders.forEach(order => {
                 if (['Cancelado', 'Entregue'].includes(order.status)) return;
+                if (!isToday(order.createdAt)) return;
 
                 const card = document.createElement('div');
                 card.className = "bg-brand-dark p-4 rounded-xl border border-brand-border space-y-3";
-                const itemsList = order.items.map(i => `<div class="flex justify-between text-xs"><span>${i.name}</span><span class="text-brand-accentOrange font-black">x${i.quantity}</span></div>`).join('');
+                const itemsList = order.items.map(i =>
+                    `<div class="flex justify-between text-xs"><span>${escapeHtml(i.name)}</span><span class="text-brand-accentOrange font-black">x${i.quantity}</span></div>`
+                ).join('');
+
+                const prev = previousStatus(order.status);
+                const next = nextStatus(order.status);
+                const backBtn = prev
+                    ? `<button onclick="rewind('${escapeHtml(order.id)}')" class="bg-brand-border hover:bg-gray-600 hover:text-white py-2 px-3 rounded-lg text-xs font-bold transition-all text-gray-300" title="Voltar para ${escapeHtml(prev)}">←</button>`
+                    : '';
+                const fwdBtn = next
+                    ? `<button onclick="advance('${escapeHtml(order.id)}')" class="flex-1 bg-brand-border hover:bg-brand-accentOrange hover:text-white py-2 rounded-lg text-xs font-bold transition-all">Avançar →</button>`
+                    : '';
 
                 card.innerHTML = `
                     <div>
-                        <span class="text-brand-accentOrange font-bold text-sm">${order.id}</span>
-                        <h4 class="text-white font-bold text-xs">${order.customer}</h4>
+                        <span class="text-brand-accentOrange font-bold text-sm">${escapeHtml(order.id)}</span>
+                        <h4 class="text-white font-bold text-xs">${escapeHtml(order.customer)}</h4>
                     </div>
                     <div class="border-t border-brand-border/40 pt-2 space-y-1">${itemsList}</div>
-                    <button onclick="advance('${order.id}')" class="w-full bg-brand-border hover:bg-brand-accentOrange hover:text-white py-2 rounded-lg text-xs font-bold transition-all">Avançar Pedido →</button>
+                    <div class="flex gap-2">${backBtn}${fwdBtn}</div>
                 `;
 
-                if (order.status === 'Pendente') {
-                    listPendente.appendChild(card); p++;
-                } else if (order.status === 'Em Preparo') {
-                    listPreparo.appendChild(card); pr++;
-                } else if (order.status === 'Pronto') {
-                    listPronto.appendChild(card); pt++;
-                }
+                if (order.status === 'Pendente')       { listPendente.appendChild(card); p++; }
+                else if (order.status === 'Em Preparo') { listPreparo.appendChild(card);  pr++; }
+                else if (order.status === 'Pronto')     { listPronto.appendChild(card);   pt++; }
             });
 
             document.getElementById('c-pendente').textContent = p;
-            document.getElementById('c-preparo').textContent = pr;
-            document.getElementById('c-pronto').textContent = pt;
+            document.getElementById('c-preparo').textContent  = pr;
+            document.getElementById('c-pronto').textContent   = pt;
         }
 
-        function advance(id) {
-            const idx = orders.findIndex(o => o.id === id);
-            if (idx !== -1) {
-                const cur = orders[idx].status;
-                orders[idx].status = cur === 'Pendente' ? 'Em Preparo' : cur === 'Em Preparo' ? 'Pronto' : 'Entregue';
-                saveOrders(orders);
-                showToast("Atualizado", `Pedido ${id} avançou.`);
-                renderKanban();
+        async function advance(id) {
+            const order = orders.find(o => o.id === id);
+            if (!order) return;
+            const next = nextStatus(order.status);
+            if (!next) return;
+            try {
+                await updateOrder(id, { status: next });
+                showToast('Atualizado', `Pedido ${id} → ${next}.`);
+            } catch (e) {
+                showToast('Erro', e.message, true);
             }
         }
 
-        function getFlavors() {
-            return JSON.parse(
-                localStorage.getItem('sabor_que_vicia_flavors')
-            ) || [];
+        async function rewind(id) {
+            const order = orders.find(o => o.id === id);
+            if (!order) return;
+            const prev = previousStatus(order.status);
+            if (!prev) return;
+            try {
+                await updateOrder(id, { status: prev });
+                showToast('Revertido', `Pedido ${id} ← ${prev}.`);
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
         }
     </script>
 </body>

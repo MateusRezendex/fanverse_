@@ -9,6 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons para ícones vetorizados de alta qualidade -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="js/db.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -91,6 +92,10 @@
                     class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm bg-gradient-to-r from-red-500 to-orange-600 text-white shadow-lg shadow-orange-950/20">
                     <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Relatórios
                 </a>
+                <a href="financeiro.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="dollar-sign" class="w-5 h-5"></i> Financeiro
+                </a>
             </nav>
         </div>
 
@@ -108,9 +113,21 @@
     <main class="flex-1 p-6 md:p-8 overflow-y-auto max-h-screen">
         <section id="tab-relatorios" class="space-y-6">
             <!-- Cabeçalho -->
-            <div>
-                <h2 class="text-2xl font-black text-white">Métricas Avançadas</h2>
-                <p class="text-gray-400 text-sm">Análise detalhada do desempenho de vendas e faturamento.</p>
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-black text-white">Métricas Avançadas</h2>
+                    <p class="text-gray-400 text-sm">Análise detalhada do desempenho de vendas e faturamento.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Período:</label>
+                    <select id="period-filter" onchange="renderReports()"
+                        class="bg-brand-card border border-brand-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-accentOrange">
+                        <option value="today">Hoje</option>
+                        <option value="7d">Últimos 7 dias</option>
+                        <option value="30d">Últimos 30 dias</option>
+                        <option value="all">Tudo</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Grade de Insights Rápidos (Conforme a imagem enviada) -->
@@ -119,19 +136,19 @@
                 <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-2">
                     <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Tíquete Médio</span>
                     <h4 id="insights-ticket-medio" class="text-3xl font-black text-white">R$ 0,00</h4>
-                    <p class="text-xs text-gray-500">Valor médio gasto por pedido.</p>
+                    <p class="text-xs text-gray-500" data-period-caption="Valor médio gasto por pedido {period}.">Valor médio gasto por pedido hoje.</p>
                 </div>
                 <!-- Quantidade Total de Itens Vendidos -->
                 <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-2">
                     <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Quantidade total de itens vendidos</span>
                     <h4 id="insights-total-esfihas" class="text-3xl font-black text-white">0 unidades</h4>
-                    <p class="text-xs text-gray-500">Unidades de esfihas preparadas hoje.</p>
+                    <p class="text-xs text-gray-500" data-period-caption="Unidades de esfihas preparadas {period}.">Unidades de esfihas preparadas hoje.</p>
                 </div>
                 <!-- Taxa de Cancelamento -->
                 <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-2">
                     <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Taxa de Cancelamento</span>
                     <h4 id="insights-cancelamentos" class="text-3xl font-black text-white">0%</h4>
-                    <p class="text-xs text-gray-500">Pedidos cancelados ou estornados hoje.</p>
+                    <p class="text-xs text-gray-500" data-period-caption="Pedidos cancelados {period}.">Pedidos cancelados hoje.</p>
                 </div>
             </div>
 
@@ -218,130 +235,91 @@
 
     <!-- SCRIPT DE LÓGICA DO RELATÓRIO -->
     <script>
-        // --- BASE DE DADOS PERSISTIDA NO LOCALSTORAGE ---
-        const defaultOrders = [
-            {
-                id: "#1001",
-                customer: "Ana Paula de Melo",
-                phone: "(81) 98111-2233",
-                items: [
-                    { name: "Esfiha de Carne", quantity: 5, price: 4.50 },
-                    { name: "Esfiha de Queijo", quantity: 3, price: 4.90 }
-                ],
-                total: 37.20,
-                status: "Pendente",
-                notes: "Queijo bem derretido por favor",
-                createdAt: "Hoje às 10:20"
-            },
-            {
-                id: "#1002",
-                customer: "Carlos Alberto",
-                phone: "(81) 99222-3344",
-                items: [
-                    { name: "Esfiha de Calabresa", quantity: 10, price: 4.70 }
-                ],
-                total: 47.00,
-                status: "Em Preparo",
-                notes: "Sem cebola",
-                createdAt: "Hoje às 10:15"
-            },
-            {
-                id: "#1003",
-                customer: "Juliana Santos",
-                phone: "(81) 98777-6655",
-                items: [
-                    { name: "Esfiha de Frango c/ Catupiry", quantity: 4, price: 5.20 },
-                    { name: "Esfiha de Chocolate", quantity: 2, price: 6.00 }
-                ],
-                total: 32.80,
-                status: "Pronto",
-                notes: "",
-                createdAt: "Hoje às 10:02"
-            }
-        ];
+        let orders = [];
+        let flavors = [];
 
-        const defaultFlavors = [
-            { id: 1, name: "Esfiha de Carne", price: 4.50, category: "Salgada", available: true },
-            { id: 2, name: "Esfiha de Queijo", price: 4.90, category: "Salgada", available: true },
-            { id: 3, name: "Esfiha de Calabresa", price: 4.70, category: "Salgada", available: true },
-            { id: 4, name: "Esfiha de Frango c/ Catupiry", price: 5.20, category: "Salgada", available: true },
-            { id: 5, name: "Esfiha de Chocolate", price: 6.00, category: "Doce", available: true },
-            { id: 6, name: "Esfiha de Romeu e Julieta", price: 5.80, category: "Doce", available: true }
-        ];
-
-        let orders = JSON.parse(localStorage.getItem('esfiha_orders')) || defaultOrders;
-        let flavors = JSON.parse(localStorage.getItem('esfiha_flavors')) || defaultFlavors;
-
-        function saveData() {
-            localStorage.setItem('esfiha_orders', JSON.stringify(orders));
-            localStorage.setItem('esfiha_flavors', JSON.stringify(flavors));
-        }
-
-        // --- INICIALIZAÇÃO ---
-        document.addEventListener("DOMContentLoaded", () => {
-            if (!localStorage.getItem('esfiha_orders')) saveData();
-            
-            lucide.createIcons();
+        document.addEventListener('DOMContentLoaded', async () => {
+            try { await initDb(); }
+            catch (e) { showToast('Erro de conexão', 'Falha ao conectar ao servidor.', true); console.error(e); return; }
+            onDataChange(() => { syncCache(); renderReports(); });
+            syncCache();
             renderReports();
-            renderFlavorsSelection();
+            lucide.createIcons();
         });
 
-        // --- RENDERIZAR MÉTRICAS & RANKING ---
+        function syncCache() {
+            orders = getOrders();
+            flavors = getFlavors();
+        }
+
+        function filterOrdersByPeriod(list) {
+            const period = (document.getElementById('period-filter') || {}).value || 'today';
+            if (period === 'all') return list;
+            const now = new Date();
+            const cutoff = new Date(now);
+            if (period === 'today') {
+                cutoff.setHours(0, 0, 0, 0);
+            } else if (period === '7d') {
+                cutoff.setDate(now.getDate() - 6);
+                cutoff.setHours(0, 0, 0, 0);
+            } else if (period === '30d') {
+                cutoff.setDate(now.getDate() - 29);
+                cutoff.setHours(0, 0, 0, 0);
+            }
+            return list.filter(o => o.createdAt && new Date(o.createdAt) >= cutoff);
+        }
+
         function renderReports() {
-            // Filtragem de pedidos para cálculo do faturamento correto
-            const nonCancelledOrders = orders.filter(o => o.status !== "Cancelado");
-            const deliveredOrders = orders.filter(o => o.status === "Entregue");
+            const scoped = filterOrdersByPeriod(orders);
+            const nonCancelled = scoped.filter(o => o.status !== 'Cancelado');
+            const delivered    = scoped.filter(o => o.status === 'Entregue');
 
-            // Se ainda não houver pedidos entregues, baseamos as métricas em todos os ativos para o mock coincidir com a imagem
-            const referenceOrders = deliveredOrders.length > 0 ? deliveredOrders : nonCancelledOrders;
-            
-            const totalRevenue = referenceOrders.reduce((acc, o) => acc + o.total, 0);
-            const avgTicket = referenceOrders.length > 0 ? (totalRevenue / referenceOrders.length) : 0;
+            // Se não há pedidos entregues ainda no período, usa os ativos como referência
+            const reference = delivered.length > 0 ? delivered : nonCancelled;
+            const totalRevenue = reference.reduce((acc, o) => acc + (o.total || 0), 0);
+            const avgTicket = reference.length > 0 ? (totalRevenue / reference.length) : 0;
 
-            // Contagem total das unidades vendidas de todas as esfihas
-            let totalItemsCount = 0;
-            nonCancelledOrders.forEach(o => {
-                o.items.forEach(i => totalItemsCount += i.quantity);
-            });
+            let totalItems = 0;
+            nonCancelled.forEach(o => o.items.forEach(i => totalItems += i.quantity));
 
-            // Percentual de Cancelamento
-            const totalOrdersCount = orders.length;
-            const cancelledOrdersCount = orders.filter(o => o.status === "Cancelado").length;
-            const cancellationRate = totalOrdersCount > 0 ? ((cancelledOrdersCount / totalOrdersCount) * 100) : 0;
+            const cancelled = scoped.filter(o => o.status === 'Cancelado').length;
+            const cancellationRate = scoped.length > 0 ? ((cancelled / scoped.length) * 100) : 0;
 
-            // Atribuição aos cards superiores
-            document.getElementById("insights-ticket-medio").innerText = `R$ ${avgTicket.toFixed(2).replace('.', ',')}`;
-            document.getElementById("insights-total-esfihas").innerText = `${totalItemsCount} unidades`;
-            document.getElementById("insights-cancelamentos").innerText = `${cancellationRate.toFixed(0)}%`;
+            document.getElementById('insights-ticket-medio').innerText  = formatBRL(avgTicket);
+            document.getElementById('insights-total-esfihas').innerText = `${totalItems} unidades`;
+            document.getElementById('insights-cancelamentos').innerText = `${cancellationRate.toFixed(0)}%`;
 
-            // Processamento do Ranking de Vendas por Sabor
             const volumes = {};
-            nonCancelledOrders.forEach(o => {
-                o.items.forEach(i => {
-                    volumes[i.name] = (volumes[i.name] || 0) + i.quantity;
-                });
-            });
+            nonCancelled.forEach(o => o.items.forEach(i => {
+                volumes[i.name] = (volumes[i.name] || 0) + i.quantity;
+            }));
 
-            const rankingContainer = document.getElementById("ranking-sabores-container");
-            const sortedFlavors = Object.entries(volumes).sort((a, b) => b[1] - a[1]);
-            
-            // O sabor número 1 dita o limite de 100% da barra de progresso
-            const maxVolume = sortedFlavors[0] ? sortedFlavors[0][1] : 1;
+            // Texto de apoio nos cards reflete o período selecionado
+            const periodLabel = {
+                today: 'hoje',
+                '7d': 'nos últimos 7 dias',
+                '30d': 'nos últimos 30 dias',
+                all: 'no histórico completo',
+            }[(document.getElementById('period-filter') || {}).value || 'today'];
+            const captions = document.querySelectorAll('[data-period-caption]');
+            captions.forEach(el => { el.textContent = el.dataset.periodCaption.replace('{period}', periodLabel); });
 
-            if (sortedFlavors.length === 0) {
-                rankingContainer.innerHTML = `
-                    <p class="text-sm text-gray-500 py-8 text-center">Nenhum dado de venda coletado hoje.</p>
-                `;
+            const rankingContainer = document.getElementById('ranking-sabores-container');
+            const sorted = Object.entries(volumes).sort((a, b) => b[1] - a[1]);
+            const maxVolume = sorted[0] ? sorted[0][1] : 1;
+
+            if (sorted.length === 0) {
+                rankingContainer.innerHTML = `<p class="text-sm text-gray-500 py-8 text-center">Nenhum dado de venda coletado hoje.</p>`;
                 return;
             }
 
-            rankingContainer.innerHTML = sortedFlavors.map(([name, qty], index) => {
+            rankingContainer.innerHTML = sorted.map(([name, qty], index) => {
                 const percentage = (qty / maxVolume) * 100;
                 return `
                     <div class="space-y-2">
                         <div class="flex justify-between items-center text-sm font-semibold">
                             <span class="text-white">
-                                <span class="text-brand-accentOrange mr-1.5 font-bold">#${index + 1}</span> ${name}
+                                <span class="text-brand-accentOrange mr-1.5 font-bold">#${index + 1}</span> ${escapeHtml(name)}
                             </span>
                             <span class="text-brand-accentOrange font-bold">${qty} unidades</span>
                         </div>
@@ -350,120 +328,82 @@
                         </div>
                     </div>
                 `;
-            }).join("");
+            }).join('');
         }
 
-        // --- OPERAÇÃO DO MODAL DE NOVO PEDIDO ---
+        // --- MODAL: novo pedido (mesma lógica do dashboard) ---
         function openNewOrderModal() {
-            document.getElementById("modal-novo-pedido").classList.remove("hidden");
+            editingOrderId = null;
+            flavors = getFlavors();
+            renderFlavorsSelection();
+            document.getElementById('order-customer').value = '';
+            document.getElementById('order-phone').value = '';
+            document.getElementById('order-notes').value = '';
+            document.getElementById('order-preview-total').innerText = formatBRL(0);
+            document.getElementById('modal-novo-pedido').classList.remove('hidden');
         }
 
         function closeNewOrderModal() {
-            document.getElementById("modal-novo-pedido").classList.add("hidden");
-            document.getElementById("order-customer").value = "";
-            document.getElementById("order-phone").value = "";
-            document.getElementById("order-notes").value = "";
-            document.getElementById("order-preview-total").innerText = "R$ 0,00";
-            renderFlavorsSelection();
+            document.getElementById('modal-novo-pedido').classList.add('hidden');
         }
 
         function renderFlavorsSelection() {
-            const container = document.getElementById("order-flavors-selection");
-            const availableFlavors = flavors.filter(f => f.available);
-
-            container.innerHTML = availableFlavors.map(flavor => `
+            const container = document.getElementById('order-flavors-selection');
+            const available = flavors.filter(f => f.available);
+            if (available.length === 0) {
+                container.innerHTML = `<div class="text-center py-4 text-gray-400 text-xs">Nenhum sabor disponível.</div>`;
+                return;
+            }
+            container.innerHTML = available.map(flavor => `
                 <div class="flex items-center justify-between bg-brand-dark/40 p-2.5 rounded-xl border border-brand-border/60">
                     <label class="flex items-center gap-3 cursor-pointer text-sm text-gray-200 font-semibold select-none">
                         <input type="checkbox" value="${flavor.id}" onchange="calculateOrderTotal()" class="w-4 h-4 rounded border-brand-border text-brand-accentOrange focus:ring-0 focus:ring-offset-0 bg-brand-dark">
-                        ${flavor.name}
+                        ${escapeHtml(flavor.name)}
                     </label>
                     <input type="number" id="qty-flavor-${flavor.id}" min="1" value="1" onchange="calculateOrderTotal()" class="w-16 bg-brand-dark border border-brand-border rounded-lg px-2 py-1 text-center text-white text-xs font-bold focus:outline-none">
                 </div>
-            `).join("");
+            `).join('');
         }
 
         function calculateOrderTotal() {
             let total = 0;
-            const checkboxes = document.querySelectorAll("#order-flavors-selection input[type='checkbox']:checked");
-            
-            checkboxes.forEach(cb => {
-                const flavorId = parseInt(cb.value);
-                const flavor = flavors.find(f => f.id === flavorId);
-                const qtyInput = document.getElementById(`qty-flavor-${flavorId}`);
-                const quantity = parseInt(qtyInput.value) || 1;
-
-                if (flavor) {
-                    total += flavor.price * quantity;
-                }
+            document.querySelectorAll("#order-flavors-selection input[type='checkbox']:checked").forEach(cb => {
+                const fid = parseInt(cb.value, 10);
+                const flavor = flavors.find(f => f.id === fid);
+                const qty = parseInt(document.getElementById(`qty-flavor-${fid}`).value, 10) || 1;
+                if (flavor) total += flavor.price * qty;
             });
-
-            document.getElementById("order-preview-total").innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+            document.getElementById('order-preview-total').innerText = formatBRL(total);
         }
 
-        function submitNewOrder() {
-            const customer = document.getElementById("order-customer").value.trim();
-            const phone = document.getElementById("order-phone").value.trim();
-            const notes = document.getElementById("order-notes").value.trim();
-            
+        async function submitNewOrder() {
+            const customer = document.getElementById('order-customer').value.trim();
+            const phone    = document.getElementById('order-phone').value.trim();
+            const notes    = document.getElementById('order-notes').value.trim();
             if (!customer || !phone) {
-                alert("Por favor, preencha o nome e o telefone do cliente.");
+                showToast('Campos obrigatórios', 'Informe nome e telefone do cliente.', true);
                 return;
             }
 
-            const checkboxes = document.querySelectorAll("#order-flavors-selection input[type='checkbox']:checked");
-            const selectedItems = [];
-            let total = 0;
-
-            checkboxes.forEach(cb => {
-                const flavorId = parseInt(cb.value);
-                const flavor = flavors.find(f => f.id === flavorId);
-                const qtyInput = document.getElementById(`qty-flavor-${flavorId}`);
-                const quantity = parseInt(qtyInput.value) || 1;
-
-                if (flavor) {
-                    selectedItems.push({
-                        name: flavor.name,
-                        quantity: quantity,
-                        price: flavor.price
-                    });
-                    total += flavor.price * quantity;
-                }
+            const items = [];
+            document.querySelectorAll("#order-flavors-selection input[type='checkbox']:checked").forEach(cb => {
+                const fid = parseInt(cb.value, 10);
+                const flavor = flavors.find(f => f.id === fid);
+                const qty = parseInt(document.getElementById(`qty-flavor-${fid}`).value, 10) || 1;
+                if (flavor) items.push({ flavorId: flavor.id, name: flavor.name, quantity: qty, price: flavor.price });
             });
-
-            if (selectedItems.length === 0) {
-                alert("Selecione pelo menos um sabor para registrar o pedido.");
+            if (items.length === 0) {
+                showToast('Sem itens', 'Selecione pelo menos um sabor.', true);
                 return;
             }
 
-            const newId = `#${1000 + orders.length + 1}`;
-            orders.unshift({
-                id: newId,
-                customer: customer,
-                phone: phone,
-                items: selectedItems,
-                total: total,
-                status: "Pendente",
-                notes: notes,
-                createdAt: "Hoje às " + new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})
-            });
-
-            saveData();
-            closeNewOrderModal();
-            renderReports();
-            showToast("Pedido Criado", `Sucesso ao registrar o pedido ${newId}.`);
-        }
-
-        // --- SISTEMA INTERNO DE TOAST ---
-        function showToast(title, message) {
-            const toast = document.getElementById("toast");
-            document.getElementById("toast-title").innerText = title;
-            document.getElementById("toast-message").innerText = message;
-
-            toast.classList.remove("translate-y-20", "opacity-0", "pointer-events-none");
-            
-            setTimeout(() => {
-                toast.classList.add("translate-y-20", "opacity-0", "pointer-events-none");
-            }, 3500);
+            try {
+                await createOrder({ customer, phone, notes, items });
+                closeNewOrderModal();
+                showToast('Pedido criado', 'Pedido registrado com sucesso.');
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
         }
     </script>
 </body>

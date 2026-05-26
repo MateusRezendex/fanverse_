@@ -67,6 +67,10 @@
                     class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
                     <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Relatórios
                 </a>
+                <a href="financeiro.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="dollar-sign" class="w-5 h-5"></i> Financeiro
+                </a>
             </nav>
         </div>
     </aside>
@@ -76,6 +80,65 @@
         <div>
             <h2 class="text-2xl font-black text-white">Controle de Pedidos</h2>
             <p class="text-gray-400 text-sm">Histórico e gestão do progresso operacional.</p>
+        </div>
+
+        <!-- BARRA DE FILTROS -->
+        <div class="bg-brand-card p-4 rounded-2xl border border-brand-border space-y-3">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                <!-- Busca -->
+                <div class="md:col-span-5 relative">
+                    <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"></i>
+                    <input type="text" id="filter-search" oninput="applyFilters()"
+                        placeholder="Buscar por ID, cliente, telefone, bairro..."
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-brand-accentOrange text-sm transition-all">
+                </div>
+
+                <!-- Status -->
+                <div class="md:col-span-3">
+                    <select id="filter-status" onchange="applyFilters()"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                        <option value="all">Todos os status</option>
+                        <option value="Pendente">Pendente</option>
+                        <option value="Em Preparo">Em Preparo</option>
+                        <option value="Pronto">Pronto</option>
+                        <option value="Entregue">Entregue</option>
+                        <option value="Cancelado">Cancelado</option>
+                        <option value="active">Em andamento (não finalizados)</option>
+                    </select>
+                </div>
+
+                <!-- Período -->
+                <div class="md:col-span-2">
+                    <select id="filter-period" onchange="applyFilters()"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                        <option value="today">Hoje</option>
+                        <option value="7d">Últimos 7 dias</option>
+                        <option value="30d" selected>Últimos 30 dias</option>
+                        <option value="all">Tudo</option>
+                    </select>
+                </div>
+
+                <!-- Origem -->
+                <div class="md:col-span-2">
+                    <select id="filter-source" onchange="applyFilters()"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                        <option value="all">Todas as origens</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-3">
+                <button onclick="clearFilters()"
+                    class="border border-brand-border text-gray-400 hover:text-white hover:bg-white/5 rounded-xl px-4 py-2 text-xs font-semibold transition-all">
+                    Limpar filtros
+                </button>
+            </div>
+
+            <!-- Sumário -->
+            <div class="flex items-center justify-between text-xs text-gray-500 pt-1">
+                <span id="filter-summary">—</span>
+                <span id="filter-total" class="font-bold text-brand-accentOrange">—</span>
+            </div>
         </div>
 
         <div class="bg-brand-card rounded-2xl border border-brand-border overflow-hidden">
@@ -88,11 +151,18 @@
                             <th class="py-4 px-6">Itens</th>
                             <th class="py-4 px-6">Total</th>
                             <th class="py-4 px-6">Status</th>
+                            <th class="py-4 px-6">Origem</th>
                             <th class="py-4 px-6 text-right">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="table-pedidos-body" class="divide-y divide-brand-border/40 text-sm"></tbody>
                 </table>
+                <div id="table-pedidos-empty" class="hidden py-12 flex flex-col items-center justify-center text-center">
+                    <div class="w-12 h-12 rounded-full bg-brand-border/40 flex items-center justify-center mb-3">
+                        <i data-lucide="search-x" class="w-5 h-5 text-gray-500"></i>
+                    </div>
+                    <p class="text-sm text-gray-400">Nenhum pedido encontrado com esses filtros.</p>
+                </div>
             </div>
         </div>
     </main>
@@ -101,129 +171,197 @@
         let orders = [];
         let flavors = [];
 
-        window.onload = function () {
-
+        document.addEventListener('DOMContentLoaded', async () => {
+            try { await initDb(); }
+            catch (e) { showToast('Erro de conexão', 'Falha ao conectar ao servidor.', true); console.error(e); return; }
+            onDataChange(() => {
+                orders = getOrders();
+                flavors = getFlavors();
+                refreshSourceOptions();
+                renderTable();
+            });
             orders = getOrders();
-
-            flavors = JSON.parse(
-                localStorage.getItem('sabor_que_vicia_flavors')
-            ) || [];
-
+            flavors = getFlavors();
+            refreshSourceOptions();
             renderTable();
-
             lucide.createIcons();
+        });
+
+        function getFilters() {
+            return {
+                search: (document.getElementById('filter-search').value || '').toLowerCase().trim(),
+                status: document.getElementById('filter-status').value,
+                period: document.getElementById('filter-period').value,
+                source: document.getElementById('filter-source').value,
+            };
         }
 
-        function renderTable() {
+        function applyFilters() { renderTable(); }
 
-            const tbody = document.getElementById('table-pedidos-body');
+        function clearFilters() {
+            document.getElementById('filter-search').value = '';
+            document.getElementById('filter-status').value = 'all';
+            document.getElementById('filter-period').value = '30d';
+            document.getElementById('filter-source').value = 'all';
+            renderTable();
+        }
 
-            tbody.innerHTML = '';
+        function refreshSourceOptions() {
+            const select = document.getElementById('filter-source');
+            const currentValue = select.value;
+            const knownSources = Array.from(new Set(orders.map(o => o.source).filter(Boolean))).sort();
+            select.innerHTML = `<option value="all">Todas as origens</option>
+                <option value="__empty__">— sem origem informada —</option>
+                ${knownSources.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}`;
+            // Preserva seleção quando possível
+            if ([...select.options].some(o => o.value === currentValue)) select.value = currentValue;
+        }
 
-            orders.slice().reverse().forEach(o => {
+        function filterOrders(list) {
+            const { search, status, period, source } = getFilters();
 
-                const tr = document.createElement('tr');
+            // Período
+            let cutoff = null;
+            if (period !== 'all') {
+                cutoff = new Date();
+                cutoff.setHours(0, 0, 0, 0);
+                if (period === '7d')  cutoff.setDate(cutoff.getDate() - 6);
+                if (period === '30d') cutoff.setDate(cutoff.getDate() - 29);
+            }
 
-                tr.className = "hover:bg-white/5 transition-all";
+            return list.filter(o => {
+                if (cutoff && new Date(o.createdAt) < cutoff) return false;
 
-                const itemsList = o.items.map(item => {
+                if (status !== 'all') {
+                    if (status === 'active') {
+                        if (o.status === 'Entregue' || o.status === 'Cancelado') return false;
+                    } else if (o.status !== status) {
+                        return false;
+                    }
+                }
 
-                    // Busca sabor atualizado
-                    const flavor = flavors.find(
-                        f => f.id === item.flavorId
-                    );
+                if (source !== 'all') {
+                    if (source === '__empty__') {
+                        if (o.source) return false;
+                    } else if (o.source !== source) {
+                        return false;
+                    }
+                }
 
-                    // Caso sabor tenha sido removido
-                    const flavorName = flavor
-                        ? flavor.name
-                        : 'Sabor removido';
-
-                    const currentPrice = flavor
-                        ? flavor.price
-                        : item.price || 0;
-
-                    return `
-                <div class="mb-1">
-                    <span class="text-white font-semibold">
-                        ${item.quantity}x ${flavorName}
-                    </span>
-                    <span class="text-gray-500 text-xs block">
-                        R$ ${currentPrice.toFixed(2).replace('.', ',')} cada
-                    </span>
-                </div>
-            `;
-
-                }).join('');
-
-                // Recalcula total automaticamente
-                const updatedTotal = o.items.reduce((acc, item) => {
-
-                    const flavor = flavors.find(
-                        f => f.id === item.flavorId
-                    );
-
-                    const price = flavor
-                        ? flavor.price
-                        : item.price || 0;
-
-                    return acc + (price * item.quantity);
-
-                }, 0);
-
-                tr.innerHTML = `
-            <td class="py-4 px-6 font-bold text-gray-400">
-                ${o.id}
-            </td>
-
-            <td class="py-4 px-6 text-white font-semibold">
-                ${o.customer}
-                <span class="block text-xs text-gray-500 font-normal">
-                    ${o.phone}
-                </span>
-            </td>
-
-            <td class="py-4 px-6 text-gray-400">
-                ${itemsList}
-            </td>
-
-            <td class="py-4 px-6 font-black text-brand-accentOrange">
-                R$ ${updatedTotal.toFixed(2).replace('.', ',')}
-            </td>
-
-            <td class="py-4 px-6">
-                <span class="px-2 py-1 rounded bg-orange-500/10 text-orange-400 font-bold text-xs">
-                    ${o.status}
-                </span>
-            </td>
-
-            <td class="py-4 px-6 text-right">
-                <button
-                    onclick="cancel('${o.id}')"
-                    class="text-red-400 hover:text-red-500 text-xs font-bold">
-                    Cancelar
-                </button>
-            </td>
-        `;
-
-                tbody.appendChild(tr);
-
+                if (search) {
+                    const haystack = [
+                        o.id, o.customer, o.phone, o.address, o.neighborhood, o.payment, o.notes,
+                        ...(o.items || []).map(i => i.name)
+                    ].join(' ').toLowerCase();
+                    if (!haystack.includes(search)) return false;
+                }
+                return true;
             });
         }
 
-        function cancel(id) {
-            const idx = orders.findIndex(o => o.id === id);
-            if (idx !== -1) {
-                orders[idx].status = 'Cancelado';
-                saveOrders(orders);
-                showToast("Cancelado", `Pedido ${id} cancelado.`);
-                renderTable();
+        function renderTable() {
+            const tbody = document.getElementById('table-pedidos-body');
+            const empty = document.getElementById('table-pedidos-empty');
+            const summary = document.getElementById('filter-summary');
+            const totalEl = document.getElementById('filter-total');
+            tbody.innerHTML = '';
+
+            const filtered = filterOrders(orders);
+
+            // Sumário
+            const filters = getFilters();
+            const parts = [];
+            const periodLabel = { today: 'hoje', '7d': 'últimos 7 dias', '30d': 'últimos 30 dias', all: 'todo o histórico' }[filters.period];
+            parts.push(`Período: ${periodLabel}`);
+            if (filters.status !== 'all') parts.push(`Status: ${filters.status === 'active' ? 'em andamento' : filters.status}`);
+            if (filters.source !== 'all') parts.push(`Origem: ${filters.source === '__empty__' ? 'sem origem' : filters.source}`);
+            if (filters.search) parts.push(`Busca: "${filters.search}"`);
+            summary.textContent = parts.join(' · ');
+            totalEl.textContent = `${filtered.length} pedido${filtered.length === 1 ? '' : 's'} · ` +
+                formatBRL(filtered.reduce((acc, o) => acc + (o.total || 0), 0));
+
+            if (filtered.length === 0) {
+                empty.classList.remove('hidden');
+                empty.classList.add('flex');
+                lucide.createIcons();
+                return;
+            }
+            empty.classList.add('hidden');
+            empty.classList.remove('flex');
+
+            filtered.slice().reverse().forEach(o => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-white/5 transition-all";
+
+                const itemsList = o.items.map(item => {
+                    // Resolve nome/preço atual: prioriza cadastro atual (por flavorId), com fallback ao snapshot
+                    const flavor = flavors.find(f => f.id === item.flavorId);
+                    const flavorName  = flavor ? flavor.name  : (item.name  || 'Sabor removido');
+                    const currentPrice = flavor ? flavor.price : (item.price || 0);
+                    return `
+                        <div class="mb-1">
+                            <span class="text-white font-semibold">${item.quantity}x ${escapeHtml(flavorName)}</span>
+                            <span class="text-gray-500 text-xs block">${formatBRL(currentPrice)} cada</span>
+                        </div>
+                    `;
+                }).join('');
+
+                // Total: usa snapshot do pedido para histórico imutável
+                const total = o.total != null
+                    ? o.total
+                    : o.items.reduce((acc, i) => acc + ((i.price || 0) * i.quantity), 0);
+
+                let statusColor = 'bg-orange-500/10 text-orange-400';
+                if (o.status === 'Entregue')  statusColor = 'bg-emerald-500/10 text-emerald-400';
+                if (o.status === 'Cancelado') statusColor = 'bg-gray-500/10 text-gray-400';
+
+                let actionBtn;
+                if (o.status === 'Cancelado' || o.status === 'Entregue') {
+                    actionBtn = `<button onclick="reopen('${escapeHtml(o.id)}')" class="text-amber-400 hover:text-amber-300 text-xs font-bold" title="Reabrir como Pendente">Reabrir</button>`;
+                } else {
+                    actionBtn = `<button onclick="cancelOrder('${escapeHtml(o.id)}')" class="text-red-400 hover:text-red-500 text-xs font-bold">Cancelar</button>`;
+                }
+
+                const sourceBadge = o.source
+                    ? `<span class="text-[10px] uppercase font-bold tracking-wider text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded">${escapeHtml(o.source)}</span>`
+                    : `<span class="text-[10px] text-gray-600 italic">—</span>`;
+
+                tr.innerHTML = `
+                    <td class="py-4 px-6 font-bold text-gray-400">${escapeHtml(o.id)}</td>
+                    <td class="py-4 px-6 text-white font-semibold">
+                        ${escapeHtml(o.customer)}
+                        <span class="block text-xs text-gray-500 font-normal">${escapeHtml(o.phone || '')}</span>
+                    </td>
+                    <td class="py-4 px-6 text-gray-400">${itemsList}</td>
+                    <td class="py-4 px-6 font-black text-brand-accentOrange">${formatBRL(total)}</td>
+                    <td class="py-4 px-6">
+                        <span class="px-2 py-1 rounded ${statusColor} font-bold text-xs">${escapeHtml(o.status)}</span>
+                    </td>
+                    <td class="py-4 px-6">${sourceBadge}</td>
+                    <td class="py-4 px-6 text-right">${actionBtn}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function cancelOrder(id) {
+            if (!confirm(`Cancelar o pedido ${id}?`)) return;
+            try {
+                await updateOrder(id, { status: 'Cancelado' });
+                showToast('Cancelado', `Pedido ${id} cancelado.`);
+            } catch (e) {
+                showToast('Erro', e.message, true);
             }
         }
 
-        function getFlavors() {
-            return JSON.parse(
-                localStorage.getItem('sabor_que_vicia_flavors')
-            ) || [];
+        async function reopen(id) {
+            if (!confirm(`Reabrir o pedido ${id}? Ele voltará para Pendente.`)) return;
+            try {
+                await updateOrder(id, { status: 'Pendente' });
+                showToast('Reaberto', `Pedido ${id} voltou para Pendente.`);
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
         }
     </script>
 </body>

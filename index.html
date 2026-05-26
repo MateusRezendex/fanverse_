@@ -9,6 +9,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons para ícones vetorizados de alta qualidade -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Banco de dados único (localStorage) -->
+    <script src="js/db.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -92,6 +94,10 @@
                     class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
                     <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Relatórios
                 </a>
+                <a href="financeiro.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="dollar-sign" class="w-5 h-5"></i> Financeiro
+                </a>
             </nav>
         </div>
 
@@ -113,11 +119,25 @@
             <!-- Cabeçalho do Painel -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <span class="text-xs uppercase text-brand-accentOrange tracking-wider font-extrabold">Painel</span>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs uppercase text-brand-accentOrange tracking-wider font-extrabold">Painel</span>
+                        <!-- Indicador de conexão -->
+                        <div id="connection-indicator" class="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider">
+                            <span id="connection-dot" class="w-2 h-2 rounded-full bg-gray-500"></span>
+                            <span id="connection-text" class="text-gray-500">conectando…</span>
+                        </div>
+                    </div>
                     <h2 class="text-2xl md:text-3xl font-black text-white flex items-center gap-2">
                         Bom dia, chef <span class="text-xl md:text-2xl">👨‍🍳</span>
                     </h2>
-                    <p class="text-gray-400 text-sm mt-1">Visão geral da operação de hoje em tempo real.</p>
+                    <p class="text-gray-400 text-sm mt-1">
+                        Visão geral da operação de hoje em tempo real.
+                        <span class="hidden md:inline ml-2 text-gray-600">·</span>
+                        <span class="hidden md:inline text-gray-600 text-xs">atalhos:
+                            <kbd class="px-1.5 py-0.5 bg-brand-card border border-brand-border rounded text-gray-400 font-mono">N</kbd> novo pedido ·
+                            <kbd class="px-1.5 py-0.5 bg-brand-card border border-brand-border rounded text-gray-400 font-mono">R</kbd> atualizar
+                        </span>
+                    </p>
                 </div>
                 <button onclick="openNewOrderModal()"
                     class="self-start sm:self-center bg-gradient-to-r from-red-600 to-orange-500 text-white font-extrabold py-3 px-6 rounded-xl shadow-lg shadow-red-950/40 hover:shadow-red-500/20 active:scale-95 transition-all duration-200 flex items-center gap-2 text-sm">
@@ -181,10 +201,68 @@
                 </div>
             </div>
 
-            <!-- Grade Intermediária: Gráfico de Vendas e Sabores mais vendidos -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- ALERTA: Pedidos atrasados -->
+            <div id="alert-late" class="hidden bg-red-950/40 border border-red-500/30 rounded-2xl p-5 space-y-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center text-red-400">
+                        <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="text-red-400 font-extrabold text-base">Pedidos atrasados</h4>
+                        <p id="alert-late-summary" class="text-xs text-red-300/80">—</p>
+                    </div>
+                </div>
+                <div id="alert-late-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2"></div>
+            </div>
+
+            <!-- Cards operacionais: Tempo médio, Pico, Doce/Salgado, Lucro -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-brand-card p-5 rounded-2xl border border-brand-border">
+                    <span class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Tempo médio de preparo</span>
+                    <h3 id="stat-tempo-medio" class="text-3xl font-black text-white mt-1">—</h3>
+                    <p id="stat-tempo-medio-delta" class="text-xs text-gray-500 mt-1">ontem: —</p>
+                </div>
+                <div class="bg-brand-card p-5 rounded-2xl border border-brand-border">
+                    <span class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Pico de hoje</span>
+                    <h3 id="stat-pico" class="text-3xl font-black text-white mt-1">—</h3>
+                    <p class="text-xs text-gray-500 mt-1">hora com mais pedidos</p>
+                </div>
+                <div class="bg-brand-card p-5 rounded-2xl border border-brand-border">
+                    <span class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Composição do dia</span>
+                    <div id="stat-composicao" class="mt-2 space-y-1.5">
+                        <div class="text-xs text-gray-500">sem dados ainda</div>
+                    </div>
+                </div>
+                <a href="financeiro.html" class="bg-brand-card p-5 rounded-2xl border border-brand-border hover:border-brand-accentOrange/40 transition-all block">
+                    <span class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Lucro hoje</span>
+                    <h3 id="stat-lucro" class="text-3xl font-black text-white mt-1">—</h3>
+                    <p id="stat-lucro-sub" class="text-[10px] text-gray-500 mt-1">configure custos para calcular</p>
+                </a>
+            </div>
+
+            <!-- Comparação Hoje vs Ontem (tabela compacta) -->
+            <div class="bg-brand-card p-6 rounded-2xl border border-brand-border">
+                <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-white font-bold text-base">Hoje vs Ontem</h4>
+                    <span id="comparison-cutoff" class="text-[10px] uppercase tracking-wider text-gray-500"></span>
+                </div>
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-[10px] uppercase tracking-wider text-gray-500 font-bold border-b border-brand-border/40">
+                            <th class="pb-2 text-left">Métrica</th>
+                            <th class="pb-2 text-right">Hoje</th>
+                            <th class="pb-2 text-right">Ontem</th>
+                            <th class="pb-2 text-right">Variação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comparison-tbody" class="divide-y divide-brand-border/30"></tbody>
+                </table>
+            </div>
+
+            <!-- Grade Intermediária: 2 gráficos lado a lado -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Gráfico de Vendas (Últimos 7 dias) -->
-                <div class="bg-brand-card p-6 rounded-2xl border border-brand-border lg:col-span-2 space-y-4">
+                <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-4">
                     <div class="flex items-center justify-between">
                         <div>
                             <h4 class="text-white font-bold text-base">Vendas — últimos 7 dias</h4>
@@ -237,31 +315,98 @@
                     </div>
                 </div>
 
-                <!-- Sabor mais vendido de Hoje -->
-                <div
-                    class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-4 flex flex-col justify-between">
-                    <div class="space-y-1">
-                        <h4 class="text-white font-bold text-base">Sabor mais vendido</h4>
-                        <p class="text-xs text-gray-500">Hoje</p>
-                    </div>
-
-                    <!-- Conteúdo Dinâmico / Estado Vazio -->
-                    <div id="container-top-sabor" class="flex-1 flex flex-col items-center justify-center py-6">
-                        <div class="text-center space-y-3">
-                            <div
-                                class="w-12 h-12 rounded-full bg-brand-border/40 flex items-center justify-center mx-auto">
-                                <i data-lucide="pie-chart" class="w-5 h-5 text-gray-500"></i>
-                            </div>
-                            <p class="text-xs text-gray-400 font-medium px-4 max-w-xs leading-relaxed">Nenhuma esfiha
-                                vendida hoje ainda.</p>
+                <!-- Pedidos por hora -->
+                <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="text-white font-bold text-base">Pedidos por hora</h4>
+                            <p class="text-xs text-gray-500">Hoje, de 10h às 23h</p>
                         </div>
+                        <i data-lucide="clock" class="w-5 h-5 text-brand-accentOrange"></i>
+                    </div>
+                    <div id="hourly-chart" class="flex items-end gap-1 h-40 mt-2"></div>
+                    <div id="hourly-chart-labels" class="text-[10px] text-gray-500 text-center"
+                         style="display: grid; grid-template-columns: repeat(14, minmax(0, 1fr));"></div>
+                </div>
+            </div>
+
+            <!-- Origem dos pedidos -->
+            <div id="source-section" class="bg-brand-card p-6 rounded-2xl border border-brand-border hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h4 class="text-white font-bold text-base">Como nos conheceu</h4>
+                        <p class="text-xs text-gray-500">Origem dos pedidos no período selecionado abaixo.</p>
+                    </div>
+                </div>
+                <div id="source-breakdown" class="space-y-2"></div>
+            </div>
+
+            <!-- Cabeçalho da seção de análise + filtro de período -->
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-4 border-t border-brand-border/40">
+                <div>
+                    <h3 class="text-white font-extrabold text-lg">Análise</h3>
+                    <p class="text-xs text-gray-500">Rankings e tendências do período selecionado.</p>
+                </div>
+                <div class="flex gap-1 bg-brand-card border border-brand-border rounded-xl p-1">
+                    <button onclick="setRankingPeriod('today')" data-period-btn="today"
+                        class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-white">Hoje</button>
+                    <button onclick="setRankingPeriod('7d')" data-period-btn="7d"
+                        class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-white">7 dias</button>
+                    <button onclick="setRankingPeriod('30d')" data-period-btn="30d"
+                        class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-brand-accentOrange text-white">30 dias</button>
+                </div>
+            </div>
+
+            <!-- Rankings em abas — economiza espaço vertical -->
+            <div class="bg-brand-card rounded-2xl border border-brand-border overflow-hidden">
+                <!-- Tabs header -->
+                <div class="flex border-b border-brand-border overflow-x-auto">
+                    <button data-tab="flavors-qty" onclick="setRankingTab('flavors-qty')"
+                        class="ranking-tab flex-1 min-w-fit px-5 py-4 text-sm font-bold transition-all border-b-2 border-brand-accentOrange text-white">
+                        <i data-lucide="pizza" class="w-4 h-4 inline mr-1.5"></i>Mais vendidos
+                    </button>
+                    <button data-tab="flavors-revenue" onclick="setRankingTab('flavors-revenue')"
+                        class="ranking-tab flex-1 min-w-fit px-5 py-4 text-sm font-bold transition-all border-b-2 border-transparent text-gray-400 hover:text-white">
+                        <i data-lucide="trending-up" class="w-4 h-4 inline mr-1.5"></i>Mais faturam
+                    </button>
+                    <button data-tab="neighborhoods" onclick="setRankingTab('neighborhoods')"
+                        class="ranking-tab flex-1 min-w-fit px-5 py-4 text-sm font-bold transition-all border-b-2 border-transparent text-gray-400 hover:text-white">
+                        <i data-lucide="map-pin" class="w-4 h-4 inline mr-1.5"></i>Bairros
+                    </button>
+                    <button data-tab="customers" onclick="setRankingTab('customers')"
+                        class="ranking-tab flex-1 min-w-fit px-5 py-4 text-sm font-bold transition-all border-b-2 border-transparent text-gray-400 hover:text-white">
+                        <i data-lucide="users" class="w-4 h-4 inline mr-1.5"></i>Clientes
+                    </button>
+                </div>
+                <!-- Tab content -->
+                <div class="p-6">
+                    <div id="tab-flavors-qty" class="ranking-tab-panel">
+                        <div id="rank-flavors-qty" class="space-y-3"></div>
+                    </div>
+                    <div id="tab-flavors-revenue" class="ranking-tab-panel hidden">
+                        <div id="rank-flavors-revenue" class="space-y-3"></div>
+                    </div>
+                    <div id="tab-neighborhoods" class="ranking-tab-panel hidden">
+                        <p class="text-[11px] text-gray-500 mb-3">Clique para filtrar a tabela de pedidos.</p>
+                        <div id="rank-neighborhoods" class="space-y-3"></div>
+                    </div>
+                    <div id="tab-customers" class="ranking-tab-panel hidden">
+                        <p class="text-[11px] text-gray-500 mb-3">Clique para filtrar a tabela de pedidos.</p>
+                        <div id="rank-customers" class="space-y-3"></div>
                     </div>
                 </div>
             </div>
 
             <!-- Últimos Pedidos -->
             <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-4">
-                <h4 class="text-white font-extrabold text-base">Últimos pedidos</h4>
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <h4 class="text-white font-extrabold text-base">Pedidos de hoje</h4>
+                    <div id="table-filter-badge" class="hidden flex items-center gap-2 text-xs">
+                        <span class="text-gray-500">Filtro:</span>
+                        <span id="table-filter-text" class="bg-brand-accentOrange/10 border border-brand-accentOrange/30 text-brand-accentOrange font-bold px-2 py-1 rounded-lg"></span>
+                        <button onclick="clearTableFilter()" class="text-gray-400 hover:text-white text-xs">limpar</button>
+                    </div>
+                </div>
 
                 <div id="container-ultimos-pedidos" class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
@@ -274,6 +419,7 @@
                                 <th class="pb-3">Valor Total</th>
                                 <th class="pb-3">Status</th>
                                 <th class="pb-3 text-right pr-4">Ações</th>
+                                <th class="pb-3">Pagamento</th>
                             </tr>
                         </thead>
                         <tbody id="lista-ultimos-pedidos-tbody" class="divide-y divide-brand-border/30 text-sm">
@@ -329,29 +475,50 @@
                 </div>
 
                 <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase text-gray-400">Endereço de Entrega</label>
+                    <input type="text" id="order-address" placeholder="Rua, Número, Complemento"
+                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase text-gray-400">Bairro</label>
+                    <input type="text" id="order-neighborhood" placeholder="Ex: Boa Viagem" list="neighborhood-options"
+                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                    <datalist id="neighborhood-options"></datalist>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold uppercase text-gray-400">Forma de Pagamento</label>
+                        <select id="order-payment"
+                            class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                            <option value="Pix">Pix</option>
+                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                            <option value="Cartão de Débito">Cartão de Débito</option>
+                            <option value="Dinheiro">Dinheiro</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold uppercase text-gray-400">Como nos conheceu</label>
+                        <select id="order-source"
+                            class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                            <option value="">— não informado —</option>
+                            <option value="Indicação">Indicação</option>
+                            <option value="Anúncio">Anúncio</option>
+                            <option value="Instagram">Instagram</option>
+                            <option value="WhatsApp">WhatsApp</option>
+                            <option value="Recorrente">Cliente recorrente</option>
+                            <option value="Passou na frente">Passou na frente</option>
+                            <option value="Outro">Outro</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
                     <label class="text-xs font-bold uppercase text-gray-400">Observações adicionais</label>
                     <textarea id="order-notes" rows="2" placeholder="Sem cebola, bem assada, etc..."
                         class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm resize-none"></textarea>
                 </div>
-            </div>
-
-            <!-- Campo Endereço -->
-            <div class="space-y-1.5">
-                <label class="text-xs font-bold uppercase text-gray-400">Endereço de Entrega</label>
-                <input type="text" id="order-address" placeholder="Rua, Número, Bairro"
-                    class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
-            </div>
-
-            <!-- Campo Forma de Pagamento -->
-            <div class="space-y-1.5">
-                <label class="text-xs font-bold uppercase text-gray-400">Forma de Pagamento</label>
-                <select id="order-payment"
-                    class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
-                    <option value="Pix">Pix</option>
-                    <option value="Cartão de Crédito">Cartão de Crédito</option>
-                    <option value="Cartão de Débito">Cartão de Débito</option>
-                    <option value="Dinheiro">Dinheiro</option>
-                </select>
             </div>
 
             <div class="p-5 border-t border-brand-border flex items-center justify-between bg-black/20">
@@ -388,331 +555,646 @@
 
     <!-- SCRIPT DE LÓGICA DO DASHBOARD -->
     <script>
-        // Sabores oficiais compartilhados com sabores.html
-        const defaultFlavors = [
-            { id: 1, name: "Frango com Catupiry", description: "Frango desfiado com catupiry original e cheiro verde fresco.", price: 7.99, category: "Salgada", available: true },
-            { id: 2, name: "Carne", description: "Carne moída premium temperada com tomate, cebola e limão.", price: 7.99, category: "Salgada", available: true },
-            { id: 3, name: "Queijo", description: "Mix de mussarela, queijo minas, creme de leite e orégano.", price: 7.99, category: "Salgada", available: true },
-            { id: 4, name: "Queijo com Presunto", description: "Mussarela selecionada, presunto picado e orégano.", price: 7.99, category: "Salgada", available: true },
-            { id: 5, name: "Calabresa com Cebola", description: "Calabresa fatiada, cebola e um toque de mussarela.", price: 7.99, category: "Salgada", available: true },
-            { id: 6, name: "Bacon", description: "Bacon crocante em fatias com generosa camada de mussarela.", price: 7.99, category: "Salgada", available: true },
-            { id: 7, name: "Frango com Bacon", description: "Combinação perfeita de frango desfiado, bacon e mussarela.", price: 7.99, category: "Salgada", available: true },
-            { id: 8, name: "3 Queijos", description: "A união nobre de Mussarela, Catupiry e Provolone defumado.", price: 8.99, category: "Premium", available: true },
-            { id: 9, name: "Brócolis com Queijo", description: "Brócolis fresco no vapor, mussarela e pedaços de bacon.", price: 8.99, category: "Premium", available: true },
-            { id: 10, name: "Lombinho Canadense", description: "Lombo canadense fatiado com mussarela.", price: 8.99, category: "Premium", available: true },
-            { id: 11, name: "Carne Seca", description: "Carne seca desfiada artesanalmente com catupiry.", price: 10.50, category: "Premium", available: true },
-            { id: 12, name: "Chocolate c/ Morango", description: "Ganache de chocolate ao leite com morangos frescos fatiados.", price: 9.99, category: "Doce", available: true },
-            { id: 13, name: "Chocolate com MM", description: "Chocolate cremoso coberto com M&Ms coloridos.", price: 9.99, category: "Doce", available: true },
-            { id: 14, name: "Banana Nevada", description: "Banana fatiada, chocolate branco gratinado, açúcar e canela.", price: 8.99, category: "Doce", available: true },
-            { id: 15, name: "Abacaxi Nevado", description: "Abacaxi em calda artesanal com chocolate branco gratinado.", price: 8.99, category: "Doce", available: true },
-            { id: 16, name: "Churros", description: "Doce de leite cremoso com toque de canela e açúcar.", price: 8.99, category: "Doce", available: true },
-            { id: 17, name: "Romeu e Julieta", description: "A clássica combinação de queijo minas com goiabada.", price: 8.99, category: "Doce", available: true }
-        ];
-
-        const defaultOrders = [
-            {
-                id: "#1001",
-                customer: "Ana Paula de Melo",
-                phone: "(81) 98111-2233",
-                items: [
-                    { name: "Frango com Catupiry", quantity: 5, price: 7.99 },
-                    { name: "Queijo", quantity: 3, price: 7.99 }
-                ],
-                total: 63.92,
-                status: "Pendente",
-                notes: "Queijo bem derretido por favor",
-                createdAt: "Hoje às 10:20"
-            },
-            {
-                id: "#1002",
-                customer: "Carlos Alberto",
-                phone: "(81) 99222-3344",
-                items: [
-                    { name: "Calabresa com Cebola", quantity: 10, price: 7.99 }
-                ],
-                total: 79.90,
-                status: "Em Preparo",
-                notes: "Sem cebola",
-                createdAt: "Hoje às 10:15"
-            }
-        ];
-
         let flavors = [];
         let orders = [];
+        let weeklyRevenue = null;
+        let dashboardStats = null;
+        let editingOrderId = null;
+        let _refreshTimer = null;
+        let _connectionTimer = null;
+        let rankingPeriod = '30d';   // 'today' | '7d' | '30d'
+        let tableFilter = null;       // { type: 'neighborhood'|'customer', value: ... }
 
-        // Carrega dados integrados do LocalStorage ou define os padrões
-        function loadDatabase() {
-            // Busca os sabores compartilhados de 'sabor_que_vicia_flavors'
-            const localFlavors = localStorage.getItem('sabor_que_vicia_flavors');
-            if (localFlavors) {
-                flavors = JSON.parse(localFlavors);
-            } else {
-                flavors = defaultFlavors;
-                localStorage.setItem('sabor_que_vicia_flavors', JSON.stringify(defaultFlavors));
-            }
-
-            // Busca os pedidos de 'esfiha_orders'
-            const localOrders = localStorage.getItem('esfiha_orders');
-            if (localOrders) {
-                orders = JSON.parse(localOrders);
-            } else {
-                orders = defaultOrders;
-                localStorage.setItem('esfiha_orders', JSON.stringify(defaultOrders));
-            }
-        }
-
-        // Salva dados no LocalStorage
-        function saveOrders() {
-            localStorage.setItem('esfiha_orders', JSON.stringify(orders));
-        }
-
-        // --- INICIALIZAÇÃO ---
-        document.addEventListener("DOMContentLoaded", () => {
-            loadDatabase();
-            lucide.createIcons();
-            updateDashboard();
-            renderFlavorsSelection();
-        });
-
-        // --- FUNÇÕES DO DASHBOARD ---
-        function updateDashboard() {
-            const totalPedidos = orders.length;
-            const emAndamento = orders.filter(o => o.status === "Pendente" || o.status === "Em Preparo" || o.status === "Pronto").length;
-            const entregues = orders.filter(o => o.status === "Entregue").length;
-            const faturamento = orders.filter(o => o.status === "Entregue").reduce((acc, o) => acc + o.total, 0);
-
-            document.getElementById("stat-pedidos-hoje").innerText = totalPedidos;
-            document.getElementById("stat-em-andamento").innerText = emAndamento;
-            document.getElementById("stat-entregues").innerText = entregues;
-            document.getElementById("stat-faturamento").innerText = `R$ ${faturamento.toFixed(2).replace('.', ',')}`;
-
-            renderRecentOrdersTable();
-            updateTopFlavor();
-            drawSalesChart();
-            lucide.createIcons();
-        }
-
-        function renderRecentOrdersTable() {
-            const tbody = document.getElementById("lista-ultimos-pedidos-tbody");
-            const placeholder = document.getElementById("ultimos-pedidos-vazio");
-
-            if (orders.length === 0) {
-                tbody.innerHTML = "";
-                placeholder.classList.remove("hidden");
+        document.addEventListener('DOMContentLoaded', async () => {
+            applyGreeting();
+            try {
+                await initDb();
+            } catch (e) {
+                showToast('Erro de conexão', 'Não foi possível conectar ao servidor.', true);
+                console.error(e);
                 return;
             }
+            onDataChange(async () => {
+                syncCache();
+                await refreshStats();
+                updateDashboard();
+            });
+            syncCache();
+            await refreshStats();
+            updateDashboard();
+            lucide.createIcons();
 
-            placeholder.classList.add("hidden");
-            tbody.innerHTML = orders.map(order => {
-                const itemSummary = order.items.map(i => `${i.quantity}x ${i.name}`).join(", ");
+            // Recalcula a cada 30s para que "atrasados" e "tempo médio" fiquem vivos
+            if (_refreshTimer) clearInterval(_refreshTimer);
+            _refreshTimer = setInterval(async () => {
+                await refreshStats();
+                updateDashboard();
+                applyGreeting();
+            }, 30000);
 
-                let statusColor = "bg-gray-500/10 text-gray-400 border border-gray-500/20";
-                if (order.status === "Pendente") statusColor = "bg-red-500/10 text-red-500 border border-red-500/20";
-                if (order.status === "Em Preparo") statusColor = "bg-orange-500/10 text-orange-400 border border-orange-500/20";
-                if (order.status === "Pronto") statusColor = "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20";
-                if (order.status === "Entregue") statusColor = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+            // Atalhos de teclado
+            document.addEventListener('keydown', handleShortcut);
+
+            // Indicador de conexão
+            onConnectionChange(renderConnectionIndicator);
+            renderConnectionIndicator();
+            if (_connectionTimer) clearInterval(_connectionTimer);
+            _connectionTimer = setInterval(renderConnectionIndicator, 5000);
+        });
+
+        function renderConnectionIndicator() {
+            const state = getConnectionState();
+            const dot = document.getElementById('connection-dot');
+            const txt = document.getElementById('connection-text');
+            if (!dot || !txt) return;
+
+            if (state.wsState === 'open') {
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+                if (state.lastUpdate) {
+                    const secs = Math.max(0, Math.round((Date.now() - state.lastUpdate) / 1000));
+                    txt.textContent = secs < 60 ? `ao vivo · há ${secs}s` : `ao vivo · há ${Math.round(secs / 60)} min`;
+                    txt.className = 'text-emerald-400';
+                } else {
+                    txt.textContent = 'ao vivo';
+                    txt.className = 'text-emerald-400';
+                }
+            } else if (state.wsState === 'closed') {
+                dot.className = 'w-2 h-2 rounded-full bg-red-500';
+                txt.textContent = 'offline · reconectando…';
+                txt.className = 'text-red-400';
+            } else {
+                dot.className = 'w-2 h-2 rounded-full bg-gray-500 animate-pulse';
+                txt.textContent = 'conectando…';
+                txt.className = 'text-gray-500';
+            }
+        }
+
+        async function setRankingPeriod(p) {
+            rankingPeriod = p;
+            document.querySelectorAll('[data-period-btn]').forEach(btn => {
+                if (btn.dataset.periodBtn === p) {
+                    btn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-brand-accentOrange text-white';
+                } else {
+                    btn.className = 'px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-white';
+                }
+            });
+            await refreshStats();
+            updateDashboard();
+        }
+
+        function setTableFilter(type, value, label) {
+            tableFilter = { type, value, label };
+            updateDashboard();
+            document.getElementById('container-ultimos-pedidos').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function clearTableFilter() {
+            tableFilter = null;
+            updateDashboard();
+        }
+
+        function setRankingTab(tab) {
+            document.querySelectorAll('.ranking-tab').forEach(btn => {
+                const active = btn.dataset.tab === tab;
+                btn.className = `ranking-tab flex-1 min-w-fit px-5 py-4 text-sm font-bold transition-all border-b-2 ${active ? 'border-brand-accentOrange text-white' : 'border-transparent text-gray-400 hover:text-white'}`;
+            });
+            document.querySelectorAll('.ranking-tab-panel').forEach(panel => {
+                panel.classList.toggle('hidden', panel.id !== `tab-${tab}`);
+            });
+            lucide.createIcons();
+        }
+
+        function handleShortcut(e) {
+            // Ignora se está digitando em input/textarea
+            const tag = (e.target.tagName || '').toLowerCase();
+            if (['input', 'textarea', 'select'].includes(tag)) return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+            const modalOpen = !document.getElementById('modal-novo-pedido').classList.contains('hidden');
+            if (e.key === 'Escape' && modalOpen) {
+                closeNewOrderModal();
+                e.preventDefault();
+                return;
+            }
+            if (modalOpen) return;
+
+            if (e.key === 'n' || e.key === 'N') {
+                openNewOrderModal();
+                setTimeout(() => document.getElementById('order-customer').focus(), 50);
+                e.preventDefault();
+            } else if (e.key === 'r' || e.key === 'R') {
+                refreshNow();
+                e.preventDefault();
+            }
+        }
+
+        async function refreshNow() {
+            const btn = document.getElementById('btn-refresh');
+            if (btn) btn.classList.add('animate-spin');
+            await refreshStats();
+            updateDashboard();
+            applyGreeting();
+            if (btn) setTimeout(() => btn.classList.remove('animate-spin'), 300);
+            showToast('Atualizado', 'Dados recarregados.');
+        }
+
+        let profitToday = null;
+
+        async function refreshStats() {
+            try { weeklyRevenue  = await getWeeklyRevenue(); }                            catch (_) {}
+            try { dashboardStats = await getDashboardStats('?period=' + rankingPeriod); } catch (_) {}
+            try { profitToday   = await getProfitReport('?period=today'); }              catch (_) {}
+        }
+
+        function syncCache() {
+            flavors = getFlavors();
+            orders  = getOrders();
+        }
+
+        function applyGreeting() {
+            const el = document.querySelector('h2.text-2xl.md\\:text-3xl');
+            if (el) {
+                el.innerHTML = `${escapeHtml(getGreeting())}, chef <span class="text-xl md:text-2xl">👨‍🍳</span>`;
+            }
+        }
+
+        function updateDashboard() {
+            // Métricas do dia: tudo aqui é "hoje" — pedidos antigos não contam
+            const todayOrders  = orders.filter(o => isToday(o.createdAt));
+            const totalPedidos = todayOrders.length;
+            const emAndamento  = todayOrders.filter(o => ['Pendente', 'Em Preparo', 'Pronto'].includes(o.status)).length;
+            const entregues    = todayOrders.filter(o => o.status === 'Entregue').length;
+            const faturamento  = todayOrders.filter(o => o.status === 'Entregue').reduce((acc, o) => acc + (o.total || 0), 0);
+
+            document.getElementById('stat-pedidos-hoje').innerText = totalPedidos;
+            document.getElementById('stat-entregues').innerText    = entregues;
+            document.getElementById('stat-faturamento').innerText  = formatBRL(faturamento);
+
+            // "Em andamento" muda de cor conforme volume: 0-5 normal, 6-10 amarelo, 11+ vermelho (gargalo)
+            const emAndamentoEl = document.getElementById('stat-em-andamento');
+            emAndamentoEl.innerText = emAndamento;
+            const emAndCls = emAndamento >= 11 ? 'text-red-400' : (emAndamento >= 6 ? 'text-amber-400' : 'text-white');
+            emAndamentoEl.className = `text-3xl font-black ${emAndCls}`;
+
+            renderRecentOrdersTable(todayOrders);
+            drawSalesChart();
+            renderLateAlert();
+            renderOperationalCards();
+            renderComparison();
+            renderHourlyChart();
+            renderRankings();
+            renderSourceBreakdown();
+            updateNeighborhoodOptions();
+            renderTableFilterBadge();
+            renderProfitCard();
+            lucide.createIcons();
+        }
+
+        function renderSourceBreakdown() {
+            const section = document.getElementById('source-section');
+            const el = document.getElementById('source-breakdown');
+            const list = (dashboardStats && dashboardStats.sourceBreakdown) || [];
+
+            // Mostra só se tem ao menos um pedido com origem informada
+            const totalKnown = list.filter(x => x.source !== 'Não informado').reduce((a, x) => a + x.orders, 0);
+            if (totalKnown === 0) { section.classList.add('hidden'); return; }
+            section.classList.remove('hidden');
+
+            const total = list.reduce((a, x) => a + x.orders, 0);
+            el.innerHTML = list.map(r => {
+                const pct = total > 0 ? (r.orders / total) * 100 : 0;
+                const isUnknown = r.source === 'Não informado';
+                const labelCls = isUnknown ? 'text-gray-500 italic' : 'text-white';
+                return `
+                    <div class="space-y-1">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="${labelCls} font-semibold">${escapeHtml(r.source)}</span>
+                            <span class="text-gray-300">${r.orders} <span class="text-gray-500 text-xs ml-1">${pct.toFixed(0)}% · ${formatBRL(r.revenue)}</span></span>
+                        </div>
+                        <div class="w-full bg-brand-dark rounded-full h-2 overflow-hidden">
+                            <div class="${isUnknown ? 'bg-gray-600' : 'bg-gradient-to-r from-red-600 to-orange-500'} h-full rounded-full" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderProfitCard() {
+            const el = document.getElementById('stat-lucro');
+            const sub = document.getElementById('stat-lucro-sub');
+            if (!profitToday) { el.textContent = '—'; sub.textContent = 'sem dados'; return; }
+
+            const net = profitToday.netProfit;
+            el.textContent = formatBRL(net);
+            el.className = `text-3xl font-black mt-1 ${net > 0 ? 'text-emerald-400' : (net < 0 ? 'text-red-400' : 'text-white')}`;
+            const margin = profitToday.margin || 0;
+            const marginCls = margin >= 20 ? 'text-emerald-400' : (margin >= 0 ? 'text-amber-400' : 'text-red-400');
+            sub.innerHTML = profitToday.revenue.gross > 0
+                ? `margem <span class="${marginCls} font-bold">${margin.toFixed(1)}%</span> · receita ${formatBRL(profitToday.revenue.gross)}`
+                : 'configure custos e despesas em Financeiro';
+        }
+
+        function renderTableFilterBadge() {
+            const badge = document.getElementById('table-filter-badge');
+            const text  = document.getElementById('table-filter-text');
+            if (!tableFilter) { badge.classList.add('hidden'); return; }
+            badge.classList.remove('hidden');
+            badge.classList.add('flex');
+            text.textContent = tableFilter.label;
+        }
+
+        function renderLateAlert() {
+            const wrapper = document.getElementById('alert-late');
+            const summary = document.getElementById('alert-late-summary');
+            const listEl  = document.getElementById('alert-late-list');
+            const late = (dashboardStats && dashboardStats.late) || [];
+
+            if (late.length === 0) {
+                wrapper.classList.add('hidden');
+                return;
+            }
+            wrapper.classList.remove('hidden');
+            summary.textContent = `${late.length} pedido(s) acima do tempo esperado — verifique já`;
+            listEl.innerHTML = late.map(l => `
+                <div class="bg-black/30 rounded-lg p-3 border border-red-500/20">
+                    <div class="flex items-center justify-between">
+                        <span class="text-red-400 font-bold text-sm">${escapeHtml(l.id)}</span>
+                        <span class="text-[10px] uppercase text-red-300/70 font-bold">${escapeHtml(l.status)}</span>
+                    </div>
+                    <div class="text-xs text-white font-semibold mt-1 truncate">${escapeHtml(l.customer)}</div>
+                    <div class="text-[11px] text-red-300/80 mt-1">há ${l.ageMin} min (limite: ${l.threshold} min)</div>
+                </div>
+            `).join('');
+        }
+
+        function renderOperationalCards() {
+            const s = dashboardStats || {};
+            const tempoEl = document.getElementById('stat-tempo-medio');
+            const deltaEl = document.getElementById('stat-tempo-medio-delta');
+            const picoEl  = document.getElementById('stat-pico');
+            const compEl  = document.getElementById('stat-composicao');
+
+            const avg = Math.round(s.avgPrepMinutes || 0);
+            const avgY = Math.round(s.avgPrepMinutesYesterday || 0);
+
+            // Cor por threshold: ≤15 verde, 16-25 amarelo, >25 vermelho
+            let tempoCls = 'text-white';
+            if (avg > 0)       tempoCls = avg <= 15 ? 'text-emerald-400' : (avg <= 25 ? 'text-amber-400' : 'text-red-400');
+            tempoEl.className = `text-3xl font-black mt-1 ${tempoCls}`;
+            tempoEl.textContent = avg > 0 ? `${avg} min` : '—';
+
+            // Delta vs ontem (se temos dados)
+            if (avgY > 0 && avg > 0) {
+                const diff = avg - avgY;
+                const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '–';
+                // Tempo de preparo: menor é melhor → diff negativo = bom
+                const cls = diff < 0 ? 'text-emerald-400' : (diff > 0 ? 'text-red-400' : 'text-gray-500');
+                deltaEl.innerHTML = `ontem: ${avgY} min <span class="${cls} font-bold ml-1">${arrow}${Math.abs(diff)}min</span>`;
+            } else {
+                deltaEl.textContent = 'sem comparativo';
+            }
+
+            if (s.peakHour != null && s.ordersByHour && s.ordersByHour[s.peakHour] > 0) {
+                picoEl.textContent = `${String(s.peakHour).padStart(2, '0')}h`;
+            } else {
+                picoEl.textContent = '—';
+            }
+
+            const cb = s.categoryBreakdown || {};
+            const total = (cb.Salgada || 0) + (cb.Doce || 0) + (cb.Premium || 0) + (cb.Outros || 0);
+            if (total === 0) {
+                compEl.innerHTML = `<div class="text-xs text-gray-500">sem dados ainda</div>`;
+                return;
+            }
+            const rows = [
+                { label: 'Salgadas', qty: cb.Salgada || 0, color: 'bg-red-500' },
+                { label: 'Premium',  qty: cb.Premium || 0, color: 'bg-purple-500' },
+                { label: 'Doces',    qty: cb.Doce || 0,    color: 'bg-amber-500' },
+            ];
+            compEl.innerHTML = rows.filter(r => r.qty > 0).map(r => {
+                const pct = Math.round((r.qty / total) * 100);
+                return `
+                    <div class="flex items-center gap-2 text-xs">
+                        <div class="w-2 h-2 rounded-full ${r.color}"></div>
+                        <span class="text-gray-300 flex-1">${r.label}</span>
+                        <span class="text-white font-bold">${r.qty}</span>
+                        <span class="text-gray-500 w-10 text-right">${pct}%</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderComparison() {
+            const tbody = document.getElementById('comparison-tbody');
+            const cutoffEl = document.getElementById('comparison-cutoff');
+            const c = (dashboardStats && dashboardStats.comparison) || null;
+            if (!c) { tbody.innerHTML = ''; if (cutoffEl) cutoffEl.textContent = ''; return; }
+            if (cutoffEl) cutoffEl.textContent = c.cutoffTime ? `até ${c.cutoffTime} (mesmo horário)` : '';
+
+            const rows = [
+                { label: 'Pedidos',      today: c.today.orders,           yest: c.yesterday.orders,           fmt: v => v },
+                { label: 'Faturamento',  today: c.today.revenue,          yest: c.yesterday.revenue,          fmt: formatBRL },
+                { label: 'Ticket médio', today: c.today.ticket,           yest: c.yesterday.ticket,           fmt: formatBRL },
+                { label: 'Cancelamento', today: c.today.cancellationRate, yest: c.yesterday.cancellationRate, fmt: v => `${Math.round(v)}%`, invert: true },
+            ];
+
+            tbody.innerHTML = rows.map(r => {
+                let deltaTxt = '—', deltaCls = 'text-gray-500';
+                if (r.yest > 0) {
+                    const diff = ((r.today - r.yest) / r.yest) * 100;
+                    const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '–';
+                    const positive = r.invert ? diff < 0 : diff > 0;
+                    deltaCls = positive ? 'text-emerald-400' : (diff === 0 ? 'text-gray-500' : 'text-red-400');
+                    deltaTxt = `${arrow} ${Math.abs(Math.round(diff))}%`;
+                } else if (r.today > 0) {
+                    deltaTxt = 'novo'; deltaCls = 'text-emerald-400';
+                }
+                return `
+                    <tr>
+                        <td class="py-2 text-gray-400 font-medium">${r.label}</td>
+                        <td class="py-2 text-right text-white font-bold">${r.fmt(r.today)}</td>
+                        <td class="py-2 text-right text-gray-500">${r.fmt(r.yest)}</td>
+                        <td class="py-2 text-right font-bold ${deltaCls}">${deltaTxt}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderHourlyChart() {
+            const container = document.getElementById('hourly-chart');
+            const labels    = document.getElementById('hourly-chart-labels');
+            const by = (dashboardStats && dashboardStats.ordersByHour) || new Array(24).fill(0);
+
+            // Mostra das 10h às 23h (faixa típica de operação)
+            const startHour = 10;
+            const endHour   = 23;
+            const slice = by.slice(startHour, endHour + 1);
+            const max = Math.max(1, ...slice);
+            const nowHour = new Date().getHours();
+
+            container.innerHTML = slice.map((qty, idx) => {
+                const hour = startHour + idx;
+                const isPeak = hour === (dashboardStats && dashboardStats.peakHour);
+                const isNow = hour === nowHour;
+                const h = Math.max(2, (qty / max) * 100);
+                let bg = 'bg-brand-border';
+                if (qty > 0) bg = 'bg-gradient-to-t from-red-600 to-orange-500';
+                if (isPeak)  bg = 'bg-gradient-to-t from-orange-500 to-yellow-400';
+                return `
+                    <div class="flex-1 flex flex-col items-center justify-end h-full group relative">
+                        <div class="text-[10px] text-gray-400 font-bold mb-0.5 ${qty === 0 ? 'invisible' : ''}">${qty}</div>
+                        <div class="w-full ${bg} rounded-t ${isNow ? 'ring-2 ring-brand-accentOrange' : ''}" style="height: ${h}%"></div>
+                    </div>
+                `;
+            }).join('');
+
+            const labelCols = slice.map((_, idx) => `<div>${String(startHour + idx).padStart(2, '0')}h</div>`).join('');
+            labels.innerHTML = labelCols;
+            labels.style.gridTemplateColumns = `repeat(${slice.length}, minmax(0, 1fr))`;
+        }
+
+        function renderRankings() {
+            const s = dashboardStats || {};
+            renderRankList('rank-flavors-qty',     s.topByQuantity    || [], r => `${r.qty} un.`,        r => r.name);
+            renderRankList('rank-flavors-revenue', s.topByRevenue     || [], r => formatBRL(r.revenue),  r => r.name);
+            renderRankList('rank-neighborhoods',   s.topNeighborhoods || [], r => `${r.orders} pedidos`, r => r.neighborhood, r => ({ type: 'neighborhood', value: r.neighborhood, label: `Bairro: ${r.neighborhood}` }));
+            renderRankList('rank-customers',       s.topCustomers     || [], r => formatBRL(r.spent),    r => r.name,        r => ({ type: 'customer', value: r.phone || r.name, label: `Cliente: ${r.name}` }));
+        }
+
+        function renderRankList(elId, rows, valueFn, labelFn, drilldownFn) {
+            const el = document.getElementById(elId);
+            if (!rows || rows.length === 0) {
+                el.innerHTML = `<p class="text-xs text-gray-500 py-4 text-center">sem dados no período</p>`;
+                return;
+            }
+            el.innerHTML = rows.map((r, idx) => {
+                const drilldown = drilldownFn ? drilldownFn(r) : null;
+                const onClick = drilldown
+                    ? `onclick='setTableFilter(${JSON.stringify(drilldown.type)}, ${JSON.stringify(drilldown.value)}, ${JSON.stringify(drilldown.label)})' class="cursor-pointer hover:bg-white/5 -mx-2 px-2 py-1 rounded-lg transition-all"`
+                    : '';
+                return `
+                    <div ${onClick}>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-white font-semibold truncate"><span class="text-brand-accentOrange font-bold mr-2">#${idx + 1}</span>${escapeHtml(labelFn(r))}</span>
+                            <span class="text-brand-accentOrange font-bold text-xs ml-2 whitespace-nowrap">${escapeHtml(valueFn(r))}</span>
+                        </div>
+                        <div class="w-full bg-brand-dark rounded-full h-1.5 overflow-hidden mt-1">
+                            <div class="bg-gradient-to-r from-red-600 to-orange-500 h-full rounded-full" style="width: ${100 - idx * 18}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateNeighborhoodOptions() {
+            const datalist = document.getElementById('neighborhood-options');
+            if (!datalist) return;
+            const set = new Set();
+            (dashboardStats && dashboardStats.topNeighborhoods || []).forEach(n => set.add(n.neighborhood));
+            orders.forEach(o => { if (o.neighborhood) set.add(o.neighborhood); });
+            datalist.innerHTML = Array.from(set).sort().map(n => `<option value="${escapeHtml(n)}">`).join('');
+        }
+
+        function renderRecentOrdersTable(scopedOrders) {
+            let list = scopedOrders || orders;
+
+            // Aplica filtro de drilldown (bairro ou cliente)
+            if (tableFilter) {
+                if (tableFilter.type === 'neighborhood') {
+                    list = list.filter(o => (o.neighborhood || '').toLowerCase() === tableFilter.value.toLowerCase());
+                } else if (tableFilter.type === 'customer') {
+                    list = list.filter(o => (o.phone || o.customer || '').toLowerCase() === tableFilter.value.toLowerCase());
+                }
+            }
+
+            const tbody = document.getElementById('lista-ultimos-pedidos-tbody');
+            const placeholder = document.getElementById('ultimos-pedidos-vazio');
+
+            if (list.length === 0) {
+                tbody.innerHTML = '';
+                placeholder.classList.remove('hidden');
+                return;
+            }
+            placeholder.classList.add('hidden');
+
+            tbody.innerHTML = list.slice().reverse().map(order => {
+                const itemSummary = order.items.map(i => `${i.quantity}x ${i.name}`).join(', ');
+
+                let statusColor = 'bg-gray-500/10 text-gray-400 border border-gray-500/20';
+                if (order.status === 'Pendente')   statusColor = 'bg-red-500/10 text-red-500 border border-red-500/20';
+                if (order.status === 'Em Preparo') statusColor = 'bg-orange-500/10 text-orange-400 border border-orange-500/20';
+                if (order.status === 'Pronto')     statusColor = 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20';
+                if (order.status === 'Entregue')   statusColor = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                if (order.status === 'Cancelado')  statusColor = 'bg-gray-500/10 text-gray-500 border border-gray-500/20';
+
+                const isFinal = order.status === 'Entregue' || order.status === 'Cancelado';
+                const canGoBack = previousStatus(order.status) !== null;
+                const canAdvance = nextStatus(order.status) !== null;
+                const statusBtns = isFinal
+                    ? `<button onclick="reopenOrder('${escapeHtml(order.id)}')" class="text-xs font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-white px-3 py-1.5 rounded-lg transition-all" title="Reabrir como Pendente"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i></button>`
+                    : `${canGoBack  ? `<button onclick="rewindOrderStatus('${escapeHtml(order.id)}')" class="text-xs font-bold bg-brand-border hover:bg-gray-500 hover:text-white px-3 py-1.5 rounded-lg transition-all text-gray-300" title="Voltar para ${escapeHtml(previousStatus(order.status))}">←</button>` : ''}
+                       ${canAdvance ? `<button onclick="advanceOrderStatus('${escapeHtml(order.id)}')" class="text-xs font-bold bg-brand-border hover:bg-brand-accentOrange hover:text-white px-3 py-1.5 rounded-lg transition-all text-gray-300">Avançar →</button>` : ''}`;
 
                 return `
                     <tr class="hover:bg-white/[0.02] transition-colors">
-                        <td class="py-4 pl-4 font-bold text-gray-400">${order.id}</td>
-                        <td class="py-4 font-semibold text-white">${order.customer}</td>
-                        <td class="py-4 text-gray-400 max-w-xs truncate" title="${itemSummary}">${itemSummary}</td>
-                        <td class="py-4 font-bold text-brand-accentOrange">R$ ${order.total.toFixed(2).replace('.', ',')}</td>
+                        <td class="py-4 pl-4 font-bold text-gray-400">${escapeHtml(order.id)}</td>
+                        <td class="py-4 font-semibold text-white">${escapeHtml(order.customer)}</td>
+                        <td class="py-4 text-gray-400 max-w-xs truncate" title="${escapeHtml(itemSummary)}">${escapeHtml(itemSummary)}</td>
+                        <td class="py-4 font-bold text-brand-accentOrange">${formatBRL(order.total)}</td>
                         <td class="py-4">
                             <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${statusColor}">
-                                ${order.status}
+                                ${escapeHtml(order.status)}
                             </span>
                         </td>
-                        
-<td class="py-4 text-right pr-4">
-    <div class="flex items-center justify-end gap-2">
-        
-        <!-- EDITAR -->
-        <button 
-            onclick="editOrder('${order.id}')"
-            class="text-xs font-bold bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white px-3 py-1.5 rounded-lg transition-all flex items-center gap-1">
-            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-        </button>
-
-        <!-- EXCLUIR -->
-        <button 
-            onclick="deleteOrder('${order.id}')"
-            class="text-xs font-bold bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg transition-all flex items-center gap-1">
-            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-        </button>
-
-        <!-- AVANÇAR -->
-        ${order.status !== 'Entregue' && order.status !== 'Cancelado' ? `
-            <button 
-                onclick="advanceOrderStatus('${order.id}')"
-                class="text-xs font-bold bg-brand-border hover:bg-brand-accentOrange hover:text-white px-3 py-1.5 rounded-lg transition-all text-gray-300">
-                Avançar
-            </button>
-        ` : `<span class="text-xs text-gray-600 font-medium">Finalizado</span>`}
-
-    </div>
-</td>
-<td class="py-4 text-gray-400 text-xs">
-    <div class="font-bold text-white">${order.payment}</div>
-    <div>${order.address}</div>
-</td>
+                        <td class="py-4 text-right pr-4">
+                            <div class="flex items-center justify-end gap-2">
+                                <button onclick="editOrder('${escapeHtml(order.id)}')" class="text-xs font-bold bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white px-3 py-1.5 rounded-lg transition-all flex items-center gap-1">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="removeOrder('${escapeHtml(order.id)}')" class="text-xs font-bold bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg transition-all flex items-center gap-1">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                                ${statusBtns}
+                            </div>
+                        </td>
+                        <td class="py-4 text-gray-400 text-xs">
+                            <div class="font-bold text-white">${escapeHtml(order.payment || '—')}</div>
+                            <div>${escapeHtml(order.address || '')}</div>
+                        </td>
                     </tr>
                 `;
-            }).join("");
+            }).join('');
         }
 
-        function advanceOrderStatus(orderId) {
+        async function advanceOrderStatus(orderId) {
             const order = orders.find(o => o.id === orderId);
             if (!order) return;
-
-            if (order.status === "Pendente") order.status = "Em Preparo";
-            else if (order.status === "Em Preparo") order.status = "Pronto";
-            else if (order.status === "Pronto") order.status = "Entregue";
-
-            saveOrders();
-            showToast("Status Atualizado", `O pedido ${orderId} agora está ${order.status}.`);
-            updateDashboard();
+            const next = nextStatus(order.status);
+            if (!next) return;
+            try {
+                await updateOrder(orderId, { status: next });
+                showToast('Status Atualizado', `Pedido ${orderId} → ${next}.`);
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
         }
 
-        function getFlavorsVolume() {
+        async function rewindOrderStatus(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            const prev = previousStatus(order.status);
+            if (!prev) return;
+            try {
+                await updateOrder(orderId, { status: prev });
+                showToast('Status revertido', `Pedido ${orderId} ← ${prev}.`);
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
+        }
+
+        async function reopenOrder(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            if (!confirm(`Reabrir o pedido ${orderId}? Ele voltará para "Pendente".`)) return;
+            try {
+                await updateOrder(orderId, { status: 'Pendente' });
+                showToast('Pedido reaberto', `${orderId} voltou para Pendente.`);
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
+        }
+
+        function getFlavorsVolume(list) {
             const volume = {};
-            orders.forEach(o => {
-                if (o.status !== "Cancelado") {
-                    o.items.forEach(i => {
-                        volume[i.name] = (volume[i.name] || 0) + i.quantity;
-                    });
-                }
+            (list || orders).forEach(o => {
+                if (o.status === 'Cancelado') return;
+                o.items.forEach(i => { volume[i.name] = (volume[i.name] || 0) + i.quantity; });
             });
             return volume;
         }
 
-        function updateTopFlavor() {
-            const container = document.getElementById("container-top-sabor");
-            const volumes = getFlavorsVolume();
-
-            let topFlavor = null;
-            let maxQty = 0;
-
-            for (const [name, qty] of Object.entries(volumes)) {
-                if (qty > maxQty) {
-                    maxQty = qty;
-                    topFlavor = name;
-                }
-            }
-
-            if (!topFlavor) {
-                container.innerHTML = `
-                    <div class="text-center space-y-3">
-                        <div class="w-12 h-12 rounded-full bg-brand-border/40 flex items-center justify-center mx-auto">
-                            <i data-lucide="pie-chart" class="w-5 h-5 text-gray-500"></i>
-                        </div>
-                        <p class="text-xs text-gray-400 font-medium px-4 max-w-xs leading-relaxed">Nenhuma esfiha vendida hoje ainda.</p>
-                    </div>
-                `;
-                lucide.createIcons();
-                return;
-            }
-
-            container.innerHTML = `
-                <div class="text-center space-y-4 w-full px-4">
-                    <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center mx-auto shadow-lg shadow-orange-950/40">
-                        <i data-lucide="pizza" class="w-10 h-10 text-white"></i>
-                    </div>
-                    <div>
-                        <h5 class="text-lg font-black text-white leading-tight">${topFlavor}</h5>
-                        <p class="text-brand-accentOrange font-extrabold text-sm mt-1">${maxQty} unidades vendidas</p>
-                    </div>
-                </div>
-            `;
-            lucide.createIcons();
-        }
-
+        // Gráfico: usa dados agregados do backend (/api/orders/stats/weekly)
         function drawSalesChart() {
-            const chartPath = document.getElementById("chart-path");
-            const chartAreaPath = document.getElementById("chart-area-path");
-            const pointsGroup = document.getElementById("chart-points");
+            const chartPath     = document.getElementById('chart-path');
+            const chartAreaPath = document.getElementById('chart-area-path');
+            const pointsGroup   = document.getElementById('chart-points');
 
             const xCoords = [50, 150, 250, 350, 450, 550, 650];
-            const dailyRevenue = [45, 90, 35, 120, 80, 145, 110];
-            const mapY = (val) => 160 - (val / 150) * 130;
+            const dailyRevenue = (weeklyRevenue && weeklyRevenue.length === 7)
+                ? weeklyRevenue.map(d => d.revenue)
+                : [0, 0, 0, 0, 0, 0, 0];
 
-            let pathData = "";
-            let areaData = "M 50 160 ";
+            const maxVal = Math.max(150, ...dailyRevenue);
+            const mapY = (val) => 160 - (val / maxVal) * 130;
 
-            pointsGroup.innerHTML = "";
+            let pathData = '';
+            let areaData = `M ${xCoords[0]} 160 `;
+            pointsGroup.innerHTML = '';
 
             dailyRevenue.forEach((revenue, index) => {
                 const x = xCoords[index];
                 const y = mapY(revenue);
-
-                if (index === 0) {
-                    pathData += `M ${x} ${y} `;
-                } else {
-                    pathData += `L ${x} ${y} `;
-                }
+                pathData += (index === 0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
                 areaData += `L ${x} ${y} `;
-
-                pointsGroup.innerHTML += `
-                    <circle cx="${x}" cy="${y}" r="5" fill="#f97316" stroke="#120c08" stroke-width="2" class="cursor-pointer hover:r-7 transition-all"/>
-                `;
+                pointsGroup.innerHTML += `<circle cx="${x}" cy="${y}" r="5" fill="#f97316" stroke="#120c08" stroke-width="2"/>`;
             });
+            areaData += `L ${xCoords[xCoords.length - 1]} 160 Z`;
 
-            areaData += "L 650 160 Z";
-
-            chartPath.setAttribute("d", pathData);
-            chartAreaPath.setAttribute("d", areaData);
+            chartPath.setAttribute('d', pathData);
+            chartAreaPath.setAttribute('d', areaData);
         }
 
-        // --- OPERAÇÃO DO MODAL DE NOVO PEDIDO ---
+        // --- MODAL: novo pedido ---
         function openNewOrderModal() {
-            loadDatabase(); // Recarrega sabores antes de abrir para garantir novidades!
+            editingOrderId = null;
+            flavors = getFlavors();
             renderFlavorsSelection();
-            document.getElementById("modal-novo-pedido").classList.remove("hidden");
+            document.getElementById('order-customer').value = '';
+            document.getElementById('order-phone').value = '';
+            document.getElementById('order-address').value = '';
+            document.getElementById('order-neighborhood').value = '';
+            document.getElementById('order-notes').value = '';
+            document.getElementById('order-payment').value = 'Pix';
+            document.getElementById('order-source').value = '';
+            document.getElementById('order-preview-total').innerText = formatBRL(0);
+            document.getElementById('modal-novo-pedido').classList.remove('hidden');
         }
 
         function closeNewOrderModal() {
-            document.getElementById("modal-novo-pedido").classList.add("hidden");
-            document.getElementById("order-customer").value = "";
-            document.getElementById("order-phone").value = "";
-            document.getElementById("order-notes").value = "";
-            document.getElementById("order-preview-total").innerText = "R$ 0,00";
+            editingOrderId = null;
+            document.getElementById('modal-novo-pedido').classList.add('hidden');
         }
 
         function renderFlavorsSelection() {
-            const container = document.getElementById("order-flavors-selection");
+            const container = document.getElementById('order-flavors-selection');
             const availableFlavors = flavors.filter(f => f.available);
 
             if (availableFlavors.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-4 text-gray-400 text-xs">
-                        Nenhum sabor disponível no cardápio atualmente.
-                    </div>
-                `;
+                container.innerHTML = `<div class="text-center py-4 text-gray-400 text-xs">Nenhum sabor disponível no cardápio atualmente.</div>`;
                 return;
             }
 
             container.innerHTML = availableFlavors.map(flavor => `
                 <div class="flex items-center justify-between bg-brand-dark/40 p-2.5 rounded-xl border border-brand-border/60">
                     <div>
-                        <span class="text-sm font-semibold text-white block">${flavor.name}</span>
-                        <span class="text-xs text-brand-accentOrange font-medium">R$ ${flavor.price.toFixed(2).replace('.', ',')}</span>
+                        <span class="text-sm font-semibold text-white block">${escapeHtml(flavor.name)}</span>
+                        <span class="text-xs text-brand-accentOrange font-medium">${formatBRL(flavor.price)}</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <button type="button" onclick="updateQuantity(${flavor.id}, -1)" class="w-7 h-7 bg-brand-border text-white rounded-lg flex items-center justify-center font-bold hover:bg-brand-border/80 active:scale-90 transition-all">-</button>
-                        <input type="number" id="flavor-qty-${flavor.id}" data-id="${flavor.id}" data-name="${flavor.name}" data-price="${flavor.price}" value="0" min="0" readonly class="w-10 bg-transparent text-center text-white font-bold text-sm focus:outline-none">
+                        <input type="number" id="flavor-qty-${flavor.id}" data-id="${flavor.id}" data-price="${flavor.price}" value="0" min="0" readonly class="w-10 bg-transparent text-center text-white font-bold text-sm focus:outline-none">
                         <button type="button" onclick="updateQuantity(${flavor.id}, 1)" class="w-7 h-7 bg-brand-border text-white rounded-lg flex items-center justify-center font-bold hover:bg-brand-border/80 active:scale-90 transition-all">+</button>
                     </div>
                 </div>
-            `).join("");
+            `).join('');
         }
 
         function updateQuantity(flavorId, change) {
             const input = document.getElementById(`flavor-qty-${flavorId}`);
             if (!input) return;
-            let currentVal = parseInt(input.value) || 0;
-            currentVal += change;
-            if (currentVal < 0) currentVal = 0;
-            input.value = currentVal;
+            let v = (parseInt(input.value, 10) || 0) + change;
+            if (v < 0) v = 0;
+            input.value = v;
             calculateTotalPreview();
         }
 
@@ -721,186 +1203,105 @@
             flavors.filter(f => f.available).forEach(flavor => {
                 const input = document.getElementById(`flavor-qty-${flavor.id}`);
                 if (input) {
-                    const qty = parseInt(input.value) || 0;
-                    const price = parseFloat(input.dataset.price);
-                    total += qty * price;
+                    const qty = parseInt(input.value, 10) || 0;
+                    total += qty * parseFloat(input.dataset.price);
                 }
             });
-            document.getElementById("order-preview-total").innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+            document.getElementById('order-preview-total').innerText = formatBRL(total);
             return total;
         }
 
-        function submitNewOrder() {
-    const customer = document.getElementById("order-customer").value;
-    const phone = document.getElementById("order-phone").value;
-    const address = document.getElementById("order-address").value; // Novo campo
-    const payment = document.getElementById("order-payment").value; // Novo campo
-    const notes = document.getElementById("order-notes").value;
+        function collectSelectedItems() {
+            const items = [];
+            let total = 0;
+            flavors.filter(f => f.available).forEach(flavor => {
+                const input = document.getElementById(`flavor-qty-${flavor.id}`);
+                if (!input) return;
+                const qty = parseInt(input.value, 10) || 0;
+                if (qty <= 0) return;
+                items.push({ flavorId: flavor.id, name: flavor.name, quantity: qty, price: flavor.price });
+                total += qty * flavor.price;
+            });
+            return { items, total };
+        }
 
-    if (!customer || !address) {
-        showToast("Erro", "Nome e endereço são obrigatórios!");
-        return;
-    }
+        async function submitNewOrder() {
+            const customer     = document.getElementById('order-customer').value.trim();
+            const phone        = document.getElementById('order-phone').value.trim();
+            const address      = document.getElementById('order-address').value.trim();
+            const neighborhood = document.getElementById('order-neighborhood').value.trim();
+            const payment      = document.getElementById('order-payment').value;
+            const source       = document.getElementById('order-source').value;
+            const notes        = document.getElementById('order-notes').value.trim();
 
-    const newOrder = {
-        id: "#" + Math.floor(Math.random() * 9000 + 1000), // Exemplo de ID aleatório
-        customer,
-        phone,
-        address,   // Salvo no objeto
-        payment,   // Salvo no objeto
-        items: [], // Você deve implementar a lógica de pegar os itens selecionados
-        total: 0,
-        status: "Pendente",
-        notes,
-        createdAt: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    };
-
-    orders.push(newOrder);
-    saveOrders();
-    closeNewOrderModal();
-    updateDashboard();
-    showToast("Sucesso!", "Pedido criado com sucesso.");
-}
-
-        // Sistema de Notificações Customizadas
-        function showToast(title, message, isWarning = false) {
-            const toast = document.getElementById("toast");
-            document.getElementById("toast-title").innerText = title;
-            document.getElementById("toast-message").innerText = message;
-
-            if (isWarning) {
-                toast.classList.add("border-red-500");
-                toast.classList.remove("border-emerald-500");
-            } else {
-                toast.classList.add("border-emerald-500");
-                toast.classList.remove("border-red-500");
+            if (!customer || !address) {
+                showToast('Campos obrigatórios', 'Informe o nome do cliente e o endereço de entrega.', true);
+                return;
+            }
+            const { items } = collectSelectedItems();
+            if (items.length === 0) {
+                showToast('Sem itens', 'Selecione pelo menos um sabor para o pedido.', true);
+                return;
             }
 
-            toast.classList.remove("translate-y-20", "opacity-0", "pointer-events-none");
-
-            setTimeout(() => {
-                toast.classList.add("translate-y-20", "opacity-0", "pointer-events-none");
-            }, 3000);
+            try {
+                if (editingOrderId) {
+                    const id = editingOrderId;
+                    await updateOrder(id, { customer, phone, address, neighborhood, payment, source, notes, items });
+                    showToast('Pedido atualizado', `O pedido ${id} foi atualizado.`);
+                } else {
+                    await createOrder({ customer, phone, address, neighborhood, payment, source, notes, items });
+                    showToast('Pedido criado', 'Pedido registrado com sucesso.');
+                }
+                editingOrderId = null;
+                closeNewOrderModal();
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
         }
 
         function editOrder(orderId) {
             const order = orders.find(o => o.id === orderId);
-
             if (!order) return;
 
-            // Abre modal
             openNewOrderModal();
+            editingOrderId = orderId;
 
-            // Preenche dados
-            document.getElementById("order-customer").value = order.customer;
-            document.getElementById("order-phone").value = order.phone;
-            document.getElementById("order-notes").value = order.notes || "";
+            document.getElementById('order-customer').value     = order.customer     || '';
+            document.getElementById('order-phone').value        = order.phone        || '';
+            document.getElementById('order-address').value      = order.address      || '';
+            document.getElementById('order-neighborhood').value = order.neighborhood || '';
+            document.getElementById('order-payment').value      = order.payment      || 'Pix';
+            document.getElementById('order-source').value       = order.source       || '';
+            document.getElementById('order-notes').value        = order.notes        || '';
 
-            // Reset quantidades
-            flavors.forEach(flavor => {
-                const input = document.getElementById(`flavor-qty-${flavor.id}`);
-                if (input) input.value = 0;
-            });
-
-            // Preenche itens do pedido
+            // Pré-popula quantidades
             order.items.forEach(item => {
-                const flavor = flavors.find(f => f.name === item.name);
-
+                // tenta por flavorId; se não houver, tenta por nome
+                let flavor = flavors.find(f => f.id === item.flavorId);
+                if (!flavor) flavor = flavors.find(f => f.name === item.name);
                 if (flavor) {
                     const input = document.getElementById(`flavor-qty-${flavor.id}`);
-
-                    if (input) {
-                        input.value = item.quantity;
-                    }
+                    if (input) input.value = item.quantity;
                 }
             });
-
             calculateTotalPreview();
 
-            // Remove pedido antigo temporariamente
-            orders = orders.filter(o => o.id !== orderId);
-
-            saveOrders();
-
-            showToast(
-                "Modo edição",
-                `Você está editando o pedido ${orderId}.`
-            );
+            showToast('Modo edição', `Editando o pedido ${orderId}.`);
         }
 
-        function deleteOrder(orderId) {
+        // O frontend tem uma função local `deleteOrder` para o botão, mas o cliente
+        // exposto por js/db.js também se chama `deleteOrder`. Damos nome distinto aqui.
+        async function removeOrder(orderId) {
             const order = orders.find(o => o.id === orderId);
-
             if (!order) return;
-
-            const confirmDelete = confirm(
-                `Tem certeza que deseja excluir o pedido ${order.id} de ${order.customer}?`
-            );
-
-            if (!confirmDelete) return;
-
-            orders = orders.filter(o => o.id !== orderId);
-
-            saveOrders();
-            updateDashboard();
-
-            showToast(
-                "Pedido excluído",
-                `O pedido ${orderId} foi removido com sucesso.`,
-                true
-            );
-        }
-
-        // Exibe o Sabor mais Vendido
-        function updateTopFlavor() {
-            const container = document.getElementById("container-top-sabor");
-            const volumes = getFlavorsVolume();
-            let topFlavor = null;
-            let maxQty = 0;
-
-            for (const [name, qty] of Object.entries(volumes)) {
-                if (qty > maxQty) {
-                    maxQty = qty;
-                    topFlavor = name;
-                }
+            if (!confirm(`Excluir o pedido ${order.id} de ${order.customer}?`)) return;
+            try {
+                await deleteOrder(orderId);
+                showToast('Pedido excluído', `O pedido ${orderId} foi removido.`, true);
+            } catch (e) {
+                showToast('Erro', e.message, true);
             }
-
-            if (!topFlavor) return;
-
-            container.innerHTML = `
-        <div class="text-center">
-            <div class="text-4xl mb-2">🏆</div>
-            <h5 class="text-white font-black text-lg">${topFlavor}</h5>
-            <p class="text-xs text-brand-accentOrange font-bold uppercase">${maxQty} unidades vendidas</p>
-        </div>
-    `;
-        }
-
-        // Modal: Gerenciar Abertura/Fechamento
-        function openNewOrderModal() {
-            document.getElementById('modal-novo-pedido').classList.remove('hidden');
-        }
-
-        function closeNewOrderModal() {
-            document.getElementById('modal-novo-pedido').classList.add('hidden');
-        }
-
-        // Notificações Toast
-        function showToast(title, message) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toast-title').innerText = title;
-            document.getElementById('toast-message').innerText = message;
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
-        }
-
-        // Simulação de desenho de gráfico (Placeholder)
-        function drawSalesChart() {
-            const path = document.getElementById('chart-path');
-            const area = document.getElementById('chart-area-path');
-            // Dados simplificados para o path do SVG
-            path.setAttribute('d', 'M0 140 C 100 130, 200 100, 350 80 C 500 60, 600 40, 700 20');
-            area.setAttribute('d', 'M0 160 L 0 140 C 100 130, 200 100, 350 80 C 500 60, 600 40, 700 20 L 700 160 Z');
         }
     </script>
 </body>

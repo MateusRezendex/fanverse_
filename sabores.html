@@ -7,6 +7,7 @@
     <title>Sabor que Vicia - Sabores</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="js/db.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -58,13 +59,17 @@
                     class="bg-gradient-to-br from-red-600 to-orange-500 text-white w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm">
                     <i data-lucide="pizza" class="w-5 h-5"></i> Sabores
                 </a>
-                <a href="/clientes.html"
+                <a href="./clientes.html"
                     class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
                     <i data-lucide="users" class="w-5 h-5"></i> Clientes
                 </a>
-                <a href="./pedidos.html"
+                <a href="./relatorios.html"
                     class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
                     <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Relatórios
+                </a>
+                <a href="./financeiro.html"
+                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="dollar-sign" class="w-5 h-5"></i> Financeiro
                 </a>
             </nav>
         </div>
@@ -139,14 +144,20 @@
                             class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
                     </div>
                     <div class="space-y-1.5">
-                        <label class="text-xs font-bold text-gray-400 uppercase">Categoria</label>
-                        <select id="f-category"
+                        <label class="text-xs font-bold text-gray-400 uppercase">Custo (R$)</label>
+                        <input type="number" step="0.10" id="f-cost" placeholder="Ex: 2.50"
                             class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
-                            <option value="Salgada">Salgada</option>
-                            <option value="Doce">Doce</option>
-                            <option value="Especial">Especial</option>
-                        </select>
                     </div>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Categoria</label>
+                    <select id="f-category"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                        <option value="Salgada">Salgada</option>
+                        <option value="Doce">Doce</option>
+                        <option value="Premium">Premium</option>
+                        <option value="Especial">Especial</option>
+                    </select>
                 </div>
 
                 <div class="space-y-1.5">
@@ -179,183 +190,17 @@
     </div>
 
     <script>
-        // Sabores importados e mapeados de https://esfiha.vercel.app/cardapio.html
-        let defaultFlavors = [
-            // Tradicionais
-            {
-                id: 1,
-                name: "Frango com Catupiry",
-                description: "Frango desfiado com catupiry original e cheiro verde fresco.",
-                price: 7.99,
-                category: "Salgada",
-                available: true
-            },
-            {
-                id: 2,
-                name: "Carne",
-                description: "Carne moída premium temperada com tomate, cebola e limão.",
-                price: 7.99,
-                category: "Salgada",
-                available: true
-            },
-            {
-                id: 3,
-                name: "Queijo",
-                description: "Mix de mussarela, queijo minas, creme de leite e orégano.",
-                price: 7.99,
-                category: "Salgada",
-                available: true
-            },
-            {
-                id: 4,
-                name: "Queijo com Presunto",
-                description: "Mussarela selecionada, presunto picado e orégano.",
-                price: 7.99,
-                category: "Salgada",
-                available: true
-            },
-            {
-                id: 5,
-                name: "Calabresa com Cebola",
-                description: "Calabresa fatiada, cebola e um toque de mussarela.",
-                price: 7.99,
-                category: "Salgada",
-                available: true
-            },
-            {
-                id: 6,
-                name: "Bacon",
-                description: "Bacon crocante em fatias com generosa camada de mussarela.",
-                price: 7.99,
-                category: "Salgada",
-                available: true
-            },
-            {
-                id: 7,
-                name: "Frango com Bacon",
-                description: "Combinação perfeita de frango desfiado, bacon e mussarela.",
-                price: 7.99,
-                category: "Salgada",
-                available: true
-            },
-
-            // Premium
-            {
-                id: 8,
-                name: "3 Queijos",
-                description: "A união nobre de Mussarela, Catupiry e Provolone defumado.",
-                price: 8.99,
-                category: "Premium",
-                available: true
-            },
-            {
-                id: 9,
-                name: "Brócolis com Queijo",
-                description: "Brócolis fresco no vapor, mussarela e pedaços de bacon.",
-                price: 8.99,
-                category: "Premium",
-                available: true
-            },
-            {
-                id: 10,
-                name: "Lombinho Canadense",
-                description: "Lombo canadense fatiado com mussarela.",
-                price: 8.99,
-                category: "Premium",
-                available: true
-            },
-            {
-                id: 11,
-                name: "Carne Seca",
-                description: "Carne seca desfiada artesanalmente com catupiry.",
-                price: 10.50,
-                category: "Premium",
-                available: true
-            },
-
-            // Doces
-            {
-                id: 12,
-                name: "Chocolate c/ Morango",
-                description: "Ganache de chocolate ao leite com morangos frescos fatiados.",
-                price: 9.99,
-                category: "Doce",
-                available: true
-            },
-            {
-                id: 13,
-                name: "Chocolate com MM",
-                description: "Chocolate cremoso coberto com M&Ms coloridos.",
-                price: 9.99,
-                category: "Doce",
-                available: true
-            },
-            {
-                id: 14,
-                name: "Banana Nevada",
-                description: "Banana fatiada, chocolate branco gratinado, açúcar e canela.",
-                price: 8.99,
-                category: "Doce",
-                available: true
-            },
-            {
-                id: 15,
-                name: "Abacaxi Nevado",
-                description: "Abacaxi em calda artesanal com chocolate branco gratinado.",
-                price: 8.99,
-                category: "Doce",
-                available: true
-            },
-            {
-                id: 16,
-                name: "Churros",
-                description: "Doce de leite cremoso com toque de canela e açúcar.",
-                price: 8.99,
-                category: "Doce",
-                available: true
-            },
-            {
-                id: 17,
-                name: "Romeu e Julieta",
-                description: "A clássica combinação de queijo minas com goiabada.",
-                price: 8.99,
-                category: "Doce",
-                available: true
-            }
-        ];
-
         let flavors = [];
         let currentFilter = 'Todos';
 
-        // Simulação de banco de dados integrado
-        function getFlavors() {
-            const localData = localStorage.getItem('sabor_que_vicia_flavors');
-            if (localData) {
-                return JSON.parse(localData);
-            } else {
-                localStorage.setItem('sabor_que_vicia_flavors', JSON.stringify(defaultFlavors));
-                return defaultFlavors;
-            }
-        }
-
-        function saveFlavors(data) {
-            localStorage.setItem('sabor_que_vicia_flavors', JSON.stringify(data));
-            flavors = data;
-        }
-        window.onload = function () {
-
+        document.addEventListener('DOMContentLoaded', async () => {
+            try { await initDb(); }
+            catch (e) { showToast('Erro de conexão', 'Falha ao conectar ao servidor.', true); console.error(e); return; }
+            onDataChange(() => { flavors = getFlavors(); renderFlavors(); });
             flavors = getFlavors();
-
-            // Caso não exista nada salvo, carrega sabores padrão
-            if (!flavors || flavors.length === 0) {
-                flavors = defaultFlavors;
-                saveFlavors(flavors);
-            }
-
             renderFlavors();
-
             lucide.createIcons();
-        }
+        });
 
         function renderFlavors() {
             const grid = document.getElementById('sabores-grid');
@@ -388,18 +233,14 @@
                 const card = document.createElement('div');
                 card.className = `bg-brand-card p-5 rounded-2xl border ${f.available ? 'border-brand-border' : 'border-red-900/40 opacity-75'} flex flex-col justify-between h-full transition-all hover:scale-[1.01] hover:shadow-lg relative overflow-hidden group`;
 
-                // Badge de categoria
                 let categoryBadgeColor = "bg-red-500/10 text-red-400";
-                if (f.category === "Doce") {
-                    categoryBadgeColor = "bg-amber-500/10 text-amber-400";
-                } else if (f.category === "Especial") {
-                    categoryBadgeColor = "bg-purple-500/10 text-purple-400";
-                }
+                if (f.category === "Doce")    categoryBadgeColor = "bg-amber-500/10 text-amber-400";
+                if (f.category === "Premium") categoryBadgeColor = "bg-purple-500/10 text-purple-400";
 
                 card.innerHTML = `
                     <div class="space-y-3">
                         <div class="flex items-center justify-between">
-                            <span class="px-2.5 py-1 text-[10px] rounded-full font-bold uppercase tracking-wider ${categoryBadgeColor}">${f.category}</span>
+                            <span class="px-2.5 py-1 text-[10px] rounded-full font-bold uppercase tracking-wider ${categoryBadgeColor}">${escapeHtml(f.category)}</span>
                             <div class="flex items-center gap-2">
                                 <span class="text-[11px] ${f.available ? 'text-emerald-500' : 'text-red-500'} font-semibold">
                                     ${f.available ? 'Disponível' : 'Indisponível'}
@@ -410,33 +251,33 @@
                             </div>
                         </div>
                         <div>
-                            <h4 class="text-white font-extrabold text-lg mt-1 group-hover:text-brand-accentOrange transition-colors">${f.name}</h4>
-                            <p class="text-gray-400 text-xs mt-1 leading-relaxed line-clamp-2">${f.description || 'Nenhum ingrediente listado.'}</p>
+                            <h4 class="text-white font-extrabold text-lg mt-1 group-hover:text-brand-accentOrange transition-colors">${escapeHtml(f.name)}</h4>
+                            <p class="text-gray-400 text-xs mt-1 leading-relaxed line-clamp-2">${escapeHtml(f.description || 'Nenhum ingrediente listado.')}</p>
                         </div>
                     </div>
-                    
-                    <div class="flex items-center justify-between mt-6 pt-4 border-t border-brand-border/40">
-                        <div>
-                            <span class="block text-[10px] uppercase font-bold text-gray-500 tracking-wider">Preço</span>
-                            <span class="text-brand-accentOrange font-black text-xl">R$ ${f.price.toFixed(2).replace('.', ',')}</span>
+                    <div class="mt-6 pt-4 border-t border-brand-border/40 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="block text-[10px] uppercase font-bold text-gray-500 tracking-wider">Preço</span>
+                                <span class="text-brand-accentOrange font-black text-xl">${formatBRL(f.price)}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="block text-[10px] uppercase font-bold text-gray-500 tracking-wider">Custo</span>
+                                <span class="text-gray-300 font-bold text-sm">${formatBRL(f.costPrice || 0)}</span>
+                            </div>
                         </div>
-<div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
-    
-    <button 
-        onclick="editFlavorPrice(${f.id})" 
-        title="Alterar valor"
-        class="p-2 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 hover:text-orange-300 transition-all">
-        <i data-lucide="pencil" class="w-4 h-4"></i>
-    </button>
-
-    <button 
-        onclick="deleteFlavor(${f.id})" 
-        title="Excluir sabor" 
-        class="p-2 rounded-xl bg-red-950/20 hover:bg-red-950/60 border border-red-900/30 text-red-400 hover:text-red-300 transition-all">
-        <i data-lucide="trash-2" class="w-4 h-4"></i>
-    </button>
-
-</div>
+                        ${renderMarginBar(f)}
+                        <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
+                            <button onclick="editFlavorPrice(${f.id})" title="Alterar preço" class="flex-1 p-2 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 hover:text-orange-300 transition-all text-xs font-bold">
+                                <i data-lucide="pencil" class="w-3.5 h-3.5 inline mr-1"></i>preço
+                            </button>
+                            <button onclick="editFlavorCost(${f.id})" title="Alterar custo" class="flex-1 p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 hover:text-blue-300 transition-all text-xs font-bold">
+                                <i data-lucide="dollar-sign" class="w-3.5 h-3.5 inline mr-1"></i>custo
+                            </button>
+                            <button onclick="removeFlavor(${f.id})" title="Excluir sabor" class="p-2 rounded-xl bg-red-950/20 hover:bg-red-950/60 border border-red-900/30 text-red-400 hover:text-red-300 transition-all">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
                     </div>
                 `;
                 grid.appendChild(card);
@@ -444,18 +285,9 @@
             lucide.createIcons();
         }
 
-        // Troca de Filtros
         function setCategoryFilter(category) {
             currentFilter = category;
-
-            // Atualizar classes dos botões de filtro
-            const buttons = {
-                'Todos': 'filter-all',
-                'Salgada': 'filter-salgada',
-                'Doce': 'filter-doce',
-                'Premium': 'filter-premium'
-            };
-
+            const buttons = { 'Todos': 'filter-all', 'Salgada': 'filter-salgada', 'Doce': 'filter-doce', 'Premium': 'filter-premium' };
             Object.entries(buttons).forEach(([cat, id]) => {
                 const btn = document.getElementById(id);
                 if (cat === category) {
@@ -464,77 +296,93 @@
                     btn.className = "px-4 py-2 text-xs font-bold rounded-xl transition-all border border-brand-border hover:border-gray-500 text-gray-400 hover:text-white shrink-0";
                 }
             });
-
             renderFlavors();
         }
 
-        function filterFlavors() {
-            renderFlavors();
-        }
+        function filterFlavors() { renderFlavors(); }
 
-        // Alterna entre Disponível e Indisponível
-        function toggleAvailability(id) {
-            const index = flavors.findIndex(f => f.id === id);
-            if (index !== -1) {
-                flavors[index].available = !flavors[index].available;
-                saveFlavors(flavors);
+        async function toggleAvailability(id) {
+            const flavor = flavors.find(f => f.id === id);
+            if (!flavor) return;
+            const newValue = !flavor.available;
+            try {
+                await updateFlavor(id, { available: newValue });
                 showToast(
-                    flavors[index].available ? "Disponível" : "Indisponível",
-                    `${flavors[index].name} foi atualizada com sucesso!`,
-                    !flavors[index].available
+                    newValue ? 'Disponível' : 'Indisponível',
+                    `${flavor.name} foi atualizado.`,
+                    !newValue
                 );
-                renderFlavors();
+            } catch (e) {
+                showToast('Erro', e.message, true);
             }
         }
 
-        // Apaga Sabor
-        function deleteFlavor(id) {
-            const index = flavors.findIndex(f => f.id === id);
-            if (index !== -1) {
-                const flavorName = flavors[index].name;
-                flavors.splice(index, 1);
-                saveFlavors(flavors);
-                showToast("Sabor Removido", `${flavorName} foi removido do seu cardápio.`, true);
-                renderFlavors();
+        async function removeFlavor(id) {
+            const flavor = flavors.find(f => f.id === id);
+            if (!flavor) return;
+            if (!confirm(`Excluir o sabor "${flavor.name}" do cardápio?`)) return;
+            try {
+                await deleteFlavor(id);
+                showToast('Sabor removido', `${flavor.name} foi removido do cardápio.`, true);
+            } catch (e) {
+                showToast('Erro', e.message, true);
             }
         }
 
-        function editFlavorPrice(id) {
-    const flavor = flavors.find(f => f.id === id);
+        function renderMarginBar(f) {
+            const cost = Number(f.costPrice || 0);
+            const price = Number(f.price || 0);
+            if (cost <= 0) {
+                return `<div class="text-[10px] text-gray-500 italic">defina o custo para ver a margem</div>`;
+            }
+            const marginAbs = price - cost;
+            const marginPct = price > 0 ? (marginAbs / price) * 100 : 0;
+            let cls = 'text-red-400';
+            if (marginPct >= 50) cls = 'text-emerald-400';
+            else if (marginPct >= 30) cls = 'text-amber-400';
+            return `
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-gray-500 uppercase font-bold tracking-wider text-[10px]">Margem</span>
+                    <span class="font-bold ${cls}">${formatBRL(marginAbs)} <span class="opacity-70">(${marginPct.toFixed(0)}%)</span></span>
+                </div>
+            `;
+        }
 
-    if (!flavor) return;
+        async function editFlavorPrice(id) {
+            const flavor = flavors.find(f => f.id === id);
+            if (!flavor) return;
+            const newPrice = prompt(`Novo preço de venda para "${flavor.name}"`, flavor.price.toFixed(2));
+            if (newPrice === null) return;
+            const parsed = parseFloat(String(newPrice).replace(',', '.'));
+            if (isNaN(parsed) || parsed <= 0) {
+                showToast('Valor inválido', 'Digite um preço válido.', true);
+                return;
+            }
+            try {
+                await updateFlavor(id, { price: parsed });
+                showToast('Preço atualizado', `${flavor.name} agora custa ${formatBRL(parsed)}`);
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
+        }
 
-    const newPrice = prompt(
-        `Novo valor para "${flavor.name}"`,
-        flavor.price.toFixed(2)
-    );
-
-    if (newPrice === null) return;
-
-    const parsedPrice = parseFloat(
-        newPrice.replace(',', '.')
-    );
-
-    if (isNaN(parsedPrice) || parsedPrice <= 0) {
-        showToast(
-            "Valor inválido",
-            "Digite um preço válido.",
-            true
-        );
-        return;
-    }
-
-    flavor.price = parsedPrice;
-
-    saveFlavors(flavors);
-
-    renderFlavors();
-
-    showToast(
-        "Preço atualizado",
-        `${flavor.name} agora custa R$ ${parsedPrice.toFixed(2).replace('.', ',')}`
-    );
-}
+        async function editFlavorCost(id) {
+            const flavor = flavors.find(f => f.id === id);
+            if (!flavor) return;
+            const newCost = prompt(`Custo de produção (massa + recheio + embalagem) de "${flavor.name}"`, Number(flavor.costPrice || 0).toFixed(2));
+            if (newCost === null) return;
+            const parsed = parseFloat(String(newCost).replace(',', '.'));
+            if (isNaN(parsed) || parsed < 0) {
+                showToast('Valor inválido', 'Digite um custo válido (>= 0).', true);
+                return;
+            }
+            try {
+                await updateFlavor(id, { costPrice: parsed });
+                showToast('Custo atualizado', `${flavor.name} agora tem custo ${formatBRL(parsed)}`);
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
+        }
 
         function openNewFlavorModal() {
             document.getElementById('modal-flavor').classList.remove('hidden');
@@ -542,74 +390,42 @@
 
         function closeNewFlavorModal() {
             document.getElementById('modal-flavor').classList.add('hidden');
-            // Limpa formulário
             document.getElementById('f-name').value = '';
             document.getElementById('f-price').value = '';
+            document.getElementById('f-cost').value = '';
             document.getElementById('f-ingredients').value = '';
         }
 
-        function submitNewFlavor() {
-            const rawName = document.getElementById('f-name').value.trim();
+        async function submitNewFlavor() {
+            const name = document.getElementById('f-name').value.trim();
             const price = parseFloat(document.getElementById('f-price').value);
+            const costRaw = document.getElementById('f-cost').value;
+            const costPrice = costRaw ? parseFloat(costRaw) : 0;
             const category = document.getElementById('f-category').value;
             const description = document.getElementById('f-ingredients').value.trim();
 
-            if (!rawName || isNaN(price)) {
-                showToast("Erro", "Por favor preencha os campos obrigatórios (Nome e Preço).", true);
+            if (!name || isNaN(price) || price <= 0) {
+                showToast('Erro', 'Informe nome e preço válido.', true);
                 return;
             }
-
-            // Garante o prefixo "Esfiha de " apenas se já não o tiver
-            const name = rawName.toLowerCase().startsWith('esfiha') ? rawName : `Esfiha de ${rawName}`;
-
-            // Criar ID incremental único
-            const newId = flavors.length > 0 ? Math.max(...flavors.map(f => f.id)) + 1 : 1;
-
-            flavors.push({
-                id: newId,
-                name,
-                price,
-                category,
-                description: description || "Esfiha preparada na hora com ingredientes frescos.",
-                available: true
-            });
-
-            saveFlavors(flavors);
-            closeNewFlavorModal();
-            showToast("Sucesso", `${name} adicionada ao seu cardápio!`);
-            renderFlavors();
-        }
-
-        // Sistema de Notificações Customizadas (Sem alert!)
-        function showToast(title, desc, isWarning = false) {
-            const toast = document.getElementById('toast');
-            const iconContainer = document.getElementById('toast-icon-container');
-            const icon = document.getElementById('toast-icon');
-
-            document.getElementById('toast-title').innerText = title;
-            document.getElementById('toast-desc').innerText = desc;
-
-            if (isWarning) {
-                iconContainer.className = "w-8 h-8 rounded-full flex items-center justify-center bg-red-500/20";
-                icon.className = "w-5 h-5 text-red-500";
-                icon.setAttribute('data-lucide', 'alert-triangle');
-            } else {
-                iconContainer.className = "w-8 h-8 rounded-full flex items-center justify-center bg-emerald-500/20";
-                icon.className = "w-5 h-5 text-emerald-500";
-                icon.setAttribute('data-lucide', 'check');
+            if (isNaN(costPrice) || costPrice < 0) {
+                showToast('Erro', 'Custo inválido.', true);
+                return;
             }
-
-            lucide.createIcons();
-
-            // Mostra o Toast
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            toast.classList.add('translate-y-0', 'opacity-100');
-
-            // Esconde após 3 segundos
-            setTimeout(() => {
-                toast.classList.add('translate-y-20', 'opacity-0');
-                toast.classList.remove('translate-y-0', 'opacity-100');
-            }, 3000);
+            try {
+                await createFlavor({
+                    name,
+                    price,
+                    costPrice,
+                    category,
+                    description: description || 'Esfiha preparada na hora com ingredientes frescos.',
+                    available: true,
+                });
+                closeNewFlavorModal();
+                showToast('Sucesso', `${name} adicionado ao cardápio!`);
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
         }
     </script>
 </body>

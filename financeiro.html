@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sabor que Vicia - Financeiro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="js/db.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#120c08',
+                            card: '#1a120e',
+                            border: '#2a1e17',
+                            accentOrange: '#f97316'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-brand-dark text-gray-200 font-sans antialiased min-h-screen flex flex-col md:flex-row">
+
+    <!-- SIDEBAR -->
+    <aside class="w-full md:w-64 bg-brand-card border-r border-brand-border flex flex-col justify-between shrink-0 p-5 z-20">
+        <div>
+            <div class="flex items-center gap-3 mb-8">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center shadow-lg">
+                    <span class="text-white font-black text-xl">S</span>
+                </div>
+                <div>
+                    <span class="text-xs uppercase text-brand-accentOrange tracking-wider font-bold">Esfiha</span>
+                    <h1 class="text-white font-black leading-none text-base">Sabor que Vicia</h1>
+                </div>
+            </div>
+            <nav class="space-y-1">
+                <a href="index.html"      class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm"><i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard</a>
+                <a href="pedidos.html"    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm"><i data-lucide="shopping-cart" class="w-5 h-5"></i> Pedidos</a>
+                <a href="cozinha.html"    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm"><i data-lucide="chef-hat" class="w-5 h-5"></i> Cozinha</a>
+                <a href="sabores.html"    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm"><i data-lucide="pizza" class="w-5 h-5"></i> Sabores</a>
+                <a href="clientes.html"   class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm"><i data-lucide="users" class="w-5 h-5"></i> Clientes</a>
+                <a href="relatorios.html" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm"><i data-lucide="bar-chart-3" class="w-5 h-5"></i> Relatórios</a>
+                <a href="financeiro.html" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm bg-gradient-to-br from-red-600 to-orange-500 text-white shadow-lg"><i data-lucide="dollar-sign" class="w-5 h-5"></i> Financeiro</a>
+            </nav>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-6 md:p-8 overflow-y-auto max-h-screen space-y-6">
+        <!-- HEADER + FILTRO DE PERÍODO -->
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+            <div>
+                <h2 class="text-2xl font-black text-white">Financeiro</h2>
+                <p class="text-gray-400 text-sm">Lucro × gastos, despesas recorrentes e margem por sabor.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <label class="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
+                    <input type="checkbox" id="compare-toggle" onchange="toggleCompare()"
+                        class="w-4 h-4 rounded border-brand-border bg-brand-dark text-brand-accentOrange focus:ring-0">
+                    Comparar com período anterior
+                </label>
+                <div class="flex gap-1 bg-brand-card border border-brand-border rounded-xl p-1">
+                    <button onclick="setPeriod('today')" data-period-btn="today"
+                        class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-white">Hoje</button>
+                    <button onclick="setPeriod('7d')" data-period-btn="7d"
+                        class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-white">7 dias</button>
+                    <button onclick="setPeriod('30d')" data-period-btn="30d"
+                        class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-brand-accentOrange text-white">30 dias</button>
+                    <button onclick="setPeriod('month')" data-period-btn="month"
+                        class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-white">Mês atual</button>
+                </div>
+                <div class="relative">
+                    <button onclick="toggleExportMenu()" class="bg-brand-card border border-brand-border text-gray-300 hover:text-white hover:bg-white/5 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
+                        <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
+                    </button>
+                    <div id="export-menu" class="hidden absolute right-0 mt-2 w-48 bg-brand-card border border-brand-border rounded-xl shadow-2xl z-10 overflow-hidden">
+                        <button onclick="exportCsv('summary')"  class="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-200">Resumo diário</button>
+                        <button onclick="exportCsv('expenses')" class="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-200">Despesas</button>
+                        <button onclick="exportCsv('flavors')"  class="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-200">Sabores (margem)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARDS DE RESUMO -->
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="bg-brand-card p-5 rounded-2xl border border-brand-border">
+                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Receita</span>
+                <h3 id="card-revenue" class="text-2xl font-black text-emerald-400 mt-1">R$ 0,00</h3>
+                <p id="card-revenue-sub" class="text-[10px] text-gray-500 mt-1">— pedidos entregues</p>
+                <p id="card-revenue-delta" class="text-[10px] mt-1 hidden"></p>
+            </div>
+            <div class="bg-brand-card p-5 rounded-2xl border border-brand-border">
+                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Custo produto (CPV)</span>
+                <h3 id="card-cogs" class="text-2xl font-black text-red-400 mt-1">R$ 0,00</h3>
+                <p class="text-[10px] text-gray-500 mt-1">soma de custo × qty</p>
+                <p id="card-cogs-delta" class="text-[10px] mt-1 hidden"></p>
+            </div>
+            <div class="bg-brand-card p-5 rounded-2xl border border-brand-border">
+                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Despesas</span>
+                <h3 id="card-expenses" class="text-2xl font-black text-red-400 mt-1">R$ 0,00</h3>
+                <p id="card-expenses-sub" class="text-[10px] text-gray-500 mt-1">— lançamentos</p>
+                <p id="card-expenses-delta" class="text-[10px] mt-1 hidden"></p>
+            </div>
+            <div class="bg-brand-card p-5 rounded-2xl border-2 border-brand-accentOrange">
+                <span class="text-[10px] text-brand-accentOrange font-bold uppercase tracking-wider">Lucro líquido</span>
+                <h3 id="card-net-profit" class="text-2xl font-black text-white mt-1">R$ 0,00</h3>
+                <p id="card-net-profit-sub" class="text-[10px] text-gray-500 mt-1">receita − cpv − despesas</p>
+                <p id="card-net-profit-delta" class="text-[10px] mt-1 hidden"></p>
+            </div>
+            <div class="bg-brand-card p-5 rounded-2xl border border-brand-border">
+                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Margem líquida</span>
+                <h3 id="card-margin" class="text-2xl font-black text-white mt-1">—</h3>
+                <p class="text-[10px] text-gray-500 mt-1">lucro ÷ receita</p>
+                <p id="card-margin-delta" class="text-[10px] mt-1 hidden"></p>
+            </div>
+        </div>
+
+        <!-- Receita por método de pagamento -->
+        <div id="payment-section" class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-3">
+            <h4 class="text-white font-bold text-base">Receita por forma de pagamento</h4>
+            <div id="payment-breakdown" class="space-y-2"></div>
+        </div>
+
+        <!-- GRÁFICO + RANKING SABORES -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-brand-card p-6 rounded-2xl border border-brand-border lg:col-span-2 space-y-4">
+                <h4 class="text-white font-bold text-base">Lucro por dia</h4>
+                <p class="text-xs text-gray-500 -mt-3">Verde = lucro, vermelho = prejuízo no dia.</p>
+                <div id="profit-chart" class="flex items-stretch gap-1 h-48"></div>
+                <div id="profit-chart-labels" class="text-[10px] text-gray-500 text-center"></div>
+            </div>
+            <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-3">
+                <h4 class="text-white font-bold text-base">Sabores mais lucrativos</h4>
+                <p class="text-xs text-gray-500 -mt-3">Lucro = (preço − custo) × qty vendido no período.</p>
+                <div id="flavor-margins" class="space-y-3"></div>
+            </div>
+        </div>
+
+        <!-- DESPESAS: lista + form -->
+        <div class="bg-brand-card rounded-2xl border border-brand-border overflow-hidden">
+            <div class="p-5 border-b border-brand-border flex items-center justify-between">
+                <div>
+                    <h4 class="text-white font-bold text-base">Despesas do período</h4>
+                    <p class="text-xs text-gray-500" id="expenses-summary">—</p>
+                </div>
+                <button onclick="openExpenseModal()"
+                    class="bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold py-2 px-4 rounded-xl text-sm flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Nova despesa
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-black/20 text-[10px] uppercase tracking-wider text-gray-500 font-bold border-b border-brand-border">
+                            <th class="py-3 px-5">Data</th>
+                            <th class="py-3 px-5">Categoria</th>
+                            <th class="py-3 px-5">Descrição</th>
+                            <th class="py-3 px-5 text-right">Valor</th>
+                            <th class="py-3 px-5">Tipo</th>
+                            <th class="py-3 px-5 text-right">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenses-tbody" class="divide-y divide-brand-border/40"></tbody>
+                </table>
+                <div id="expenses-empty" class="hidden py-12 text-center text-gray-500 text-sm">
+                    Nenhuma despesa lançada no período.
+                </div>
+            </div>
+        </div>
+
+        <!-- DESPESAS RECORRENTES -->
+        <div class="bg-brand-card rounded-2xl border border-brand-border overflow-hidden">
+            <div class="p-5 border-b border-brand-border flex items-center justify-between">
+                <div>
+                    <h4 class="text-white font-bold text-base">Despesas recorrentes (mensais)</h4>
+                    <p class="text-xs text-gray-500">Geram um lançamento automaticamente todo mês.</p>
+                </div>
+                <button onclick="openRecurringModal()"
+                    class="border border-brand-border text-gray-300 hover:text-white hover:bg-white/5 font-bold py-2 px-4 rounded-xl text-sm flex items-center gap-2 transition-all">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Nova recorrente
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-black/20 text-[10px] uppercase tracking-wider text-gray-500 font-bold border-b border-brand-border">
+                            <th class="py-3 px-5">Categoria</th>
+                            <th class="py-3 px-5">Descrição</th>
+                            <th class="py-3 px-5 text-right">Valor</th>
+                            <th class="py-3 px-5">Dia do mês</th>
+                            <th class="py-3 px-5">Última geração</th>
+                            <th class="py-3 px-5 text-right">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recurring-tbody" class="divide-y divide-brand-border/40"></tbody>
+                </table>
+                <div id="recurring-empty" class="hidden py-12 text-center text-gray-500 text-sm">
+                    Nenhuma recorrente cadastrada.
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL: Nova/Editar Despesa -->
+    <div id="modal-expense" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-brand-card w-full max-w-md rounded-2xl border border-brand-border overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
+                <h3 class="text-white font-bold text-lg" id="modal-expense-title">Nova despesa</h3>
+                <button onclick="closeExpenseModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-400 uppercase">Categoria</label>
+                        <select id="exp-category" class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm"></select>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-400 uppercase">Valor (R$)</label>
+                        <input type="number" step="0.01" id="exp-amount" class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                    </div>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Data</label>
+                    <input type="date" id="exp-date" class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Descrição</label>
+                    <input type="text" id="exp-description" placeholder="Ex: compra de queijo, conta de luz outubro"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                </div>
+            </div>
+            <div class="p-5 border-t border-brand-border flex justify-end gap-3 bg-black/20">
+                <button onclick="closeExpenseModal()" class="border border-brand-border text-gray-400 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold">Cancelar</button>
+                <button onclick="submitExpense()" class="bg-gradient-to-r from-red-600 to-orange-500 hover:opacity-90 text-white font-bold px-5 py-2 rounded-xl text-xs">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Nova/Editar Recorrente -->
+    <div id="modal-recurring" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-brand-card w-full max-w-md rounded-2xl border border-brand-border overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
+                <h3 class="text-white font-bold text-lg" id="modal-recurring-title">Nova recorrente</h3>
+                <button onclick="closeRecurringModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Categoria</label>
+                    <select id="rec-category" class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm"></select>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Descrição</label>
+                    <input type="text" id="rec-description" placeholder="Ex: aluguel, internet"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-400 uppercase">Valor (R$)</label>
+                        <input type="number" step="0.01" id="rec-amount"
+                            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-400 uppercase">Dia do mês (1-28)</label>
+                        <input type="number" min="1" max="28" id="rec-day"
+                            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                    </div>
+                </div>
+            </div>
+            <div class="p-5 border-t border-brand-border flex justify-end gap-3 bg-black/20">
+                <button onclick="closeRecurringModal()" class="border border-brand-border text-gray-400 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold">Cancelar</button>
+                <button onclick="submitRecurring()" class="bg-gradient-to-r from-red-600 to-orange-500 hover:opacity-90 text-white font-bold px-5 py-2 rounded-xl text-xs">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let report = null;
+        let currentPeriod = '30d';
+        let compareEnabled = false;
+        let editingExpenseId = null;
+        let editingRecurringId = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try { await initDb(); }
+            catch (e) { showToast('Erro de conexão', 'Falha ao conectar ao servidor.', true); console.error(e); return; }
+            onDataChange(refresh);
+            await refresh();
+            lucide.createIcons();
+        });
+
+        async function refresh() {
+            populateCategorySelects();
+            const qs = `?period=${currentPeriod}${compareEnabled ? '&compare=true' : ''}`;
+            try { report = await getProfitReport(qs); }
+            catch (e) { showToast('Erro', e.message, true); return; }
+            renderCards();
+            renderPaymentBreakdown();
+            renderProfitChart();
+            renderFlavorMargins();
+            renderExpensesTable();
+            renderRecurringTable();
+            lucide.createIcons();
+        }
+
+        function toggleCompare() {
+            compareEnabled = document.getElementById('compare-toggle').checked;
+            refresh();
+        }
+
+        function toggleExportMenu() {
+            const m = document.getElementById('export-menu');
+            m.classList.toggle('hidden');
+        }
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('export-menu');
+            if (!menu) return;
+            if (!e.target.closest('#export-menu') && !e.target.closest('button[onclick="toggleExportMenu()"]')) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        function exportCsv(type) {
+            document.getElementById('export-menu').classList.add('hidden');
+            const url = buildCsvUrl({ period: currentPeriod, type });
+            window.location.href = url;
+        }
+
+        function setPeriod(p) {
+            currentPeriod = p;
+            document.querySelectorAll('[data-period-btn]').forEach(btn => {
+                btn.className = btn.dataset.periodBtn === p
+                    ? 'px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-brand-accentOrange text-white'
+                    : 'px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-white';
+            });
+            refresh();
+        }
+
+        function populateCategorySelects() {
+            const cats = getExpenseCategories();
+            const opts = cats.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+            document.getElementById('exp-category').innerHTML = opts;
+            document.getElementById('rec-category').innerHTML = opts;
+        }
+
+        function renderCards() {
+            document.getElementById('card-revenue').textContent  = formatBRL(report.revenue.gross);
+            document.getElementById('card-revenue-sub').textContent = `${report.revenue.ordersCount} pedidos entregues`;
+            document.getElementById('card-cogs').textContent     = formatBRL(report.cogs);
+            document.getElementById('card-expenses').textContent = formatBRL(report.expenses.total);
+            document.getElementById('card-expenses-sub').textContent = `${report.expenses.byCategory.reduce((a, c) => a + c.count, 0)} lançamentos`;
+
+            const net = report.netProfit;
+            const netEl = document.getElementById('card-net-profit');
+            netEl.textContent = formatBRL(net);
+            netEl.className = `text-2xl font-black mt-1 ${net >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+
+            const marginEl = document.getElementById('card-margin');
+            if (report.revenue.gross > 0) {
+                marginEl.textContent = `${report.margin.toFixed(1)}%`;
+                marginEl.className = `text-2xl font-black mt-1 ${report.margin >= 20 ? 'text-emerald-400' : (report.margin >= 0 ? 'text-amber-400' : 'text-red-400')}`;
+            } else {
+                marginEl.textContent = '—';
+                marginEl.className = 'text-2xl font-black mt-1 text-gray-500';
+            }
+
+            const netSub = document.getElementById('card-net-profit-sub');
+            netSub.textContent = `${formatBRL(report.revenue.gross)} − ${formatBRL(report.cogs)} − ${formatBRL(report.expenses.total)}`;
+
+            // Deltas vs período anterior
+            const prev = report.previous;
+            renderDelta('card-revenue-delta',     report.revenue.gross,  prev && prev.revenue.gross,  formatBRL, false);
+            renderDelta('card-cogs-delta',        report.cogs,           prev && prev.cogs,           formatBRL, true);  // CPV menor = bom
+            renderDelta('card-expenses-delta',    report.expenses.total, prev && prev.expenses.total, formatBRL, true);  // despesa menor = bom
+            renderDelta('card-net-profit-delta',  report.netProfit,      prev && prev.netProfit,      formatBRL, false);
+            renderDelta('card-margin-delta',      report.margin,         prev && prev.margin,         v => v.toFixed(1) + '%', false);
+        }
+
+        // invert=true: redução é positiva (CPV, despesas, cancelamento)
+        function renderDelta(elId, current, previous, format, invert) {
+            const el = document.getElementById(elId);
+            if (previous == null) { el.classList.add('hidden'); return; }
+            el.classList.remove('hidden');
+            if (previous === 0 && current === 0) {
+                el.innerHTML = `<span class="text-gray-500">igual ao anterior</span>`;
+                return;
+            }
+            let pct = 0;
+            if (previous !== 0) pct = ((current - previous) / Math.abs(previous)) * 100;
+            const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '–';
+            const positive = invert ? pct < 0 : pct > 0;
+            const cls = pct === 0 ? 'text-gray-500' : (positive ? 'text-emerald-400' : 'text-red-400');
+            el.innerHTML = `<span class="${cls} font-bold">${arrow} ${Math.abs(pct).toFixed(0)}%</span> <span class="text-gray-600">vs ${format(previous)}</span>`;
+        }
+
+        function renderPaymentBreakdown() {
+            const section = document.getElementById('payment-section');
+            const el = document.getElementById('payment-breakdown');
+            const list = (report.revenue && report.revenue.byPayment) || [];
+            const totalForChart = list.reduce((a, r) => a + r.revenue, 0);
+            if (list.length === 0 || totalForChart === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+            section.classList.remove('hidden');
+            el.innerHTML = list.map(r => {
+                const pct = totalForChart > 0 ? (r.revenue / totalForChart) * 100 : 0;
+                return `
+                    <div class="space-y-1">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-white font-semibold">${escapeHtml(r.payment)}</span>
+                            <span class="text-gray-300">${formatBRL(r.revenue)} <span class="text-gray-500 text-xs ml-1">${pct.toFixed(0)}%</span></span>
+                        </div>
+                        <div class="w-full bg-brand-dark rounded-full h-2 overflow-hidden">
+                            <div class="bg-gradient-to-r from-red-600 to-orange-500 h-full rounded-full" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderProfitChart() {
+            const container = document.getElementById('profit-chart');
+            const labels    = document.getElementById('profit-chart-labels');
+            const data = report.perDay || [];
+            if (data.length === 0) {
+                container.innerHTML = `<div class="text-xs text-gray-500 m-auto">sem dados no período</div>`;
+                labels.innerHTML = '';
+                return;
+            }
+            const maxAbs = Math.max(1, ...data.map(d => Math.abs(d.profit)));
+
+            container.innerHTML = data.map(d => {
+                const pct = Math.max(4, (Math.abs(d.profit) / maxAbs) * 100);
+                const isPositive = d.profit >= 0;
+                const bg = isPositive ? 'bg-gradient-to-t from-emerald-700 to-emerald-400' : 'bg-gradient-to-t from-red-700 to-red-400';
+                return `
+                    <div class="flex-1 flex flex-col items-stretch justify-end group relative" title="${d.day}: ${formatBRL(d.profit)}">
+                        <div class="text-[9px] text-center text-gray-400 font-bold mb-0.5">${formatBRL(d.profit)}</div>
+                        <div class="${bg} rounded-t" style="height: ${pct}%"></div>
+                    </div>
+                `;
+            }).join('');
+
+            // Labels mostram só dia/mês para 7d/30d
+            labels.style.display = 'grid';
+            labels.style.gridTemplateColumns = `repeat(${data.length}, minmax(0, 1fr))`;
+            labels.innerHTML = data.map(d => {
+                const [y, m, day] = String(d.day).slice(0, 10).split('-');
+                return `<div>${day}/${m}</div>`;
+            }).join('');
+        }
+
+        function renderFlavorMargins() {
+            const el = document.getElementById('flavor-margins');
+            const rows = (report.flavorMargins || []).filter(f => f.cost > 0 || f.qtySold > 0);
+            if (rows.length === 0) {
+                el.innerHTML = `<p class="text-xs text-gray-500 py-4 text-center">defina o custo dos sabores em <a href="sabores.html" class="text-brand-accentOrange underline">Sabores</a> para ver lucratividade</p>`;
+                return;
+            }
+            el.innerHTML = rows.map((f, idx) => {
+                const cls = f.marginPct >= 50 ? 'text-emerald-400'
+                          : f.marginPct >= 30 ? 'text-amber-400'
+                          : 'text-red-400';
+                return `
+                    <div class="space-y-1">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-white font-semibold truncate"><span class="text-brand-accentOrange font-bold mr-2">#${idx + 1}</span>${escapeHtml(f.name)}</span>
+                            <span class="font-bold ${cls} text-xs">${formatBRL(f.profit)}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-[11px] text-gray-500">
+                            <span>${formatBRL(f.price)} − ${formatBRL(f.cost)} = <span class="${cls}">${f.marginPct.toFixed(0)}%</span></span>
+                            <span>${f.qtySold} un.</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderExpensesTable() {
+            const tbody = document.getElementById('expenses-tbody');
+            const empty = document.getElementById('expenses-empty');
+            const summary = document.getElementById('expenses-summary');
+            const from = report.period.from, to = report.period.to;
+
+            const all = getExpenses();
+            const list = all.filter(e => e.date >= from && e.date <= to);
+            const cats = getExpenseCategories();
+            const catById = new Map(cats.map(c => [c.id, c]));
+
+            summary.textContent = `${list.length} despesa(s) entre ${formatDateBR(from)} e ${formatDateBR(to)}`;
+
+            if (list.length === 0) {
+                tbody.innerHTML = ''; empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+
+            tbody.innerHTML = list.map(e => {
+                const cat = catById.get(e.categoryId);
+                const catLabel = cat ? cat.name : '—';
+                const catIcon  = cat ? cat.icon : 'circle';
+                return `
+                    <tr class="hover:bg-white/[0.02] transition-colors">
+                        <td class="py-3 px-5 text-gray-400">${formatDateBR(e.date)}</td>
+                        <td class="py-3 px-5">
+                            <span class="inline-flex items-center gap-1.5 text-xs font-bold text-gray-300">
+                                <i data-lucide="${escapeHtml(catIcon)}" class="w-3.5 h-3.5"></i>${escapeHtml(catLabel)}
+                            </span>
+                        </td>
+                        <td class="py-3 px-5 text-white">${escapeHtml(e.description || '—')}</td>
+                        <td class="py-3 px-5 text-right font-bold text-red-400">${formatBRL(e.amount)}</td>
+                        <td class="py-3 px-5">
+                            <span class="text-[10px] px-2 py-0.5 rounded ${e.source === 'recurring' ? 'bg-purple-500/10 text-purple-400' : 'bg-brand-border text-gray-400'}">
+                                ${e.source === 'recurring' ? 'recorrente' : 'manual'}
+                            </span>
+                        </td>
+                        <td class="py-3 px-5 text-right">
+                            <button onclick="editExpense(${e.id})" class="text-blue-400 hover:text-blue-300 text-xs font-bold mr-3">editar</button>
+                            <button onclick="removeExpense(${e.id})" class="text-red-400 hover:text-red-300 text-xs font-bold">excluir</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderRecurringTable() {
+            const tbody = document.getElementById('recurring-tbody');
+            const empty = document.getElementById('recurring-empty');
+            const list = getRecurringExpenses();
+            const cats = getExpenseCategories();
+            const catById = new Map(cats.map(c => [c.id, c]));
+
+            if (list.length === 0) {
+                tbody.innerHTML = ''; empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+
+            tbody.innerHTML = list.map(r => {
+                const cat = catById.get(r.categoryId);
+                return `
+                    <tr class="hover:bg-white/[0.02] transition-colors ${r.active ? '' : 'opacity-50'}">
+                        <td class="py-3 px-5">
+                            <span class="inline-flex items-center gap-1.5 text-xs font-bold text-gray-300">
+                                <i data-lucide="${escapeHtml(cat ? cat.icon : 'circle')}" class="w-3.5 h-3.5"></i>${escapeHtml(cat ? cat.name : '—')}
+                            </span>
+                        </td>
+                        <td class="py-3 px-5 text-white">${escapeHtml(r.description)}</td>
+                        <td class="py-3 px-5 text-right font-bold text-red-400">${formatBRL(r.amount)}</td>
+                        <td class="py-3 px-5 text-gray-400">dia ${r.dayOfMonth}</td>
+                        <td class="py-3 px-5 text-gray-500 text-xs">${r.lastGenerated ? formatDateBR(r.lastGenerated) : '—'}</td>
+                        <td class="py-3 px-5 text-right">
+                            <button onclick="toggleRecurring(${r.id}, ${!r.active})" class="text-gray-400 hover:text-white text-xs font-bold mr-3">${r.active ? 'pausar' : 'ativar'}</button>
+                            <button onclick="editRecurring(${r.id})" class="text-blue-400 hover:text-blue-300 text-xs font-bold mr-3">editar</button>
+                            <button onclick="removeRecurring(${r.id})" class="text-red-400 hover:text-red-300 text-xs font-bold">excluir</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // --- Expense modal ---
+        function openExpenseModal(exp = null) {
+            editingExpenseId = exp ? exp.id : null;
+            document.getElementById('modal-expense-title').textContent = exp ? 'Editar despesa' : 'Nova despesa';
+            document.getElementById('exp-category').value = exp ? exp.categoryId : (getExpenseCategories()[0] || {}).id;
+            document.getElementById('exp-amount').value = exp ? exp.amount : '';
+            document.getElementById('exp-date').value = exp ? String(exp.date).slice(0, 10) : new Date().toISOString().slice(0, 10);
+            document.getElementById('exp-description').value = exp ? exp.description : '';
+            document.getElementById('modal-expense').classList.remove('hidden');
+            setTimeout(() => document.getElementById('exp-amount').focus(), 50);
+        }
+        function closeExpenseModal() { document.getElementById('modal-expense').classList.add('hidden'); editingExpenseId = null; }
+
+        async function submitExpense() {
+            const payload = {
+                categoryId: parseInt(document.getElementById('exp-category').value, 10) || null,
+                amount: parseFloat(document.getElementById('exp-amount').value),
+                date: document.getElementById('exp-date').value || null,
+                description: document.getElementById('exp-description').value.trim(),
+            };
+            if (isNaN(payload.amount) || payload.amount < 0) { showToast('Erro', 'Valor inválido.', true); return; }
+            try {
+                if (editingExpenseId) {
+                    await updateExpense(editingExpenseId, payload);
+                    showToast('Atualizado', 'Despesa atualizada.');
+                } else {
+                    await createExpense(payload);
+                    showToast('Sucesso', 'Despesa lançada.');
+                }
+                closeExpenseModal();
+                await refresh();
+            } catch (e) { showToast('Erro', e.message, true); }
+        }
+
+        function editExpense(id) {
+            const exp = getExpenses().find(e => e.id === id);
+            if (exp) openExpenseModal(exp);
+        }
+        async function removeExpense(id) {
+            if (!confirm('Excluir essa despesa?')) return;
+            try { await deleteExpense(id); showToast('Excluída', 'Despesa removida.', true); await refresh(); }
+            catch (e) { showToast('Erro', e.message, true); }
+        }
+
+        // --- Recurring modal ---
+        function openRecurringModal(rec = null) {
+            editingRecurringId = rec ? rec.id : null;
+            document.getElementById('modal-recurring-title').textContent = rec ? 'Editar recorrente' : 'Nova recorrente';
+            document.getElementById('rec-category').value = rec ? rec.categoryId : (getExpenseCategories()[0] || {}).id;
+            document.getElementById('rec-amount').value = rec ? rec.amount : '';
+            document.getElementById('rec-day').value = rec ? rec.dayOfMonth : 5;
+            document.getElementById('rec-description').value = rec ? rec.description : '';
+            document.getElementById('modal-recurring').classList.remove('hidden');
+            setTimeout(() => document.getElementById('rec-description').focus(), 50);
+        }
+        function closeRecurringModal() { document.getElementById('modal-recurring').classList.add('hidden'); editingRecurringId = null; }
+
+        async function submitRecurring() {
+            const payload = {
+                categoryId: parseInt(document.getElementById('rec-category').value, 10) || null,
+                description: document.getElementById('rec-description').value.trim(),
+                amount: parseFloat(document.getElementById('rec-amount').value),
+                dayOfMonth: parseInt(document.getElementById('rec-day').value, 10),
+                active: true,
+            };
+            if (!payload.description) { showToast('Erro', 'Informe a descrição.', true); return; }
+            if (isNaN(payload.amount) || payload.amount < 0) { showToast('Erro', 'Valor inválido.', true); return; }
+            if (!(payload.dayOfMonth >= 1 && payload.dayOfMonth <= 28)) { showToast('Erro', 'Dia entre 1 e 28.', true); return; }
+
+            try {
+                if (editingRecurringId) {
+                    await updateRecurringExpense(editingRecurringId, payload);
+                    showToast('Atualizado', 'Recorrente atualizada.');
+                } else {
+                    await createRecurringExpense(payload);
+                    showToast('Sucesso', 'Recorrente cadastrada.');
+                }
+                // Tenta gerar lançamentos imediatamente
+                try { await runRecurringExpenses(); } catch (_) {}
+                closeRecurringModal();
+                await refresh();
+            } catch (e) { showToast('Erro', e.message, true); }
+        }
+
+        function editRecurring(id) {
+            const r = getRecurringExpenses().find(x => x.id === id);
+            if (r) openRecurringModal(r);
+        }
+        async function removeRecurring(id) {
+            if (!confirm('Excluir essa despesa recorrente? Os lançamentos já gerados são preservados.')) return;
+            try { await deleteRecurringExpense(id); showToast('Excluída', 'Recorrente removida.', true); await refresh(); }
+            catch (e) { showToast('Erro', e.message, true); }
+        }
+        async function toggleRecurring(id, active) {
+            try { await updateRecurringExpense(id, { active }); showToast(active ? 'Ativada' : 'Pausada', 'Recorrente atualizada.'); }
+            catch (e) { showToast('Erro', e.message, true); }
+        }
+
+        function formatDateBR(iso) {
+            if (!iso) return '—';
+            const s = String(iso).slice(0, 10);
+            const [y, m, d] = s.split('-');
+            return `${d}/${m}/${y}`;
+        }
+    </script>
+</body>
+
+</html>

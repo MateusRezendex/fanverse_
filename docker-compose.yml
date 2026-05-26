@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sabor-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-sabor}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sabor}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: sabor-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sabor}
+      PORT: 3000
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    volumes:
+      # Bind-mount do frontend para iterar HTML/JS sem rebuild
+      - ./index.html:/app/frontend/index.html:ro
+      - ./pedidos.html:/app/frontend/pedidos.html:ro
+      - ./cozinha.html:/app/frontend/cozinha.html:ro
+      - ./sabores.html:/app/frontend/sabores.html:ro
+      - ./clientes.html:/app/frontend/clientes.html:ro
+      - ./relatorios.html:/app/frontend/relatorios.html:ro
+      - ./js:/app/frontend/js:ro
+    profiles:
+      - app
+
+volumes:
+  postgres_data:

@@ -57,6 +57,9 @@
                 <a href="relatorios.html" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
                     <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Relatórios
                 </a>
+                <a href="financeiro.html" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm">
+                    <i data-lucide="dollar-sign" class="w-5 h-5"></i> Financeiro
+                </a>
             </nav>
         </div>
     </aside>
@@ -64,7 +67,37 @@
     <main class="flex-1 p-6 md:p-8 overflow-y-auto max-h-screen space-y-6">
         <div>
             <h2 class="text-2xl font-black text-white">Gestão de Clientes</h2>
-            <p class="text-gray-400 text-sm">Registo de fidelidade e histórico de compras.</p>
+            <p class="text-gray-400 text-sm">Registro de fidelidade e histórico de compras.</p>
+        </div>
+
+        <!-- BARRA DE FILTROS -->
+        <div class="bg-brand-card p-4 rounded-2xl border border-brand-border space-y-3">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                <div class="md:col-span-7 relative">
+                    <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"></i>
+                    <input type="text" id="filter-search" oninput="render()"
+                        placeholder="Buscar por nome ou telefone..."
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-brand-accentOrange text-sm transition-all">
+                </div>
+                <div class="md:col-span-4">
+                    <select id="filter-sort" onchange="render()"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                        <option value="spent">Maior gasto</option>
+                        <option value="orders">Mais pedidos</option>
+                        <option value="name">Ordem alfabética</option>
+                    </select>
+                </div>
+                <div class="md:col-span-1">
+                    <button onclick="clearFilters()"
+                        class="w-full border border-brand-border text-gray-400 hover:text-white hover:bg-white/5 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all">
+                        Limpar
+                    </button>
+                </div>
+            </div>
+            <div class="flex items-center justify-between text-xs text-gray-500 pt-1">
+                <span id="filter-summary">—</span>
+                <span id="filter-total" class="font-bold text-brand-accentOrange">—</span>
+            </div>
         </div>
 
         <div class="bg-brand-card rounded-2xl border border-brand-border overflow-hidden">
@@ -85,21 +118,73 @@
     </main>
 
     <script>
-        window.onload = function() {
-            const customers = getCustomers();
+        document.addEventListener('DOMContentLoaded', async () => {
+            try { await initDb(); }
+            catch (e) { showToast('Erro de conexão', 'Falha ao conectar ao servidor.', true); console.error(e); return; }
+            onDataChange(render);
+            render();
+        });
+
+        function clearFilters() {
+            const s = document.getElementById('filter-search'); if (s) s.value = '';
+            const o = document.getElementById('filter-sort');   if (o) o.value = 'spent';
+            render();
+        }
+
+        function render() {
+            const all = getCustomers();
+            const search = ((document.getElementById('filter-search') || {}).value || '').toLowerCase().trim();
+            const sort   =  (document.getElementById('filter-sort')   || {}).value || 'spent';
+
+            let customers = all.filter(c => {
+                if (!search) return true;
+                return (c.name || '').toLowerCase().includes(search)
+                    || (c.phone || '').toLowerCase().includes(search);
+            });
+
+            customers = customers.sort((a, b) => {
+                if (sort === 'orders') return b.totalOrders - a.totalOrders;
+                if (sort === 'name')   return (a.name || '').localeCompare(b.name || '');
+                return b.totalSpent - a.totalSpent; // spent
+            });
+
+            const summary  = document.getElementById('filter-summary');
+            const totalEl  = document.getElementById('filter-total');
+            const sortLabel = { spent: 'maior gasto', orders: 'mais pedidos', name: 'A-Z' }[sort];
+            if (summary) summary.textContent = `Ordenado por: ${sortLabel}${search ? ` · busca: "${search}"` : ''}`;
+            if (totalEl) totalEl.textContent = `${customers.length} cliente${customers.length === 1 ? '' : 's'} · ` +
+                formatBRL(customers.reduce((acc, c) => acc + (c.totalSpent || 0), 0));
+
             const tbody = document.getElementById('table-clientes-body');
             tbody.innerHTML = '';
+
+            if (customers.length === 0) {
+                const msg = all.length === 0
+                    ? 'Nenhum cliente cadastrado ainda. Os clientes aparecem aqui quando pedidos são registrados.'
+                    : 'Nenhum cliente encontrado com esse filtro.';
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="py-12 text-center text-gray-500 text-sm">${msg}</td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
             customers.forEach(c => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-white/5 transition-all";
+                const initial = (c.name || '?').charAt(0).toUpperCase();
                 tr.innerHTML = `
-                    <td class="py-4 px-6 font-bold text-white flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-full bg-brand-border flex items-center justify-center text-brand-accentOrange font-bold text-xs">${c.name.charAt(0)}</div>
-                        ${c.name}
+                    <td class="py-4 px-6 font-bold text-white">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-brand-border flex items-center justify-center text-brand-accentOrange font-bold text-xs">${escapeHtml(initial)}</div>
+                            ${escapeHtml(c.name)}
+                        </div>
                     </td>
-                    <td class="py-4 px-6 text-gray-400">${c.phone}</td>
+                    <td class="py-4 px-6 text-gray-400">${escapeHtml(c.phone || '—')}</td>
                     <td class="py-4 px-6 font-semibold">${c.totalOrders} pedidos</td>
-                    <td class="py-4 px-6 font-black text-brand-accentOrange">R$ ${c.totalSpent.toFixed(2).replace('.', ',')}</td>
+                    <td class="py-4 px-6 font-black text-brand-accentOrange">${formatBRL(c.totalSpent)}</td>
                 `;
                 tbody.appendChild(tr);
             });
