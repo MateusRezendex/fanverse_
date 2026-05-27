@@ -218,7 +218,13 @@
             <div class="p-5 space-y-4">
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-1.5">
-                        <label class="text-xs font-bold text-gray-400 uppercase">Categoria</label>
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-gray-400 uppercase">Categoria</label>
+                            <button type="button" onclick="openCategoryModal('exp-category')"
+                                class="text-[11px] font-bold text-gray-400 hover:text-white transition-all flex items-center gap-1">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nova
+                            </button>
+                        </div>
                         <select id="exp-category" class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm"></select>
                     </div>
                     <div class="space-y-1.5">
@@ -252,7 +258,13 @@
             </div>
             <div class="p-5 space-y-4">
                 <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-gray-400 uppercase">Categoria</label>
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-bold text-gray-400 uppercase">Categoria</label>
+                        <button type="button" onclick="openCategoryModal('rec-category')"
+                            class="text-[11px] font-bold text-gray-400 hover:text-white transition-all flex items-center gap-1">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nova
+                        </button>
+                    </div>
                     <select id="rec-category" class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm"></select>
                 </div>
                 <div class="space-y-1.5">
@@ -280,12 +292,35 @@
         </div>
     </div>
 
+    <!-- MODAL: Nova Categoria -->
+    <div id="modal-category" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-brand-card w-full max-w-md rounded-2xl border border-brand-border overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
+                <h3 class="text-white font-bold text-lg">Nova categoria</h3>
+                <button onclick="closeCategoryModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Nome</label>
+                    <input type="text" id="cat-name" placeholder="Ex: Embalagens, Marketing, Manutenção"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                    <p class="text-[11px] text-gray-500">Aparece nas despesas e recorrentes.</p>
+                </div>
+            </div>
+            <div class="p-5 border-t border-brand-border flex justify-end gap-3 bg-black/20">
+                <button onclick="closeCategoryModal()" class="border border-brand-border text-gray-400 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold">Cancelar</button>
+                <button onclick="submitCategory()" class="bg-gradient-to-r from-red-600 to-orange-500 hover:opacity-90 text-white font-bold px-5 py-2 rounded-xl text-xs">Adicionar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let report = null;
         let currentPeriod = '30d';
         let compareEnabled = false;
         let editingExpenseId = null;
         let editingRecurringId = null;
+        let categoryTargetSelectId = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
             try { await initDb(); }
@@ -345,9 +380,53 @@
         function populateCategorySelects() {
             const cats = getExpenseCategories();
             const opts = cats.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-            document.getElementById('exp-category').innerHTML = opts;
-            document.getElementById('rec-category').innerHTML = opts;
+            const expSel = document.getElementById('exp-category');
+            const recSel = document.getElementById('rec-category');
+            const expCurrent = expSel.value;
+            const recCurrent = recSel.value;
+            expSel.innerHTML = opts;
+            recSel.innerHTML = opts;
+            if (expCurrent) expSel.value = expCurrent;
+            if (recCurrent) recSel.value = recCurrent;
         }
+
+        function openCategoryModal(targetSelectId) {
+            categoryTargetSelectId = targetSelectId || null;
+            document.getElementById('cat-name').value = '';
+            document.getElementById('modal-category').classList.remove('hidden');
+            setTimeout(() => document.getElementById('cat-name').focus(), 0);
+            lucide.createIcons();
+        }
+        function closeCategoryModal() {
+            document.getElementById('modal-category').classList.add('hidden');
+            categoryTargetSelectId = null;
+        }
+        async function submitCategory() {
+            const name = (document.getElementById('cat-name').value || '').trim();
+            if (!name) { showToast('Atenção', 'Informe o nome da categoria.', true); return; }
+            try {
+                const cat = await createExpenseCategory({ name });
+                const target = categoryTargetSelectId;
+                closeCategoryModal();
+                populateCategorySelects();
+                if (target) {
+                    const sel = document.getElementById(target);
+                    if (sel) sel.value = String(cat.id);
+                }
+                showToast('Categoria adicionada', `"${name}" foi criada.`);
+                lucide.createIcons();
+            } catch (e) {
+                const msg = (e && e.message) ? e.message : 'Não foi possível criar a categoria.';
+                showToast('Erro', msg, true);
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('modal-category');
+            if (!modal || modal.classList.contains('hidden')) return;
+            if (e.key === 'Escape') closeCategoryModal();
+            if (e.key === 'Enter' && document.activeElement && document.activeElement.id === 'cat-name') submitCategory();
+        });
 
         function renderCards() {
             document.getElementById('card-revenue').textContent  = formatBRL(report.revenue.gross);

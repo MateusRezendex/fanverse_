@@ -149,6 +149,7 @@
                             <th class="py-4 px-6">ID</th>
                             <th class="py-4 px-6">Cliente</th>
                             <th class="py-4 px-6">Itens</th>
+                            <th class="py-4 px-6">Taxa Entrega</th>
                             <th class="py-4 px-6">Total</th>
                             <th class="py-4 px-6">Status</th>
                             <th class="py-4 px-6">Origem</th>
@@ -333,6 +334,7 @@
                         <span class="block text-xs text-gray-500 font-normal">${escapeHtml(o.phone || '')}</span>
                     </td>
                     <td class="py-4 px-6 text-gray-400">${itemsList}</td>
+                    <td class="py-4 px-6 font-bold text-gray-300">${formatBRL(o.deliveryFee || 0)}</td>
                     <td class="py-4 px-6 font-black text-brand-accentOrange">${formatBRL(total)}</td>
                     <td class="py-4 px-6">
                         <span class="px-2 py-1 rounded ${statusColor} font-bold text-xs">${escapeHtml(o.status)}</span>

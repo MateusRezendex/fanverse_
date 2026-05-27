@@ -15,6 +15,7 @@ const WS_URL   = API_BASE.replace(/^http/, 'ws') + '/ws';
 const _cache = {
     orders: [],
     flavors: [],
+    neighborhoods: [],
     customers: [],
     expenses: [],
     expenseCategories: [],
@@ -29,6 +30,94 @@ const _connection = {
 
 const _listeners = new Set();
 const _connectionListeners = new Set();
+
+// --- Overrides locais (ex.: editar dados do cliente na UI) ---
+const _customerOverrides = {
+    loaded: false,
+    map: {}, // key -> { name, phone }
+};
+
+function _normalizeKey(value) {
+    return String(value || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function _digits(value) {
+    return String(value || '').replace(/\D/g, '');
+}
+
+function _customerKey(customer) {
+    const phone = _digits(customer && customer.phone);
+    if (phone) return `p:${phone}`;
+    const name = _normalizeKey(customer && customer.name);
+    return name ? `n:${name}` : '';
+}
+
+function _loadCustomerOverrides() {
+    if (_customerOverrides.loaded) return;
+    _customerOverrides.loaded = true;
+    try {
+        const raw = localStorage.getItem('sqv_customer_overrides_v1');
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') _customerOverrides.map = parsed;
+    } catch (_) { /* ignore */ }
+}
+
+function _saveCustomerOverrides() {
+    try { localStorage.setItem('sqv_customer_overrides_v1', JSON.stringify(_customerOverrides.map || {})); }
+    catch (_) { /* ignore */ }
+}
+
+function applyCustomerOverrides(customers) {
+    _loadCustomerOverrides();
+    const list = Array.isArray(customers) ? customers : [];
+    return list.map(c => {
+        const key = _customerKey(c);
+        const o = key ? _customerOverrides.map[key] : null;
+        if (!o) return c;
+        return {
+            ...c,
+            name: (o.name != null && String(o.name).trim() !== '') ? String(o.name).trim() : c.name,
+            phone: (o.phone != null && String(o.phone).trim() !== '') ? String(o.phone).trim() : c.phone,
+            address: (o.address != null && String(o.address).trim() !== '') ? String(o.address).trim() : c.address,
+            neighborhood: (o.neighborhood != null && String(o.neighborhood).trim() !== '') ? String(o.neighborhood).trim() : c.neighborhood,
+            source: (o.source != null && String(o.source).trim() !== '') ? String(o.source).trim() : c.source,
+        };
+    });
+}
+
+function setCustomerOverride(baseCustomer, patch) {
+    _loadCustomerOverrides();
+    const key = _customerKey(baseCustomer);
+    if (!key) return null;
+    const next = {
+        name: patch && patch.name != null ? String(patch.name).trim() : '',
+        phone: patch && patch.phone != null ? String(patch.phone).trim() : '',
+        address: patch && patch.address != null ? String(patch.address).trim() : '',
+        neighborhood: patch && patch.neighborhood != null ? String(patch.neighborhood).trim() : '',
+        source: patch && patch.source != null ? String(patch.source).trim() : '',
+    };
+    _customerOverrides.map[key] = next;
+    _saveCustomerOverrides();
+    _emit();
+    return next;
+}
+
+function clearCustomerOverride(baseCustomer) {
+    _loadCustomerOverrides();
+    const key = _customerKey(baseCustomer);
+    if (!key) return false;
+    if (!_customerOverrides.map[key]) return false;
+    delete _customerOverrides.map[key];
+    _saveCustomerOverrides();
+    _emit();
+    return true;
+}
 
 function _emit() {
     _listeners.forEach(fn => {
@@ -60,6 +149,7 @@ function _emitConnection() {
 async function initDb() {
     await Promise.all([
         _refreshFlavors(),
+        _refreshNeighborhoods().catch(() => {}),
         _refreshOrders(),
         _refreshCustomers(),
         _refreshExpenses().catch(() => {}),
@@ -72,6 +162,7 @@ async function initDb() {
 }
 
 async function _refreshFlavors()           { _cache.flavors           = await _fetchJson('/api/flavors'); }
+async function _refreshNeighborhoods()     { _cache.neighborhoods     = await _fetchJson('/api/neighborhoods'); }
 async function _refreshOrders()            { _cache.orders            = await _fetchJson('/api/orders'); }
 async function _refreshCustomers()         { _cache.customers         = await _fetchJson('/api/orders/customers/aggregate'); }
 async function _refreshExpenses()          { _cache.expenses          = await _fetchJson('/api/expenses'); }
@@ -81,7 +172,8 @@ async function _refreshRecurringExpenses() { _cache.recurringExpenses = await _f
 // --- Leituras síncronas (cache) ---
 function getOrders()            { return _cache.orders.slice(); }
 function getFlavors()           { return _cache.flavors.slice(); }
-function getCustomers()         { return _cache.customers.slice(); }
+function getNeighborhoods()     { return _cache.neighborhoods.slice(); }
+function getCustomers()         { return applyCustomerOverrides(_cache.customers.slice()); }
 function getExpenses()          { return _cache.expenses.slice(); }
 function getExpenseCategories() { return _cache.expenseCategories.slice(); }
 function getRecurringExpenses() { return _cache.recurringExpenses.slice(); }
@@ -108,12 +200,23 @@ async function deleteOrder(id) {
     return _fetchJson(`/api/orders/${encodeURIComponent(id)}`, { method: 'DELETE', expectStatus: 204 });
 }
 
+async function createExpenseCategory(payload) {
+    return _fetchJson('/api/expense-categories', { method: 'POST', body: payload });
+}
+async function deleteExpenseCategory(id) {
+    return _fetchJson(`/api/expense-categories/${id}`, { method: 'DELETE', expectStatus: 204 });
+}
+
 async function getWeeklyRevenue() {
     return _fetchJson('/api/orders/stats/weekly');
 }
 
 async function getDashboardStats(queryString = '') {
     return _fetchJson('/api/orders/stats/dashboard' + (queryString || ''));
+}
+
+async function createNeighborhood(payload) {
+    return _fetchJson('/api/neighborhoods', { method: 'POST', body: payload });
 }
 
 // --- Financeiro ---
@@ -171,7 +274,7 @@ function _connectWs() {
         _emitConnection();
         // Após reconectar, refaz fetch para recuperar eventos perdidos durante o downtime
         try {
-            await Promise.all([_refreshFlavors(), _refreshOrders(), _refreshCustomers()]);
+            await Promise.all([_refreshFlavors(), _refreshNeighborhoods().catch(() => {}), _refreshOrders(), _refreshCustomers()]);
             _connection.lastUpdate = Date.now();
             _emit();
             _emitConnection();
@@ -221,6 +324,13 @@ function _applyEvent(type, payload) {
             _cache.flavors = _cache.flavors.filter(f => f.id !== payload.id);
             break;
 
+        case 'neighborhood:created': {
+            const i = _cache.neighborhoods.findIndex(n => n.id === payload.id);
+            if (i === -1) _cache.neighborhoods.push(payload);
+            else _cache.neighborhoods[i] = payload;
+            break;
+        }
+
         case 'order:created':
             _cache.orders.push(payload);
             _refreshCustomers().catch(() => {});
@@ -261,7 +371,11 @@ function _applyEvent(type, payload) {
             break;
 
         case 'expense-category:created':
-            _cache.expenseCategories.push(payload);
+            {
+                const i = _cache.expenseCategories.findIndex(c => c.id === payload.id);
+                if (i === -1) _cache.expenseCategories.push(payload);
+                else _cache.expenseCategories[i] = payload;
+            }
             break;
         case 'expense-category:deleted':
             _cache.expenseCategories = _cache.expenseCategories.filter(c => c.id !== payload.id);

@@ -416,6 +416,7 @@
                                 <th class="pb-3 pl-4">ID</th>
                                 <th class="pb-3">Cliente</th>
                                 <th class="pb-3">Itens</th>
+                                <th class="pb-3">Taxa Entrega</th>
                                 <th class="pb-3">Valor Total</th>
                                 <th class="pb-3">Status</th>
                                 <th class="pb-3 text-right pr-4">Ações</th>
@@ -457,8 +458,17 @@
             <div class="p-5 space-y-4 overflow-y-auto flex-1">
                 <div class="space-y-1.5">
                     <label class="text-xs font-bold uppercase text-gray-400">Nome do Cliente</label>
-                    <input type="text" id="order-customer" placeholder="Ex: José da Silva"
-                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                    <div class="relative">
+                        <input type="text" id="order-customer" placeholder="Ex: José da Silva"
+                            class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                        <div id="customer-suggest"
+                            class="hidden absolute left-0 right-0 mt-2 bg-brand-card border border-brand-border rounded-xl shadow-2xl overflow-hidden z-50">
+                            <div class="px-4 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold bg-black/20 border-b border-brand-border/60">
+                                Clientes (nome/telefone)
+                            </div>
+                            <div id="customer-suggest-list" class="max-h-52 overflow-y-auto"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="space-y-1.5">
@@ -485,6 +495,24 @@
                     <input type="text" id="order-neighborhood" placeholder="Ex: Boa Viagem" list="neighborhood-options"
                         class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
                     <datalist id="neighborhood-options"></datalist>
+                    <div class="flex justify-end">
+                        <button type="button" onclick="saveNeighborhoodFromInput()"
+                            class="text-xs font-bold text-gray-400 hover:text-white underline underline-offset-4">
+                            Cadastrar bairro
+                        </button>
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase text-gray-400">Taxa de Entrega</label>
+                    <input type="number" id="order-delivery-fee" min="0" step="0.01" value="0" oninput="calculateTotalPreview()"
+                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase text-gray-400">Desconto</label>
+                    <input type="number" id="order-discount" min="0" step="0.01" value="0" oninput="calculateTotalPreview()"
+                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
@@ -564,6 +592,8 @@
         let _connectionTimer = null;
         let rankingPeriod = '30d';   // 'today' | '7d' | '30d'
         let tableFilter = null;       // { type: 'neighborhood'|'customer', value: ... }
+        let neighborhoods = [];
+        let customers = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
             applyGreeting();
@@ -583,6 +613,7 @@
             await refreshStats();
             updateDashboard();
             lucide.createIcons();
+            initCustomerLookup();
 
             // Recalcula a cada 30s para que "atrasados" e "tempo médio" fiquem vivos
             if (_refreshTimer) clearInterval(_refreshTimer);
@@ -709,6 +740,98 @@
         function syncCache() {
             flavors = getFlavors();
             orders  = getOrders();
+            neighborhoods = (typeof getNeighborhoods === 'function') ? getNeighborhoods() : [];
+            customers = (typeof getCustomers === 'function') ? getCustomers() : [];
+        }
+
+        function initCustomerLookup() {
+            const nameInput = document.getElementById('order-customer');
+            const phoneInput = document.getElementById('order-phone');
+            const box = document.getElementById('customer-suggest');
+            const listEl = document.getElementById('customer-suggest-list');
+            if (!nameInput || !phoneInput || !box || !listEl) return;
+
+            const hide = () => { box.classList.add('hidden'); listEl.innerHTML = ''; };
+            const show = () => { box.classList.remove('hidden'); };
+
+            function normalizeText(value) {
+                return String(value || '')
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+
+            function render(query) {
+                const q = normalizeText(query);
+                if (!q || q.length < 2) { hide(); return; }
+
+                const rows = (customers || [])
+                    .filter(c => {
+                        const name = normalizeText(c.name);
+                        const phone = normalizeText((c.phone || '').replace(/\D/g, ''));
+                        const qPhone = q.replace(/\D/g, '');
+                        return name.includes(q) || (qPhone && phone.includes(qPhone));
+                    })
+                    .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0))
+                    .slice(0, 8);
+
+                if (rows.length === 0) { hide(); return; }
+
+                listEl.innerHTML = rows.map(c => `
+                    <button type="button" data-customer-item="1"
+                        data-name="${escapeHtml(c.name || '')}" data-phone="${escapeHtml(c.phone || '')}"
+                        data-address="${escapeHtml(c.address || '')}" data-neighborhood="${escapeHtml(c.neighborhood || '')}" data-source="${escapeHtml(c.source || '')}"
+                        class="w-full text-left px-4 py-3 hover:bg-white/5 transition-all flex items-center justify-between gap-3 border-b border-brand-border/40 last:border-b-0"
+                    >
+                        <div class="min-w-0">
+                            <div class="text-white font-semibold truncate">${escapeHtml(c.name || '—')}</div>
+                            <div class="text-[11px] text-gray-500 truncate">${escapeHtml(c.phone || 'sem telefone')}${c.neighborhood ? ` · ${escapeHtml(c.neighborhood)}` : ''}</div>
+                        </div>
+                        <div class="text-[10px] text-gray-500 font-bold whitespace-nowrap">
+                            ${c.totalOrders ? `${c.totalOrders} pedido(s)` : ''}
+                        </div>
+                    </button>
+                `).join('');
+                show();
+                lucide.createIcons();
+            }
+
+            listEl.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-customer-item="1"]');
+                if (!btn) return;
+                const name = btn.dataset.name || '';
+                const phone = btn.dataset.phone || '';
+                const address = btn.dataset.address || '';
+                const neighborhood = btn.dataset.neighborhood || '';
+                const source = btn.dataset.source || '';
+                nameInput.value = String(name).trim();
+                phoneInput.value = String(phone).trim();
+                const addrEl = document.getElementById('order-address');
+                const neighEl = document.getElementById('order-neighborhood');
+                const sourceEl = document.getElementById('order-source');
+                if (addrEl && address) addrEl.value = String(address).trim();
+                if (neighEl && neighborhood) neighEl.value = String(neighborhood).trim();
+                if (sourceEl && source) sourceEl.value = String(source).trim();
+                hide();
+                setTimeout(() => document.getElementById('order-address')?.focus(), 0);
+            });
+
+            nameInput.addEventListener('input', () => render(nameInput.value));
+            phoneInput.addEventListener('input', () => render(phoneInput.value));
+            nameInput.addEventListener('focus', () => render(nameInput.value));
+            phoneInput.addEventListener('focus', () => render(phoneInput.value));
+
+            document.addEventListener('click', (e) => {
+                if (box.classList.contains('hidden')) return;
+                if (e.target.closest('#customer-suggest') || e.target === nameInput || e.target === phoneInput) return;
+                hide();
+            });
+            document.addEventListener('keydown', (e) => {
+                if (box.classList.contains('hidden')) return;
+                if (e.key === 'Escape') hide();
+            });
         }
 
         function applyGreeting() {
@@ -990,6 +1113,7 @@
             const datalist = document.getElementById('neighborhood-options');
             if (!datalist) return;
             const set = new Set();
+            neighborhoods.forEach(n => { if (n && n.name) set.add(n.name); });
             (dashboardStats && dashboardStats.topNeighborhoods || []).forEach(n => set.add(n.neighborhood));
             orders.forEach(o => { if (o.neighborhood) set.add(o.neighborhood); });
             datalist.innerHTML = Array.from(set).sort().map(n => `<option value="${escapeHtml(n)}">`).join('');
@@ -1040,6 +1164,7 @@
                         <td class="py-4 pl-4 font-bold text-gray-400">${escapeHtml(order.id)}</td>
                         <td class="py-4 font-semibold text-white">${escapeHtml(order.customer)}</td>
                         <td class="py-4 text-gray-400 max-w-xs truncate" title="${escapeHtml(itemSummary)}">${escapeHtml(itemSummary)}</td>
+                        <td class="py-4 text-gray-400 font-semibold">${formatBRL(order.deliveryFee || 0)}</td>
                         <td class="py-4 font-bold text-brand-accentOrange">${formatBRL(order.total)}</td>
                         <td class="py-4">
                             <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${statusColor}">
@@ -1153,6 +1278,8 @@
             document.getElementById('order-phone').value = '';
             document.getElementById('order-address').value = '';
             document.getElementById('order-neighborhood').value = '';
+            document.getElementById('order-delivery-fee').value = '0';
+            document.getElementById('order-discount').value = '0';
             document.getElementById('order-notes').value = '';
             document.getElementById('order-payment').value = 'Pix';
             document.getElementById('order-source').value = '';
@@ -1199,14 +1326,19 @@
         }
 
         function calculateTotalPreview() {
-            let total = 0;
+            let itemsTotal = 0;
             flavors.filter(f => f.available).forEach(flavor => {
                 const input = document.getElementById(`flavor-qty-${flavor.id}`);
                 if (input) {
                     const qty = parseInt(input.value, 10) || 0;
-                    total += qty * parseFloat(input.dataset.price);
+                    itemsTotal += qty * parseFloat(input.dataset.price);
                 }
             });
+            const feeRaw = document.getElementById('order-delivery-fee')?.value ?? '0';
+            const deliveryFee = Math.max(0, Number(String(feeRaw).replace(',', '.')) || 0);
+            const discRaw = document.getElementById('order-discount')?.value ?? '0';
+            const discount = Math.max(0, Number(String(discRaw).replace(',', '.')) || 0);
+            const total = Math.max(0, itemsTotal + deliveryFee - discount);
             document.getElementById('order-preview-total').innerText = formatBRL(total);
             return total;
         }
@@ -1225,14 +1357,62 @@
             return { items, total };
         }
 
+        function _normalizeNeighborhoodName(value) {
+            return String(value || '')
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, ' ');
+        }
+
+        async function ensureNeighborhoodSaved(name) {
+            const trimmed = String(name || '').trim();
+            if (!trimmed) return;
+            if (typeof createNeighborhood !== 'function') return;
+
+            const target = _normalizeNeighborhoodName(trimmed);
+            const exists = neighborhoods.some(n => _normalizeNeighborhoodName(n && n.name) === target);
+            if (exists) return;
+
+            try { await createNeighborhood({ name: trimmed }); } catch (_) { /* silencioso */ }
+        }
+
+        async function saveNeighborhoodFromInput() {
+            const value = document.getElementById('order-neighborhood')?.value ?? '';
+            const trimmed = String(value).trim();
+            if (!trimmed) {
+                showToast('Bairro vazio', 'Digite um bairro para cadastrar.', true);
+                return;
+            }
+            try {
+                await ensureNeighborhoodSaved(trimmed);
+                showToast('Bairro cadastrado', `"${trimmed}" salvo para consultas futuras.`);
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
+        }
+
         async function submitNewOrder() {
             const customer     = document.getElementById('order-customer').value.trim();
             const phone        = document.getElementById('order-phone').value.trim();
             const address      = document.getElementById('order-address').value.trim();
             const neighborhood = document.getElementById('order-neighborhood').value.trim();
+            const feeRaw       = document.getElementById('order-delivery-fee').value;
+            const discRaw      = document.getElementById('order-discount').value;
             const payment      = document.getElementById('order-payment').value;
             const source       = document.getElementById('order-source').value;
             const notes        = document.getElementById('order-notes').value.trim();
+
+            const deliveryFee = Number(String(feeRaw).replace(',', '.'));
+            if (!isFinite(deliveryFee) || deliveryFee < 0) {
+                showToast('Taxa inválida', 'Informe uma taxa de entrega válida (ex: 0, 5.00).', true);
+                return;
+            }
+
+            const discount = Number(String(discRaw).replace(',', '.'));
+            if (!isFinite(discount) || discount < 0) {
+                showToast('Desconto invÃ¡lido', 'Informe um desconto vÃ¡lido (ex: 0, 2.50).', true);
+                return;
+            }
 
             if (!customer || !address) {
                 showToast('Campos obrigatórios', 'Informe o nome do cliente e o endereço de entrega.', true);
@@ -1245,12 +1425,13 @@
             }
 
             try {
+                await ensureNeighborhoodSaved(neighborhood);
                 if (editingOrderId) {
                     const id = editingOrderId;
-                    await updateOrder(id, { customer, phone, address, neighborhood, payment, source, notes, items });
+                    await updateOrder(id, { customer, phone, address, neighborhood, deliveryFee, discount, payment, source, notes, items });
                     showToast('Pedido atualizado', `O pedido ${id} foi atualizado.`);
                 } else {
-                    await createOrder({ customer, phone, address, neighborhood, payment, source, notes, items });
+                    await createOrder({ customer, phone, address, neighborhood, deliveryFee, discount, payment, source, notes, items });
                     showToast('Pedido criado', 'Pedido registrado com sucesso.');
                 }
                 editingOrderId = null;
@@ -1271,6 +1452,8 @@
             document.getElementById('order-phone').value        = order.phone        || '';
             document.getElementById('order-address').value      = order.address      || '';
             document.getElementById('order-neighborhood').value = order.neighborhood || '';
+            document.getElementById('order-delivery-fee').value = String(order.deliveryFee ?? 0);
+            document.getElementById('order-discount').value     = String(order.discount ?? 0);
             document.getElementById('order-payment').value      = order.payment      || 'Pix';
             document.getElementById('order-source').value       = order.source       || '';
             document.getElementById('order-notes').value        = order.notes        || '';

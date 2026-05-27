@@ -38,7 +38,7 @@ docker compose up -d postgres
 cd backend
 npm install
 cp .env.example .env           # já vem apontando para localhost:5432
-npm run migrate                # cria tabelas + seed inicial
+npm run migrate                # cria tabelas (sem seed/mock)
 npm start
 ```
 

@@ -20,7 +20,7 @@ function normalize(row) {
 
 router.get('/', async (_req, res, next) => {
     try {
-        const { rows } = await query('SELECT * FROM flavors ORDER BY id ASC');
+        const { rows } = await query('SELECT * FROM flavors ORDER BY LOWER(name) ASC, id ASC');
         res.json(rows.map(normalize));
     } catch (e) { next(e); }
 });

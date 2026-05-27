@@ -21,7 +21,7 @@ cp .env.example .env
 # 3. Criar o banco no PostgreSQL (uma vez)
 #    psql -U postgres -c "CREATE DATABASE sabor;"
 
-# 4. Rodar migrations + seed
+# 4. Rodar migrations
 npm run migrate
 
 # 5. Subir o servidor

@@ -107,8 +107,11 @@
                         <tr class="bg-black/20 text-xs font-bold uppercase text-gray-400 border-b border-brand-border">
                             <th class="py-4 px-6">Nome</th>
                             <th class="py-4 px-6">Telemóvel / Contacto</th>
+                            <th class="py-4 px-6">Bairro</th>
+                            <th class="py-4 px-6">Origem</th>
                             <th class="py-4 px-6">Total Encomendas</th>
                             <th class="py-4 px-6">Faturação Acumulada</th>
+                            <th class="py-4 px-6 text-right">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="table-clientes-body" class="divide-y divide-brand-border/40 text-sm"></tbody>
@@ -117,7 +120,62 @@
         </div>
     </main>
 
+    <!-- MODAL: Editar Cliente -->
+    <div id="modal-edit-customer" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-brand-card w-full max-w-md rounded-2xl border border-brand-border overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
+                <h3 class="text-white font-bold text-lg">Editar cliente</h3>
+                <button onclick="closeEditCustomerModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase text-gray-400">Nome</label>
+                    <input type="text" id="edit-customer-name"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase text-gray-400">Telefone</label>
+                    <input type="tel" id="edit-customer-phone" placeholder="(00) 00000-0000"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase text-gray-400">Endereço</label>
+                    <input type="text" id="edit-customer-address" placeholder="Rua, número, complemento"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold uppercase text-gray-400">Bairro</label>
+                        <input type="text" id="edit-customer-neighborhood" placeholder="Ex: Boa Viagem"
+                            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold uppercase text-gray-400">Como nos conheceu</label>
+                        <select id="edit-customer-source"
+                            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                            <option value="">— não informado —</option>
+                            <option value="Indicação">Indicação</option>
+                            <option value="Anúncio">Anúncio</option>
+                            <option value="Instagram">Instagram</option>
+                            <option value="WhatsApp">WhatsApp</option>
+                            <option value="Recorrente">Cliente recorrente</option>
+                            <option value="Passou na frente">Passou na frente</option>
+                            <option value="Outro">Outro</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="text-[11px] text-gray-500">Essas alterações são locais (não mudam pedidos antigos).</p>
+            </div>
+            <div class="p-5 border-t border-brand-border flex justify-end gap-3 bg-black/20">
+                <button onclick="closeEditCustomerModal()" class="border border-brand-border text-gray-400 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold">Cancelar</button>
+                <button onclick="submitEditCustomer()" class="bg-gradient-to-r from-red-600 to-orange-500 hover:opacity-90 text-white font-bold px-5 py-2 rounded-xl text-xs">Salvar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        let editingCustomerBase = null;
+
         document.addEventListener('DOMContentLoaded', async () => {
             try { await initDb(); }
             catch (e) { showToast('Erro de conexão', 'Falha ao conectar ao servidor.', true); console.error(e); return; }
@@ -131,6 +189,46 @@
             render();
         }
 
+        function openEditCustomerModal(base) {
+            editingCustomerBase = base || null;
+            document.getElementById('edit-customer-name').value  = (base && base.name)  ? String(base.name)  : '';
+            document.getElementById('edit-customer-phone').value = (base && base.phone) ? String(base.phone) : '';
+            document.getElementById('edit-customer-address').value = (base && base.address) ? String(base.address) : '';
+            document.getElementById('edit-customer-neighborhood').value = (base && base.neighborhood) ? String(base.neighborhood) : '';
+            document.getElementById('edit-customer-source').value = (base && base.source) ? String(base.source) : '';
+            document.getElementById('modal-edit-customer').classList.remove('hidden');
+            setTimeout(() => document.getElementById('edit-customer-name').focus(), 0);
+            lucide.createIcons();
+        }
+
+        function closeEditCustomerModal() {
+            document.getElementById('modal-edit-customer').classList.add('hidden');
+            editingCustomerBase = null;
+        }
+
+        function submitEditCustomer() {
+            if (!editingCustomerBase) return;
+            const name  = (document.getElementById('edit-customer-name').value || '').trim();
+            const phone = (document.getElementById('edit-customer-phone').value || '').trim();
+            const address = (document.getElementById('edit-customer-address').value || '').trim();
+            const neighborhood = (document.getElementById('edit-customer-neighborhood').value || '').trim();
+            const source = (document.getElementById('edit-customer-source').value || '').trim();
+            if (!name) { showToast('Atenção', 'Informe o nome do cliente.', true); return; }
+            setCustomerOverride(editingCustomerBase, { name, phone, address, neighborhood, source });
+            closeEditCustomerModal();
+            showToast('Cliente atualizado', 'Informações salvas localmente.');
+            render();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('modal-edit-customer');
+            if (!modal || modal.classList.contains('hidden')) return;
+            if (e.key === 'Escape') closeEditCustomerModal();
+            if (e.key === 'Enter' && document.activeElement && ['edit-customer-name', 'edit-customer-phone', 'edit-customer-address', 'edit-customer-neighborhood'].includes(document.activeElement.id)) {
+                submitEditCustomer();
+            }
+        });
+
         function render() {
             const all = getCustomers();
             const search = ((document.getElementById('filter-search') || {}).value || '').toLowerCase().trim();
@@ -139,7 +237,10 @@
             let customers = all.filter(c => {
                 if (!search) return true;
                 return (c.name || '').toLowerCase().includes(search)
-                    || (c.phone || '').toLowerCase().includes(search);
+                    || (c.phone || '').toLowerCase().includes(search)
+                    || (c.address || '').toLowerCase().includes(search)
+                    || (c.neighborhood || '').toLowerCase().includes(search)
+                    || (c.source || '').toLowerCase().includes(search);
             });
 
             customers = customers.sort((a, b) => {
@@ -164,7 +265,7 @@
                     : 'Nenhum cliente encontrado com esse filtro.';
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="4" class="py-12 text-center text-gray-500 text-sm">${msg}</td>
+                        <td colspan="7" class="py-12 text-center text-gray-500 text-sm">${msg}</td>
                     </tr>
                 `;
                 lucide.createIcons();
@@ -183,8 +284,17 @@
                         </div>
                     </td>
                     <td class="py-4 px-6 text-gray-400">${escapeHtml(c.phone || '—')}</td>
+                    <td class="py-4 px-6 text-gray-400">${escapeHtml(c.neighborhood || '—')}</td>
+                    <td class="py-4 px-6 text-gray-400">${escapeHtml(c.source || '—')}</td>
                     <td class="py-4 px-6 font-semibold">${c.totalOrders} pedidos</td>
                     <td class="py-4 px-6 font-black text-brand-accentOrange">${formatBRL(c.totalSpent)}</td>
+                    <td class="py-4 px-6 text-right">
+                        <button type="button"
+                            class="inline-flex items-center gap-1.5 text-xs font-bold bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white px-3 py-1.5 rounded-lg transition-all"
+                            onclick='openEditCustomerModal(${JSON.stringify({ name: c.name || "", phone: c.phone || "", address: c.address || "", neighborhood: c.neighborhood || "", source: c.source || "" })})'>
+                            <i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar
+                        </button>
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });

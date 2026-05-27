@@ -36,13 +36,4 @@ CREATE TABLE IF NOT EXISTS recurring_expenses (
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Seed das categorias (idempotente)
-INSERT INTO expense_categories (name, icon, color, is_fixed) VALUES
-  ('Gás',      'flame',        'orange',  TRUE),
-  ('Luz',      'zap',          'yellow',  TRUE),
-  ('Água',     'droplet',      'blue',    TRUE),
-  ('Aluguel',  'home',         'purple',  TRUE),
-  ('Salário',  'users',        'emerald', TRUE),
-  ('Insumos',  'shopping-cart','red',     FALSE),
-  ('Outros',   'circle',       'gray',    FALSE)
-ON CONFLICT (name) DO NOTHING;
+-- Seed removido: sem dados mockados por padrão.
