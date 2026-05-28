@@ -63,18 +63,18 @@ router.get('/', async (_req, res, next) => {
 router.post('/', async (req, res, next) => {
     try {
         const { customer, phone = '', address = '', neighborhood = '', deliveryFee = 0, discount = 0, payment = '', source = '', notes = '', items = [], status = 'Pendente' } = req.body || {};
-        if (!customer || typeof customer !== 'string')          return res.status(400).json({ error: 'customer obrigatÃ³rio' });
+        if (!customer || typeof customer !== 'string')          return res.status(400).json({ error: 'customer obrigatório' });
         if (!Array.isArray(items) || items.length === 0)        return res.status(400).json({ error: 'items vazio' });
-        if (!VALID_STATUS.includes(status))                     return res.status(400).json({ error: 'status invÃ¡lido' });
+        if (!VALID_STATUS.includes(status))                     return res.status(400).json({ error: 'status inválido' });
 
         const fee = Number(deliveryFee);
         const disc = Number(discount);
-        if (!isFinite(disc) || disc < 0) return res.status(400).json({ error: 'discount invÃƒÂ¡lido' });
-        if (!isFinite(fee) || fee < 0) return res.status(400).json({ error: 'deliveryFee invÃ¡lido' });
+        if (!isFinite(disc) || disc < 0) return res.status(400).json({ error: 'discount inválido' });
+        if (!isFinite(fee) || fee < 0) return res.status(400).json({ error: 'deliveryFee inválido' });
 
         for (const it of items) {
             if (!it || !it.name || !(it.quantity > 0) || !(it.price >= 0)) {
-                return res.status(400).json({ error: 'item invÃ¡lido', item: it });
+                return res.status(400).json({ error: 'item inválido', item: it });
             }
         }
         const itemsTotal = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
@@ -111,23 +111,23 @@ router.patch('/:id', async (req, res, next) => {
         let previousStatus = null;
 
         if (status !== undefined && !VALID_STATUS.includes(status)) {
-            return res.status(400).json({ error: 'status invÃ¡lido' });
+            return res.status(400).json({ error: 'status inválido' });
         }
 
         const fee = deliveryFee !== undefined ? Number(deliveryFee) : null;
         if (deliveryFee !== undefined && (!isFinite(fee) || fee < 0)) {
-            return res.status(400).json({ error: 'deliveryFee invÃ¡lido' });
+            return res.status(400).json({ error: 'deliveryFee inválido' });
         }
         const disc = discount !== undefined ? Number(discount) : null;
         if (discount !== undefined && (!isFinite(disc) || disc < 0)) {
-            return res.status(400).json({ error: 'discount invÃƒÂ¡lido' });
+            return res.status(400).json({ error: 'discount inválido' });
         }
 
         if (items !== undefined) {
             if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'items vazio' });
             for (const it of items) {
                 if (!it || !it.name || !(it.quantity > 0) || !(it.price >= 0)) {
-                    return res.status(400).json({ error: 'item invÃ¡lido', item: it });
+                    return res.status(400).json({ error: 'item inválido', item: it });
                 }
             }
         }
@@ -154,7 +154,7 @@ router.patch('/:id', async (req, res, next) => {
             if (status       !== undefined) {
                 pushSet('status', status);
                 const now = new Date();
-                // Preenche timestamps de transiÃ§Ã£o na primeira vez que o status atinge cada estÃ¡gio
+                // Preenche timestamps de transição na primeira vez que o status atinge cada estágio
                 if (status === 'Em Preparo' && !existing.rows[0].accepted_at) pushSet('accepted_at', now);
                 if (status === 'Pronto'     && !existing.rows[0].ready_at)    pushSet('ready_at', now);
                 if (status === 'Entregue')                                    pushSet('delivered_at', now);
@@ -203,7 +203,7 @@ router.patch('/:id', async (req, res, next) => {
             return loadOrderById(client, id);
         });
 
-        if (!order) return res.status(404).json({ error: 'pedido nÃ£o encontrado' });
+        if (!order) return res.status(404).json({ error: 'pedido não encontrado' });
         broadcast('order:updated', order);
         if (status !== undefined && status !== previousStatus) {
             whatsapp.notifyOrderStatus(order, previousStatus).catch(e => console.error('[whatsapp] notify:', e));
@@ -216,7 +216,7 @@ router.delete('/:id', async (req, res, next) => {
     try {
         const id = req.params.id;
         const { rowCount } = await query('DELETE FROM orders WHERE id = $1', [id]);
-        if (rowCount === 0) return res.status(404).json({ error: 'pedido nÃ£o encontrado' });
+        if (rowCount === 0) return res.status(404).json({ error: 'pedido não encontrado' });
         broadcast('order:deleted', { id });
         res.status(204).end();
     } catch (e) { next(e); }
@@ -360,7 +360,7 @@ router.get('/stats/dashboard', async (req, res, next) => {
 
         // Origem dos pedidos no perÃ­odo (para o card de aquisiÃ§Ã£o)
         const sourceBreakdown = (await query(`
-            SELECT COALESCE(NULLIF(source, ''), 'NÃ£o informado') AS source,
+            SELECT COALESCE(NULLIF(source, ''), 'Não informado') AS source,
                    COUNT(*)::int AS orders,
                    COALESCE(SUM(total), 0)::numeric AS revenue
             FROM orders

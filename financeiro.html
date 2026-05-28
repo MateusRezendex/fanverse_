@@ -216,7 +216,7 @@
                 <button onclick="closeExpenseModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
             </div>
             <div class="p-5 space-y-4">
-                <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-4">
                     <div class="space-y-1.5">
                         <div class="flex items-center justify-between">
                             <label class="text-xs font-bold text-gray-400 uppercase">Categoria</label>
@@ -227,9 +227,18 @@
                         </div>
                         <select id="exp-category" class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm"></select>
                     </div>
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-bold text-gray-400 uppercase">Valor (R$)</label>
-                        <input type="number" step="0.01" id="exp-amount" class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold text-gray-400 uppercase">Valor (R$)</label>
+                            <input type="number" step="0.01" id="exp-amount" class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold text-gray-400 uppercase">Parcelas</label>
+                            <input type="number" min="1" max="36" id="exp-installments" value="1"
+                                class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                            <p class="text-[10px] text-gray-600 -mt-2">divide o valor e replica mensalmente</p>
+                        </div>
                     </div>
                 </div>
                 <div class="space-y-1.5">
@@ -653,10 +662,46 @@
             document.getElementById('exp-amount').value = exp ? exp.amount : '';
             document.getElementById('exp-date').value = exp ? String(exp.date).slice(0, 10) : new Date().toISOString().slice(0, 10);
             document.getElementById('exp-description').value = exp ? exp.description : '';
+            const instEl = document.getElementById('exp-installments');
+            if (instEl) {
+                instEl.value = 1;
+                instEl.disabled = !!exp; // editar não replica
+                instEl.classList.toggle('opacity-60', !!exp);
+                instEl.classList.toggle('cursor-not-allowed', !!exp);
+            }
             document.getElementById('modal-expense').classList.remove('hidden');
             setTimeout(() => document.getElementById('exp-amount').focus(), 50);
         }
         function closeExpenseModal() { document.getElementById('modal-expense').classList.add('hidden'); editingExpenseId = null; }
+
+        function _parseISODate(value) {
+            const s = String(value || '').slice(0, 10);
+            const [y, m, d] = s.split('-').map(n => parseInt(n, 10));
+            if (!(y > 0 && m >= 1 && m <= 12 && d >= 1 && d <= 31)) return null;
+            return { y, m, d };
+        }
+
+        function _formatISODate(y, m, d) {
+            const yy = String(y).padStart(4, '0');
+            const mm = String(m).padStart(2, '0');
+            const dd = String(d).padStart(2, '0');
+            return `${yy}-${mm}-${dd}`;
+        }
+
+        function _daysInMonth(y, m) {
+            return new Date(y, m, 0).getDate(); // m: 1-12
+        }
+
+        function _addMonthsKeepingDay(isoDate, addMonths) {
+            const parts = _parseISODate(isoDate);
+            if (!parts) return null;
+            const baseD = parts.d;
+            const d0 = new Date(parts.y, (parts.m - 1) + addMonths, 1);
+            const y = d0.getFullYear();
+            const m = d0.getMonth() + 1;
+            const day = Math.min(baseD, _daysInMonth(y, m));
+            return _formatISODate(y, m, day);
+        }
 
         async function submitExpense() {
             const payload = {
@@ -671,8 +716,29 @@
                     await updateExpense(editingExpenseId, payload);
                     showToast('Atualizado', 'Despesa atualizada.');
                 } else {
-                    await createExpense(payload);
-                    showToast('Sucesso', 'Despesa lançada.');
+                    const installments = Math.max(1, parseInt((document.getElementById('exp-installments') || {}).value, 10) || 1);
+                    if (installments === 1) {
+                        await createExpense(payload);
+                        showToast('Sucesso', 'Despesa lançada.');
+                    } else {
+                        if (!payload.date) { showToast('Erro', 'Informe uma data para parcelar.', true); return; }
+                        const totalCents = Math.round((Number(payload.amount) || 0) * 100);
+                        if (totalCents < 0) { showToast('Erro', 'Valor inválido.', true); return; }
+                        const baseCents = Math.floor(totalCents / installments);
+                        const remainder = totalCents - (baseCents * installments);
+
+                        for (let i = 0; i < installments; i++) {
+                            const cents = baseCents + (i < remainder ? 1 : 0);
+                            const date = _addMonthsKeepingDay(payload.date, i);
+                            await createExpense({
+                                ...payload,
+                                amount: cents / 100,
+                                date,
+                                description: `${payload.description || 'Despesa'} (${i + 1}/${installments})`,
+                            });
+                        }
+                        showToast('Sucesso', `Despesa parcelada em ${installments}x.`);
+                    }
                 }
                 closeExpenseModal();
                 await refresh();

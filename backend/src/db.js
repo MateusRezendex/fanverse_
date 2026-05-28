@@ -1,7 +1,12 @@
 const { Pool } = require('pg');
 
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString || String(connectionString).trim() === '') {
+    throw new Error('DATABASE_URL não definido (ex: postgres://postgres:postgres@localhost:5432/sabor)');
+}
+
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
 });
 
 pool.on('error', (err) => {

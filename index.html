@@ -1410,7 +1410,7 @@
 
             const discount = Number(String(discRaw).replace(',', '.'));
             if (!isFinite(discount) || discount < 0) {
-                showToast('Desconto invÃ¡lido', 'Informe um desconto vÃ¡lido (ex: 0, 2.50).', true);
+                showToast('Desconto inválido', 'Informe um desconto válido (ex: 0, 2.50).', true);
                 return;
             }
 

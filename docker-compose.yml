@@ -18,7 +18,9 @@ services:
       retries: 10
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: sabor-backend
     restart: unless-stopped
     depends_on:
@@ -30,6 +32,11 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
     ports:
       - "${BACKEND_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     volumes:
       # Bind-mount do frontend para iterar HTML/JS sem rebuild
       - ./index.html:/app/frontend/index.html:ro
