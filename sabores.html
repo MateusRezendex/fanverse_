@@ -82,10 +82,16 @@
                 <h2 class="text-2xl font-black text-white">Menu & Sabores</h2>
                 <p class="text-gray-400 text-sm">Portfólio completo de esfihas doces, salgadas e especiais.</p>
             </div>
-            <button onclick="openNewFlavorModal()"
-                class="bg-gradient-to-r from-red-600 to-orange-500 hover:opacity-90 active:scale-95 transition-all text-white font-bold py-2.5 px-5 rounded-xl flex items-center justify-center gap-2 text-sm self-start sm:self-auto shadow-lg">
-                <i data-lucide="plus" class="w-4 h-4"></i> Adicionar Sabor
-            </button>
+            <div class="flex items-center gap-2 self-start sm:self-auto">
+                <button onclick="openBaseCostsModal()"
+                    class="border border-brand-border text-gray-300 hover:text-white hover:bg-white/5 font-bold py-2.5 px-5 rounded-xl flex items-center justify-center gap-2 text-sm transition-all">
+                    <i data-lucide="settings" class="w-4 h-4"></i> Custos base
+                </button>
+                <button onclick="openNewFlavorModal()"
+                    class="bg-gradient-to-r from-red-600 to-orange-500 hover:opacity-90 active:scale-95 transition-all text-white font-bold py-2.5 px-5 rounded-xl flex items-center justify-center gap-2 text-sm shadow-lg">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Adicionar Sabor
+                </button>
+            </div>
         </div>
 
         <!-- FILTROS E PESQUISA -->
@@ -144,8 +150,8 @@
                             class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
                     </div>
                     <div class="space-y-1.5">
-                        <label class="text-xs font-bold text-gray-400 uppercase">Custo (R$)</label>
-                        <input type="number" step="0.10" id="f-cost" placeholder="Ex: 2.50"
+                        <label class="text-xs font-bold text-gray-400 uppercase">Recheio (R$)</label>
+                        <input type="number" step="0.10" id="f-cost" placeholder="Ex: 1.89"
                             class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
                     </div>
                 </div>
@@ -189,9 +195,48 @@
         </div>
     </div>
 
+    <!-- MODAL: Custos base (iguais para todas as esfihas) -->
+    <div id="modal-base-costs" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-brand-card w-full max-w-md rounded-2xl border border-brand-border overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
+                <div>
+                    <h3 class="text-white font-bold text-lg">Custos base</h3>
+                    <p class="text-xs text-gray-500">Aplicados em todas as esfihas (o recheio varia por sabor).</p>
+                </div>
+                <button onclick="closeBaseCostsModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-400 uppercase">Massa (R$)</label>
+                        <input type="number" step="0.01" min="0" id="base-dough" oninput="_renderBaseTotal()"
+                            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-gray-400 uppercase">Embalagem (R$)</label>
+                        <input type="number" step="0.01" min="0" id="base-packaging" oninput="_renderBaseTotal()"
+                            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                    </div>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-gray-400 uppercase">GÃ¡s (R$)</label>
+                    <input type="number" step="0.01" min="0" id="base-gas" oninput="_renderBaseTotal()"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                    <p class="text-[11px] text-gray-500">Custo base total: <span id="base-total" class="text-white font-bold">R$ 0,00</span></p>
+                </div>
+            </div>
+            <div class="p-5 border-t border-brand-border flex justify-end gap-3 bg-black/20">
+                <button onclick="closeBaseCostsModal()" class="border border-brand-border text-gray-400 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold">Cancelar</button>
+                <button onclick="saveBaseCosts()"
+                    class="bg-gradient-to-r from-red-600 to-orange-500 hover:opacity-90 text-white font-bold px-5 py-2 rounded-xl text-xs">Salvar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let flavors = [];
         let currentFilter = 'Todos';
+        let baseCosts = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
             try { await initDb(); }
@@ -271,7 +316,7 @@
                             <button onclick="editFlavorPrice(${f.id})" title="Alterar preço" class="flex-1 p-2 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 hover:text-orange-300 transition-all text-xs font-bold">
                                 <i data-lucide="pencil" class="w-3.5 h-3.5 inline mr-1"></i>preço
                             </button>
-                            <button onclick="editFlavorCost(${f.id})" title="Alterar custo" class="flex-1 p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 hover:text-blue-300 transition-all text-xs font-bold">
+                            <button onclick="editFlavorCost(${f.id})" title="Alterar custo do recheio" class="flex-1 p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 hover:text-blue-300 transition-all text-xs font-bold">
                                 <i data-lucide="dollar-sign" class="w-3.5 h-3.5 inline mr-1"></i>custo
                             </button>
                             <button onclick="removeFlavor(${f.id})" title="Excluir sabor" class="p-2 rounded-xl bg-red-950/20 hover:bg-red-950/60 border border-red-900/30 text-red-400 hover:text-red-300 transition-all">
@@ -369,7 +414,7 @@
         async function editFlavorCost(id) {
             const flavor = flavors.find(f => f.id === id);
             if (!flavor) return;
-            const newCost = prompt(`Custo de produção (massa + recheio + embalagem) de "${flavor.name}"`, Number(flavor.costPrice || 0).toFixed(2));
+            const newCost = prompt(`Custo do recheio de "${flavor.name}"`, Number(flavor.fillingCost || 0).toFixed(2));
             if (newCost === null) return;
             const parsed = parseFloat(String(newCost).replace(',', '.'));
             if (isNaN(parsed) || parsed < 0) {
@@ -377,12 +422,125 @@
                 return;
             }
             try {
-                await updateFlavor(id, { costPrice: parsed });
-                showToast('Custo atualizado', `${flavor.name} agora tem custo ${formatBRL(parsed)}`);
+                await updateFlavor(id, { fillingCost: parsed });
+                showToast('Custo atualizado', `${flavor.name} agora tem recheio ${formatBRL(parsed)}`);
             } catch (e) {
                 showToast('Erro', e.message, true);
             }
         }
+
+        function _baseTotalFromInputs() {
+            const dough = Number(document.getElementById('base-dough').value) || 0;
+            const packaging = Number(document.getElementById('base-packaging').value) || 0;
+            const gas = Number(document.getElementById('base-gas').value) || 0;
+            return dough + packaging + gas;
+        }
+
+        function _renderBaseTotal() {
+            document.getElementById('base-total').textContent = formatBRL(_baseTotalFromInputs());
+        }
+
+        async function openBaseCostsModal() {
+            document.getElementById('modal-base-costs').classList.remove('hidden');
+            try {
+                baseCosts = await getBaseCosts();
+                const byKey = new Map((baseCosts.items || []).map(x => [x.key, x]));
+                document.getElementById('base-dough').value = Number((byKey.get('dough') || {}).amount || 0).toFixed(2);
+                document.getElementById('base-packaging').value = Number((byKey.get('packaging') || {}).amount || 0).toFixed(2);
+                document.getElementById('base-gas').value = Number((byKey.get('gas') || {}).amount || 0).toFixed(2);
+                _renderBaseTotal();
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
+            lucide.createIcons();
+        }
+
+        function closeBaseCostsModal() {
+            document.getElementById('modal-base-costs').classList.add('hidden');
+            lucide.createIcons();
+        }
+
+        async function saveBaseCosts() {
+            const dough = parseFloat(document.getElementById('base-dough').value);
+            const packaging = parseFloat(document.getElementById('base-packaging').value);
+            const gas = parseFloat(document.getElementById('base-gas').value);
+            if ([dough, packaging, gas].some(v => isNaN(v) || v < 0)) {
+                showToast('Erro', 'Valores inválidos.', true);
+                return;
+            }
+            try {
+                await updateBaseCosts([
+                    { key: 'dough', amount: dough },
+                    { key: 'packaging', amount: packaging },
+                    { key: 'gas', amount: gas },
+                ]);
+                _renderBaseTotal();
+                showToast('Atualizado', 'Custos base atualizados.');
+                closeBaseCostsModal();
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
+        }
+
+        /* async function addCostItem() {
+            if (!costItemsFlavorId) return;
+            const item = (document.getElementById('ci-new-item').value || '').trim();
+            const amount = parseFloat(document.getElementById('ci-new-amount').value);
+            if (!item) { showToast('Erro', 'Informe o item.', true); return; }
+            if (isNaN(amount) || amount < 0) { showToast('Erro', 'Valor invÃ¡lido.', true); return; }
+            try {
+                await createFlavorCostItem(costItemsFlavorId, { item, amount });
+                document.getElementById('ci-new-item').value = '';
+                document.getElementById('ci-new-amount').value = '';
+                await _reloadCostItems();
+                showToast('Adicionado', 'Item de custo criado.');
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
+        } */
+
+        /* async function saveCostItem(itemId) {
+            if (!costItemsFlavorId) return;
+            const item = (document.getElementById(`ci-item-${itemId}`).value || '').trim();
+            const amount = parseFloat(document.getElementById(`ci-amount-${itemId}`).value);
+            if (!item) { showToast('Erro', 'Item invÃ¡lido.', true); return; }
+            if (isNaN(amount) || amount < 0) { showToast('Erro', 'Valor invÃ¡lido.', true); return; }
+            try {
+                await updateFlavorCostItem(costItemsFlavorId, itemId, { item, amount });
+                await _reloadCostItems();
+                showToast('Atualizado', 'Item atualizado.');
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
+        } */
+
+        /* async function removeCostItem(itemId) {
+            if (!costItemsFlavorId) return;
+            if (!confirm('Excluir este item de custo?')) return;
+            try {
+                await deleteFlavorCostItem(costItemsFlavorId, itemId);
+                await _reloadCostItems();
+                showToast('Removido', 'Item excluÃ­do.');
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
+        } */
+
+        /* async function useCurrentCostAsSingleItem() {
+            if (!costItemsFlavorId) return;
+            const flavor = flavors.find(f => f.id === costItemsFlavorId);
+            if (!flavor) return;
+            const current = Number(flavor.costPrice || 0);
+            if (!(current > 0)) { showToast('Nada a fazer', 'Este produto ainda nÃ£o tem custo definido.', true); return; }
+            if (costItems && costItems.length > 0) { showToast('AtenÃ§Ã£o', 'Este produto jÃ¡ tem itens de custo.', true); return; }
+            try {
+                await createFlavorCostItem(costItemsFlavorId, { item: 'Custo total', amount: current });
+                await _reloadCostItems();
+                showToast('Ok', 'Item criado a partir do custo atual.');
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
+        } */
 
         function openNewFlavorModal() {
             document.getElementById('modal-flavor').classList.remove('hidden');
@@ -416,7 +574,7 @@
                 await createFlavor({
                     name,
                     price,
-                    costPrice,
+                    fillingCost: costPrice,
                     category,
                     description: description || 'Esfiha preparada na hora com ingredientes frescos.',
                     available: true,

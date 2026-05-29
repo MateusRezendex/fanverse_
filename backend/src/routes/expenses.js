@@ -5,12 +5,15 @@ const { broadcast } = require('../ws');
 const router = express.Router();
 
 function normalize(row) {
+    const date = row.date instanceof Date
+        ? row.date.toISOString().slice(0, 10)
+        : String(row.date || '').slice(0, 10);
     return {
         id: row.id,
         categoryId: row.category_id,
         description: row.description,
         amount: Number(row.amount),
-        date: row.date,
+        date,
         createdAt: row.created_at,
         source: row.source,
     };

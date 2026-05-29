@@ -190,6 +190,14 @@ async function deleteFlavor(id) {
     return _fetchJson(`/api/flavors/${id}`, { method: 'DELETE', expectStatus: 204 });
 }
 
+// --- Custos base (massa/embalagem/gÃ¡s) ---
+async function getBaseCosts() {
+    return _fetchJson('/api/costs');
+}
+async function updateBaseCosts(items) {
+    return _fetchJson('/api/costs', { method: 'PATCH', body: { items } });
+}
+
 async function createOrder(payload) {
     return _fetchJson('/api/orders', { method: 'POST', body: payload });
 }
@@ -202,6 +210,9 @@ async function deleteOrder(id) {
 
 async function createExpenseCategory(payload) {
     return _fetchJson('/api/expense-categories', { method: 'POST', body: payload });
+}
+async function updateExpenseCategory(id, patch) {
+    return _fetchJson(`/api/expense-categories/${id}`, { method: 'PATCH', body: patch });
 }
 async function deleteExpenseCategory(id) {
     return _fetchJson(`/api/expense-categories/${id}`, { method: 'DELETE', expectStatus: 204 });
@@ -371,6 +382,13 @@ function _applyEvent(type, payload) {
             break;
 
         case 'expense-category:created':
+            {
+                const i = _cache.expenseCategories.findIndex(c => c.id === payload.id);
+                if (i === -1) _cache.expenseCategories.push(payload);
+                else _cache.expenseCategories[i] = payload;
+            }
+            break;
+        case 'expense-category:updated':
             {
                 const i = _cache.expenseCategories.findIndex(c => c.id === payload.id);
                 if (i === -1) _cache.expenseCategories.push(payload);

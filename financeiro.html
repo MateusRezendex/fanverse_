@@ -150,10 +150,16 @@
                     <h4 class="text-white font-bold text-base">Despesas do período</h4>
                     <p class="text-xs text-gray-500" id="expenses-summary">—</p>
                 </div>
-                <button onclick="openExpenseModal()"
-                    class="bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold py-2 px-4 rounded-xl text-sm flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all">
-                    <i data-lucide="plus" class="w-4 h-4"></i> Nova despesa
-                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="openManageCategoriesModal()"
+                        class="border border-brand-border text-gray-300 hover:text-white hover:bg-white/5 font-bold py-2 px-4 rounded-xl text-sm flex items-center gap-2 transition-all">
+                        <i data-lucide="tag" class="w-4 h-4"></i> Categorias
+                    </button>
+                    <button onclick="openExpenseModal()"
+                        class="bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold py-2 px-4 rounded-xl text-sm flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Nova despesa
+                    </button>
+                </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse text-sm">
@@ -323,6 +329,49 @@
         </div>
     </div>
 
+    <!-- MODAL: Gerenciar Categorias -->
+    <div id="modal-categories" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-brand-card w-full max-w-2xl rounded-2xl border border-brand-border overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
+                <div>
+                    <h3 class="text-white font-bold text-lg">Categorias de despesa</h3>
+                    <p class="text-xs text-gray-500">Edite, crie ou remova categorias (as fixas nÃ£o podem ser removidas).</p>
+                </div>
+                <button onclick="closeManageCategoriesModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input type="text" id="catm-new-name" placeholder="Nova categoria"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                    <input type="text" id="catm-new-icon" placeholder="Ãcone (Lucide) ex: tag"
+                        class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                    <button onclick="submitCategoryManagerAdd()"
+                        class="bg-gradient-to-r from-red-600 to-orange-500 hover:opacity-90 text-white font-bold py-2 px-4 rounded-xl text-sm flex items-center justify-center gap-2 active:scale-95 transition-all">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Adicionar
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-black/20 text-[10px] uppercase tracking-wider text-gray-500 font-bold border-b border-brand-border">
+                                <th class="py-3 px-5">Nome</th>
+                                <th class="py-3 px-5">Ãcone</th>
+                                <th class="py-3 px-5">Tipo</th>
+                                <th class="py-3 px-5 text-right">AÃ§Ã£o</th>
+                            </tr>
+                        </thead>
+                        <tbody id="catm-tbody" class="divide-y divide-brand-border/40"></tbody>
+                    </table>
+                    <div id="catm-empty" class="hidden py-10 text-center text-gray-500 text-sm">Nenhuma categoria cadastrada.</div>
+                </div>
+            </div>
+            <div class="p-5 border-t border-brand-border flex justify-end gap-3 bg-black/20">
+                <button onclick="closeManageCategoriesModal()" class="border border-brand-border text-gray-400 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let report = null;
         let currentPeriod = '30d';
@@ -350,6 +399,9 @@
             renderFlavorMargins();
             renderExpensesTable();
             renderRecurringTable();
+            if (!document.getElementById('modal-categories').classList.contains('hidden')) {
+                renderManageCategories();
+            }
             lucide.createIcons();
         }
 
@@ -427,6 +479,99 @@
             } catch (e) {
                 const msg = (e && e.message) ? e.message : 'Não foi possível criar a categoria.';
                 showToast('Erro', msg, true);
+            }
+        }
+
+        // --- Gerenciar categorias ---
+        function openManageCategoriesModal() {
+            document.getElementById('modal-categories').classList.remove('hidden');
+            document.getElementById('catm-new-name').value = '';
+            document.getElementById('catm-new-icon').value = 'tag';
+            renderManageCategories();
+            setTimeout(() => document.getElementById('catm-new-name').focus(), 0);
+            lucide.createIcons();
+        }
+        function closeManageCategoriesModal() {
+            document.getElementById('modal-categories').classList.add('hidden');
+            lucide.createIcons();
+        }
+
+        function renderManageCategories() {
+            const tbody = document.getElementById('catm-tbody');
+            const empty = document.getElementById('catm-empty');
+            const cats = getExpenseCategories();
+            if (!cats || cats.length === 0) {
+                tbody.innerHTML = '';
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+            tbody.innerHTML = cats.map(c => {
+                const fixed = !!c.isFixed;
+                return `
+                    <tr class="hover:bg-white/[0.02] transition-colors">
+                        <td class="py-3 px-5">
+                            <input id="catm-name-${c.id}" value="${escapeHtml(c.name)}"
+                                class="w-full bg-brand-dark border border-brand-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                        </td>
+                        <td class="py-3 px-5">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="${escapeHtml(c.icon || 'circle')}" class="w-4 h-4 text-gray-400"></i>
+                                <input id="catm-icon-${c.id}" value="${escapeHtml(c.icon || '')}" placeholder="ex: tag"
+                                    class="w-full bg-brand-dark border border-brand-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
+                            </div>
+                        </td>
+                        <td class="py-3 px-5 text-xs font-bold ${fixed ? 'text-amber-400' : 'text-gray-400'}">${fixed ? 'fixa' : 'personalizada'}</td>
+                        <td class="py-3 px-5 text-right space-x-3 whitespace-nowrap">
+                            <button onclick="saveCategoryManager(${c.id})" class="text-emerald-400 hover:text-emerald-300 text-xs font-bold">salvar</button>
+                            <button onclick="deleteCategoryManager(${c.id})" class="text-red-400 hover:text-red-300 text-xs font-bold ${fixed ? 'opacity-40 pointer-events-none' : ''}">excluir</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function submitCategoryManagerAdd() {
+            const name = (document.getElementById('catm-new-name').value || '').trim();
+            const icon = (document.getElementById('catm-new-icon').value || '').trim() || 'tag';
+            if (!name) { showToast('AtenÃ§Ã£o', 'Informe o nome da categoria.', true); return; }
+            try {
+                await createExpenseCategory({ name, icon });
+                document.getElementById('catm-new-name').value = '';
+                renderManageCategories();
+                populateCategorySelects();
+                showToast('Categoria adicionada', `\"${name}\" foi criada.`);
+                lucide.createIcons();
+            } catch (e) {
+                showToast('Erro', e.message || 'NÃ£o foi possÃ­vel criar a categoria.', true);
+            }
+        }
+
+        async function saveCategoryManager(id) {
+            const name = (document.getElementById(`catm-name-${id}`).value || '').trim();
+            const icon = (document.getElementById(`catm-icon-${id}`).value || '').trim() || 'circle';
+            if (!name) { showToast('Erro', 'Nome invÃ¡lido.', true); return; }
+            try {
+                await updateExpenseCategory(id, { name, icon });
+                renderManageCategories();
+                populateCategorySelects();
+                showToast('Atualizado', 'Categoria atualizada.');
+                lucide.createIcons();
+            } catch (e) {
+                showToast('Erro', e.message || 'NÃ£o foi possÃ­vel atualizar.', true);
+            }
+        }
+
+        async function deleteCategoryManager(id) {
+            if (!confirm('Excluir esta categoria? Despesas e recorrentes ficarÃ£o sem categoria.')) return;
+            try {
+                await deleteExpenseCategory(id);
+                renderManageCategories();
+                populateCategorySelects();
+                showToast('Removida', 'Categoria excluÃ­da.');
+                lucide.createIcons();
+            } catch (e) {
+                showToast('Erro', e.message || 'NÃ£o foi possÃ­vel excluir.', true);
             }
         }
 

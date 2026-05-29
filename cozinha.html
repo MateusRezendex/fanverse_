@@ -138,13 +138,15 @@
             listPronto.innerHTML   = '';
             let p = 0, pr = 0, pt = 0;
 
-            // Mostra apenas pedidos ativos de hoje — pedidos de ontem não poluem o kanban
+            // Mostra pedidos ativos (não entregues/cancelados). Se o pedido não é de hoje,
+            // ainda assim deve aparecer (ex: pedido pendente que ficou para trás).
             orders.forEach(order => {
                 if (['Cancelado', 'Entregue'].includes(order.status)) return;
-                if (!isToday(order.createdAt)) return;
+                const isOld = !isToday(order.createdAt);
 
                 const card = document.createElement('div');
                 card.className = "bg-brand-dark p-4 rounded-xl border border-brand-border space-y-3";
+                if (isOld) card.classList.add('opacity-80');
                 const itemsList = order.items.map(i =>
                     `<div class="flex justify-between text-xs"><span>${escapeHtml(i.name)}</span><span class="text-brand-accentOrange font-black">x${i.quantity}</span></div>`
                 ).join('');
@@ -162,6 +164,7 @@
                     <div>
                         <span class="text-brand-accentOrange font-bold text-sm">${escapeHtml(order.id)}</span>
                         <h4 class="text-white font-bold text-xs">${escapeHtml(order.customer)}</h4>
+                        ${isOld ? `<div class="text-[10px] text-gray-500 mt-0.5">Pedido antigo • ${formatTime(order.createdAt)}</div>` : ``}
                     </div>
                     <div class="border-t border-brand-border/40 pt-2 space-y-1">${itemsList}</div>
                     <div class="flex gap-2">${backBtn}${fwdBtn}</div>
