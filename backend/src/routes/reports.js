@@ -3,16 +3,39 @@ const { query } = require('../db');
 
 const router = express.Router();
 
+const REPORT_TZ = process.env.REPORT_TZ || 'America/Sao_Paulo';
+const PAYMENT_FEE_RATES = {
+    Pix: 0,
+    'Cartão de Débito': 0.0057,
+    'Cartão de Crédito': 0.0057,
+    'Crédito 12x': 0.0797,
+};
+
+function isoDateInTz(date, timeZone) {
+    // en-CA => YYYY-MM-DD
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(date);
+}
+
+function addDaysIso(iso, days) {
+    const [y, m, d] = String(iso).split('-').map(Number);
+    const dt = new Date(Date.UTC(y, (m || 1) - 1, (d || 1) + Number(days || 0)));
+    return dt.toISOString().slice(0, 10);
+}
+
 function resolveRange({ period, from, to }) {
     if (from && to) return { fromDate: from, toDate: to };
-    const now = new Date();
-    const toDate = now.toISOString().slice(0, 10);
-    const start = new Date(now);
-    if (period === 'today')      start.setHours(0, 0, 0, 0);
-    else if (period === '7d')    start.setDate(now.getDate() - 6);
-    else if (period === 'month') start.setDate(1);
-    else                         start.setDate(now.getDate() - 29);
-    return { fromDate: start.toISOString().slice(0, 10), toDate };
+    const toDate = isoDateInTz(new Date(), REPORT_TZ);
+
+    if (period === 'today') return { fromDate: toDate, toDate };
+    if (period === '7d')    return { fromDate: addDaysIso(toDate, -6), toDate };
+    if (period === 'month') return { fromDate: toDate.slice(0, 8) + '01', toDate };
+
+    return { fromDate: addDaysIso(toDate, -29), toDate };
 }
 
 // Calcula o intervalo "anterior" de mesma duração — janela imediatamente antes
@@ -37,7 +60,7 @@ async function computeProfit(fromDate, toDate) {
                 COUNT(*)::int AS orders_count
             FROM orders
             WHERE status = 'Entregue'
-              AND created_at::date BETWEEN $1::date AND $2::date
+              AND COALESCE((delivered_at AT TIME ZONE 'America/Sao_Paulo')::date, (created_at AT TIME ZONE 'America/Sao_Paulo')::date) BETWEEN $1::date AND $2::date
         `, [fromDate, toDate])).rows[0];
 
         const byPayment = (await query(`
@@ -45,10 +68,25 @@ async function computeProfit(fromDate, toDate) {
                    COALESCE(SUM(total), 0)::numeric AS revenue
             FROM orders
             WHERE status = 'Entregue'
-              AND created_at::date BETWEEN $1::date AND $2::date
+              AND COALESCE((delivered_at AT TIME ZONE 'America/Sao_Paulo')::date, (created_at AT TIME ZONE 'America/Sao_Paulo')::date) BETWEEN $1::date AND $2::date
             GROUP BY payment
             ORDER BY revenue DESC
         `, [fromDate, toDate])).rows.map(r => ({ payment: r.payment, revenue: Number(r.revenue) }));
+
+        // TAXAS DE PAGAMENTO (cartão etc.) — percentuais sobre o total do pedido (inclui entrega cobrada do cliente)
+        const processingFeesRow = (await query(`
+            SELECT COALESCE(SUM(
+                total * CASE
+                    WHEN payment = 'Cartão de Débito'  THEN 0.0057
+                    WHEN payment = 'Cartão de Crédito' THEN 0.0057
+                    WHEN payment = 'Crédito 12x'       THEN 0.0797
+                    ELSE 0
+                END
+            ), 0)::numeric AS total
+            FROM orders
+            WHERE status = 'Entregue'
+              AND COALESCE((delivered_at AT TIME ZONE 'America/Sao_Paulo')::date, (created_at AT TIME ZONE 'America/Sao_Paulo')::date) BETWEEN $1::date AND $2::date
+        `, [fromDate, toDate])).rows[0];
 
         // CPV — custo do produto vendido (qty * cost_price snapshot fica em order_items?
         // No nosso schema NÃO temos snapshot de cost_price. Vamos usar o cost_price atual do
@@ -59,7 +97,7 @@ async function computeProfit(fromDate, toDate) {
             JOIN orders o ON o.id = oi.order_id
             LEFT JOIN flavors f ON f.id = oi.flavor_id
             WHERE o.status = 'Entregue'
-              AND o.created_at::date BETWEEN $1::date AND $2::date
+              AND COALESCE((o.delivered_at AT TIME ZONE 'America/Sao_Paulo')::date, (o.created_at AT TIME ZONE 'America/Sao_Paulo')::date) BETWEEN $1::date AND $2::date
         `, [fromDate, toDate])).rows[0];
 
         // DESPESAS
@@ -67,6 +105,14 @@ async function computeProfit(fromDate, toDate) {
             SELECT COALESCE(SUM(amount), 0)::numeric AS total
             FROM expenses
             WHERE date BETWEEN $1::date AND $2::date
+        `, [fromDate, toDate])).rows[0];
+
+        // CUSTO DE ENTREGA (o que pagamos para a plataforma/terceiro)
+        const deliveryCostRow = (await query(`
+            SELECT COALESCE(SUM(delivery_fee_cost), 0)::numeric AS total
+            FROM orders
+            WHERE status = 'Entregue'
+              AND COALESCE((delivered_at AT TIME ZONE 'America/Sao_Paulo')::date, (created_at AT TIME ZONE 'America/Sao_Paulo')::date) BETWEEN $1::date AND $2::date
         `, [fromDate, toDate])).rows[0];
 
         const expensesByCategory = (await query(`
@@ -91,15 +137,24 @@ async function computeProfit(fromDate, toDate) {
                 SELECT generate_series($1::date, $2::date, INTERVAL '1 day')::date AS day
             ),
             rev AS (
-                SELECT o.created_at::date AS day,
+                SELECT COALESCE((o.delivered_at AT TIME ZONE 'America/Sao_Paulo')::date, (o.created_at AT TIME ZONE 'America/Sao_Paulo')::date) AS day,
                        COALESCE(SUM(o.total), 0)::numeric AS revenue,
-                       COALESCE(SUM(oi.quantity * COALESCE(f.cost_price, 0)), 0)::numeric AS cogs
+                       COALESCE(SUM(oi.quantity * COALESCE(f.cost_price, 0)), 0)::numeric AS cogs,
+                       COALESCE(SUM(o.delivery_fee_cost), 0)::numeric AS delivery_cost,
+                       COALESCE(SUM(
+                           o.total * CASE
+                               WHEN o.payment = 'Cartão de Débito'  THEN 0.0057
+                               WHEN o.payment = 'Cartão de Crédito' THEN 0.0057
+                               WHEN o.payment = 'Crédito 12x'       THEN 0.0797
+                               ELSE 0
+                           END
+                       ), 0)::numeric AS processing_fees
                 FROM orders o
                 LEFT JOIN order_items oi ON oi.order_id = o.id
                 LEFT JOIN flavors f      ON f.id = oi.flavor_id
                 WHERE o.status = 'Entregue'
-                  AND o.created_at::date BETWEEN $1::date AND $2::date
-                GROUP BY o.created_at::date
+                  AND COALESCE((o.delivered_at AT TIME ZONE 'America/Sao_Paulo')::date, (o.created_at AT TIME ZONE 'America/Sao_Paulo')::date) BETWEEN $1::date AND $2::date
+                GROUP BY COALESCE((o.delivered_at AT TIME ZONE 'America/Sao_Paulo')::date, (o.created_at AT TIME ZONE 'America/Sao_Paulo')::date)
             ),
             exp AS (
                 SELECT date AS day, COALESCE(SUM(amount), 0)::numeric AS expenses
@@ -110,7 +165,9 @@ async function computeProfit(fromDate, toDate) {
             SELECT days.day,
                    COALESCE(rev.revenue, 0)::numeric AS revenue,
                    COALESCE(rev.cogs, 0)::numeric AS cogs,
-                   COALESCE(exp.expenses, 0)::numeric AS expenses
+                   COALESCE(exp.expenses, 0)::numeric AS expenses,
+                   COALESCE(rev.delivery_cost, 0)::numeric AS delivery_cost,
+                   COALESCE(rev.processing_fees, 0)::numeric AS processing_fees
             FROM days
             LEFT JOIN rev ON rev.day = days.day
             LEFT JOIN exp ON exp.day = days.day
@@ -118,7 +175,10 @@ async function computeProfit(fromDate, toDate) {
         `, [fromDate, toDate])).rows.map(r => {
             const revenue = Number(r.revenue);
             const cogs = Number(r.cogs);
-            const expenses = Number(r.expenses);
+            const expensesOperational = Number(r.expenses);
+            const deliveryCost = Number(r.delivery_cost);
+            const processingFees = Number(r.processing_fees);
+            const expenses = expensesOperational + deliveryCost + processingFees;
             return { day: r.day, revenue, cogs, expenses, profit: revenue - cogs - expenses };
         });
 
@@ -131,7 +191,7 @@ async function computeProfit(fromDate, toDate) {
             LEFT JOIN order_items oi ON oi.flavor_id = f.id
             LEFT JOIN orders o ON o.id = oi.order_id
                               AND o.status = 'Entregue'
-                              AND o.created_at::date BETWEEN $1::date AND $2::date
+                              AND COALESCE((o.delivered_at AT TIME ZONE 'America/Sao_Paulo')::date, (o.created_at AT TIME ZONE 'America/Sao_Paulo')::date) BETWEEN $1::date AND $2::date
             GROUP BY f.id
             ORDER BY profit DESC
             LIMIT 10
@@ -148,7 +208,10 @@ async function computeProfit(fromDate, toDate) {
 
         const revenue = Number(revenueRow.gross);
         const cogs = Number(cogsRow.cogs);
-        const expensesTotal = Number(expensesRow.total);
+        const expensesOperationalTotal = Number(expensesRow.total);
+        const deliveryCostTotal = Number(deliveryCostRow.total);
+        const processingFeesTotal = Number(processingFeesRow.total);
+        const expensesTotal = expensesOperationalTotal + deliveryCostTotal + processingFeesTotal;
         const grossProfit = revenue - cogs;
         const netProfit = grossProfit - expensesTotal;
         const margin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
@@ -157,12 +220,19 @@ async function computeProfit(fromDate, toDate) {
             period: { from: fromDate, to: toDate },
             revenue: { gross: revenue, ordersCount: revenueRow.orders_count, byPayment },
             cogs,
-            expenses: { total: expensesTotal, byCategory: expensesByCategory },
+            expenses: {
+                total: expensesTotal,
+                operationalTotal: expensesOperationalTotal,
+                deliveryCost: deliveryCostTotal,
+                processingFees: processingFeesTotal,
+                byCategory: expensesByCategory,
+            },
             grossProfit,
             netProfit,
             margin,
             perDay,
             flavorMargins,
+            paymentFeeRates: PAYMENT_FEE_RATES,
         };
 }
 

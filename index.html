@@ -236,7 +236,7 @@
                 <a href="financeiro.html" class="bg-brand-card p-5 rounded-2xl border border-brand-border hover:border-brand-accentOrange/40 transition-all block">
                     <span class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Lucro hoje</span>
                     <h3 id="stat-lucro" class="text-3xl font-black text-white mt-1">—</h3>
-                    <p id="stat-lucro-sub" class="text-[10px] text-gray-500 mt-1">configure custos para calcular</p>
+                    <p id="stat-lucro-sub" class="text-[10px] text-gray-500 mt-1">lucro considera entrega e taxas</p>
                 </a>
             </div>
 
@@ -503,9 +503,22 @@
                     </div>
                 </div>
 
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold uppercase text-gray-400">Taxa de Entrega</label>
-                    <input type="number" id="order-delivery-fee" min="0" step="0.01" value="0" oninput="calculateTotalPreview()"
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold uppercase text-gray-400">Taxa de Entrega (Cliente)</label>
+                        <input type="number" id="order-delivery-fee-customer" min="0" step="0.01" value="0" oninput="calculateTotalPreview()"
+                            class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold uppercase text-gray-400">Taxa de Entrega (Custo)</label>
+                        <input type="number" id="order-delivery-fee-cost" min="0" step="0.01" value="0" oninput="calculateTotalPreview()"
+                            class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                    </div>
+                </div>
+
+                <div id="order-referrer-wrap" class="space-y-1.5 hidden">
+                    <label class="text-xs font-bold uppercase text-gray-400">Quem indicou?</label>
+                    <input type="text" id="order-referrer" placeholder="Nome da pessoa que indicou"
                         class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
                 </div>
 
@@ -522,6 +535,7 @@
                             class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
                             <option value="Pix">Pix</option>
                             <option value="Cartão de Crédito">Cartão de Crédito</option>
+                            <option value="Crédito 12x">Crédito 12x</option>
                             <option value="Cartão de Débito">Cartão de Débito</option>
                             <option value="Dinheiro">Dinheiro</option>
                         </select>
@@ -529,6 +543,7 @@
                     <div class="space-y-1.5">
                         <label class="text-xs font-bold uppercase text-gray-400">Como nos conheceu</label>
                         <select id="order-source"
+                            onchange="toggleReferrerField()"
                             class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
                             <option value="">— não informado —</option>
                             <option value="Indicação">Indicação</option>
@@ -614,6 +629,7 @@
             updateDashboard();
             lucide.createIcons();
             initCustomerLookup();
+            toggleReferrerField();
 
             // Recalcula a cada 30s para que "atrasados" e "tempo médio" fiquem vivos
             if (_refreshTimer) clearInterval(_refreshTimer);
@@ -1143,6 +1159,7 @@
 
             tbody.innerHTML = list.slice().reverse().map(order => {
                 const itemSummary = order.items.map(i => `${i.quantity}x ${i.name}`).join(', ');
+                const waitLabel = typeof formatOrderWait === 'function' ? formatOrderWait(order) : '';
 
                 let statusColor = 'bg-gray-500/10 text-gray-400 border border-gray-500/20';
                 if (order.status === 'Pendente')   statusColor = 'bg-red-500/10 text-red-500 border border-red-500/20';
@@ -1167,9 +1184,12 @@
                         <td class="py-4 text-gray-400 font-semibold">${formatBRL(order.deliveryFee || 0)}</td>
                         <td class="py-4 font-bold text-brand-accentOrange">${formatBRL(order.total)}</td>
                         <td class="py-4">
-                            <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${statusColor}">
-                                ${escapeHtml(order.status)}
-                            </span>
+                            <div class="flex flex-col gap-1">
+                                <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${statusColor} w-fit">
+                                    ${escapeHtml(order.status)}
+                                </span>
+                                ${waitLabel ? `<div class="text-[11px] text-gray-500 font-semibold">Espera: ${escapeHtml(waitLabel)}</div>` : ''}
+                            </div>
                         </td>
                         <td class="py-4 text-right pr-4">
                             <div class="flex items-center justify-end gap-2">
@@ -1278,18 +1298,31 @@
             document.getElementById('order-phone').value = '';
             document.getElementById('order-address').value = '';
             document.getElementById('order-neighborhood').value = '';
-            document.getElementById('order-delivery-fee').value = '0';
+            document.getElementById('order-delivery-fee-customer').value = '0';
+            document.getElementById('order-delivery-fee-cost').value = '0';
             document.getElementById('order-discount').value = '0';
             document.getElementById('order-notes').value = '';
             document.getElementById('order-payment').value = 'Pix';
             document.getElementById('order-source').value = '';
+            document.getElementById('order-referrer').value = '';
             document.getElementById('order-preview-total').innerText = formatBRL(0);
+            toggleReferrerField();
             document.getElementById('modal-novo-pedido').classList.remove('hidden');
         }
 
         function closeNewOrderModal() {
             editingOrderId = null;
             document.getElementById('modal-novo-pedido').classList.add('hidden');
+        }
+
+        function toggleReferrerField() {
+            const source = document.getElementById('order-source')?.value || '';
+            const wrap = document.getElementById('order-referrer-wrap');
+            const input = document.getElementById('order-referrer');
+            if (!wrap || !input) return;
+            const show = source === 'Indicação' || source === 'IndicaÃ§Ã£o';
+            wrap.classList.toggle('hidden', !show);
+            if (!show) input.value = '';
         }
 
         function renderFlavorsSelection() {
@@ -1334,7 +1367,7 @@
                     itemsTotal += qty * parseFloat(input.dataset.price);
                 }
             });
-            const feeRaw = document.getElementById('order-delivery-fee')?.value ?? '0';
+            const feeRaw = document.getElementById('order-delivery-fee-customer')?.value ?? '0';
             const deliveryFee = Math.max(0, Number(String(feeRaw).replace(',', '.')) || 0);
             const discRaw = document.getElementById('order-discount')?.value ?? '0';
             const discount = Math.max(0, Number(String(discRaw).replace(',', '.')) || 0);
@@ -1396,15 +1429,23 @@
             const phone        = document.getElementById('order-phone').value.trim();
             const address      = document.getElementById('order-address').value.trim();
             const neighborhood = document.getElementById('order-neighborhood').value.trim();
-            const feeRaw       = document.getElementById('order-delivery-fee').value;
+            const feeRawCustomer = document.getElementById('order-delivery-fee-customer').value;
+            const feeRawCost     = document.getElementById('order-delivery-fee-cost').value;
             const discRaw      = document.getElementById('order-discount').value;
             const payment      = document.getElementById('order-payment').value;
             const source       = document.getElementById('order-source').value;
+            const referrerRaw  = document.getElementById('order-referrer')?.value ?? '';
             const notes        = document.getElementById('order-notes').value.trim();
 
-            const deliveryFee = Number(String(feeRaw).replace(',', '.'));
-            if (!isFinite(deliveryFee) || deliveryFee < 0) {
-                showToast('Taxa inválida', 'Informe uma taxa de entrega válida (ex: 0, 5.00).', true);
+            const deliveryFeeCustomer = Number(String(feeRawCustomer).replace(',', '.'));
+            if (!isFinite(deliveryFeeCustomer) || deliveryFeeCustomer < 0) {
+                showToast('Taxa inválida', 'Informe uma taxa de entrega (cliente) válida (ex: 0, 5.00).', true);
+                return;
+            }
+
+            const deliveryFeeCost = Number(String(feeRawCost).replace(',', '.'));
+            if (!isFinite(deliveryFeeCost) || deliveryFeeCost < 0) {
+                showToast('Taxa inválida', 'Informe uma taxa de entrega (custo) válida (ex: 0, 5.00).', true);
                 return;
             }
 
@@ -1426,12 +1467,15 @@
 
             try {
                 await ensureNeighborhoodSaved(neighborhood);
+                const referrer = (source === 'Indicação' || source === 'IndicaÃ§Ã£o')
+                    ? String(referrerRaw || '').trim()
+                    : '';
                 if (editingOrderId) {
                     const id = editingOrderId;
-                    await updateOrder(id, { customer, phone, address, neighborhood, deliveryFee, discount, payment, source, notes, items });
+                    await updateOrder(id, { customer, phone, address, neighborhood, deliveryFeeCustomer, deliveryFeeCost, discount, payment, source, referrer, notes, items });
                     showToast('Pedido atualizado', `O pedido ${id} foi atualizado.`);
                 } else {
-                    await createOrder({ customer, phone, address, neighborhood, deliveryFee, discount, payment, source, notes, items });
+                    await createOrder({ customer, phone, address, neighborhood, deliveryFeeCustomer, deliveryFeeCost, discount, payment, source, referrer, notes, items });
                     showToast('Pedido criado', 'Pedido registrado com sucesso.');
                 }
                 editingOrderId = null;
@@ -1452,10 +1496,13 @@
             document.getElementById('order-phone').value        = order.phone        || '';
             document.getElementById('order-address').value      = order.address      || '';
             document.getElementById('order-neighborhood').value = order.neighborhood || '';
-            document.getElementById('order-delivery-fee').value = String(order.deliveryFee ?? 0);
+            document.getElementById('order-delivery-fee-customer').value = String(order.deliveryFeeCustomer ?? order.deliveryFee ?? 0);
+            document.getElementById('order-delivery-fee-cost').value = String(order.deliveryFeeCost ?? 0);
             document.getElementById('order-discount').value     = String(order.discount ?? 0);
             document.getElementById('order-payment').value      = order.payment      || 'Pix';
             document.getElementById('order-source').value       = order.source       || '';
+            toggleReferrerField();
+            document.getElementById('order-referrer').value     = order.referrer     || '';
             document.getElementById('order-notes').value        = order.notes        || '';
 
             // Pré-popula quantidades

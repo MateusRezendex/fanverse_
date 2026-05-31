@@ -17,6 +17,8 @@ function normalizeItem(row) {
 }
 
 function normalizeOrder(orderRow, itemRows) {
+    const deliveryFeeCustomer = Number(orderRow.delivery_fee || 0);
+    const deliveryFeeCost = Number(orderRow.delivery_fee_cost || 0);
     return {
         id: orderRow.id,
         customer: orderRow.customer,
@@ -25,7 +27,10 @@ function normalizeOrder(orderRow, itemRows) {
         neighborhood: orderRow.neighborhood || '',
         payment: orderRow.payment,
         source: orderRow.source || '',
-        deliveryFee: Number(orderRow.delivery_fee || 0),
+        referrer: orderRow.referrer || '',
+        deliveryFee: deliveryFeeCustomer,
+        deliveryFeeCustomer,
+        deliveryFeeCost,
         discount: Number(orderRow.discount || 0),
         total: Number(orderRow.total),
         status: orderRow.status,
@@ -62,15 +67,32 @@ router.get('/', async (_req, res, next) => {
 
 router.post('/', async (req, res, next) => {
     try {
-        const { customer, phone = '', address = '', neighborhood = '', deliveryFee = 0, discount = 0, payment = '', source = '', notes = '', items = [], status = 'Pendente' } = req.body || {};
+        const {
+            customer,
+            phone = '',
+            address = '',
+            neighborhood = '',
+            deliveryFeeCustomer,
+            deliveryFeeCost = 0,
+            deliveryFee = 0, // compat (v1): equivale ao que o cliente paga
+            discount = 0,
+            payment = '',
+            source = '',
+            referrer = '',
+            notes = '',
+            items = [],
+            status = 'Pendente',
+        } = req.body || {};
         if (!customer || typeof customer !== 'string')          return res.status(400).json({ error: 'customer obrigatório' });
         if (!Array.isArray(items) || items.length === 0)        return res.status(400).json({ error: 'items vazio' });
         if (!VALID_STATUS.includes(status))                     return res.status(400).json({ error: 'status inválido' });
 
-        const fee = Number(deliveryFee);
+        const feeCustomer = Number(deliveryFeeCustomer ?? deliveryFee);
+        const feeCost = Number(deliveryFeeCost);
         const disc = Number(discount);
         if (!isFinite(disc) || disc < 0) return res.status(400).json({ error: 'discount inválido' });
-        if (!isFinite(fee) || fee < 0) return res.status(400).json({ error: 'deliveryFee inválido' });
+        if (!isFinite(feeCustomer) || feeCustomer < 0) return res.status(400).json({ error: 'deliveryFeeCustomer inválido' });
+        if (!isFinite(feeCost) || feeCost < 0) return res.status(400).json({ error: 'deliveryFeeCost inválido' });
 
         for (const it of items) {
             if (!it || !it.name || !(it.quantity > 0) || !(it.price >= 0)) {
@@ -78,15 +100,15 @@ router.post('/', async (req, res, next) => {
             }
         }
         const itemsTotal = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
-        const total = Math.max(0, itemsTotal + fee - disc);
+        const total = Math.max(0, itemsTotal + feeCustomer - disc);
 
         const order = await withTx(async (client) => {
             const { rows: [idRow] } = await client.query("SELECT '#' || nextval('order_id_seq') AS id");
             const id = idRow.id;
             await client.query(
-                `INSERT INTO orders (id, customer, phone, address, neighborhood, delivery_fee, discount, payment, source, total, status, notes)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-                [id, customer.trim(), phone, address, neighborhood, fee, disc, payment, source, total, status, notes]
+                `INSERT INTO orders (id, customer, phone, address, neighborhood, delivery_fee, delivery_fee_cost, discount, payment, source, referrer, total, status, notes)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+                [id, customer.trim(), phone, address, neighborhood, feeCustomer, feeCost, disc, payment, source, referrer, total, status, notes]
             );
             for (const it of items) {
                 await client.query(
@@ -107,16 +129,22 @@ router.post('/', async (req, res, next) => {
 router.patch('/:id', async (req, res, next) => {
     try {
         const id = req.params.id;
-        const { customer, phone, address, neighborhood, deliveryFee, discount, payment, source, notes, status, items } = req.body || {};
+        const { customer, phone, address, neighborhood, deliveryFeeCustomer, deliveryFeeCost, deliveryFee, discount, payment, source, referrer, notes, status, items } = req.body || {};
         let previousStatus = null;
 
         if (status !== undefined && !VALID_STATUS.includes(status)) {
             return res.status(400).json({ error: 'status inválido' });
         }
 
-        const fee = deliveryFee !== undefined ? Number(deliveryFee) : null;
-        if (deliveryFee !== undefined && (!isFinite(fee) || fee < 0)) {
-            return res.status(400).json({ error: 'deliveryFee inválido' });
+        const rawFeeCustomer = (deliveryFeeCustomer !== undefined) ? deliveryFeeCustomer : deliveryFee;
+        const feeCustomer = rawFeeCustomer !== undefined ? Number(rawFeeCustomer) : null;
+        if (rawFeeCustomer !== undefined && (!isFinite(feeCustomer) || feeCustomer < 0)) {
+            return res.status(400).json({ error: 'deliveryFeeCustomer inválido' });
+        }
+
+        const feeCost = deliveryFeeCost !== undefined ? Number(deliveryFeeCost) : null;
+        if (deliveryFeeCost !== undefined && (!isFinite(feeCost) || feeCost < 0)) {
+            return res.status(400).json({ error: 'deliveryFeeCost inválido' });
         }
         const disc = discount !== undefined ? Number(discount) : null;
         if (discount !== undefined && (!isFinite(disc) || disc < 0)) {
@@ -148,8 +176,10 @@ router.patch('/:id', async (req, res, next) => {
             if (neighborhood !== undefined) pushSet('neighborhood', neighborhood);
             if (payment      !== undefined) pushSet('payment', payment);
             if (source       !== undefined) pushSet('source', source);
+            if (referrer     !== undefined) pushSet('referrer', referrer);
             if (notes        !== undefined) pushSet('notes', notes);
-            if (deliveryFee  !== undefined) pushSet('delivery_fee', fee);
+            if (rawFeeCustomer !== undefined) pushSet('delivery_fee', feeCustomer);
+            if (deliveryFeeCost !== undefined) pushSet('delivery_fee_cost', feeCost);
             if (discount     !== undefined) pushSet('discount', disc);
             if (status       !== undefined) {
                 pushSet('status', status);
@@ -161,9 +191,9 @@ router.patch('/:id', async (req, res, next) => {
                 else if (previousStatus === 'Entregue')                       pushSet('delivered_at', null);
             }
 
-            if (items !== undefined || deliveryFee !== undefined || discount !== undefined) {
-                const baseFee = Number(existing.rows[0].delivery_fee || 0);
-                const nextFee = (deliveryFee !== undefined) ? fee : baseFee;
+            if (items !== undefined || rawFeeCustomer !== undefined || discount !== undefined) {
+                const baseFeeCustomer = Number(existing.rows[0].delivery_fee || 0);
+                const nextFeeCustomer = (rawFeeCustomer !== undefined) ? feeCustomer : baseFeeCustomer;
 
                 const baseDisc = Number(existing.rows[0].discount || 0);
                 const nextDisc = (discount !== undefined) ? disc : baseDisc;
@@ -178,7 +208,7 @@ router.patch('/:id', async (req, res, next) => {
                     );
                     itemsTotal = Number(r.subtotal);
                 }
-                pushSet('total', Math.max(0, itemsTotal + nextFee - nextDisc));
+                pushSet('total', Math.max(0, itemsTotal + nextFeeCustomer - nextDisc));
             }
 
             if (sets.length > 0) {

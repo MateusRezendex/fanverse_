@@ -457,6 +457,32 @@ function formatTime(iso) {
     return sameDay ? `Hoje às ${hhmm}` : d.toLocaleDateString('pt-BR') + ' ' + hhmm;
 }
 
+function formatDurationMinutes(totalMinutes) {
+    const mins = Math.max(0, Math.floor(Number(totalMinutes) || 0));
+    if (mins < 1) return 'agora';
+    if (mins < 60) return `${mins} min`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m ? `${h}h ${m}min` : `${h}h`;
+}
+
+function getOrderWaitMinutes(order) {
+    if (!order) return 0;
+    const start = new Date(order.createdAt);
+    if (isNaN(start.getTime())) return 0;
+
+    // Para pedidos finalizados, tenta usar o timestamp de conclusão; senão, usa "agora"
+    let end = null;
+    if (order.status === 'Entregue' && order.deliveredAt) end = new Date(order.deliveredAt);
+    if (!end || isNaN(end.getTime())) end = new Date();
+
+    return (end.getTime() - start.getTime()) / 60000;
+}
+
+function formatOrderWait(order) {
+    return formatDurationMinutes(getOrderWaitMinutes(order));
+}
+
 function getGreeting() {
     const h = new Date().getHours();
     if (h < 12) return 'Bom dia';
