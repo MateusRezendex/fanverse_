@@ -20,6 +20,7 @@ const _cache = {
     expenses: [],
     expenseCategories: [],
     recurringExpenses: [],
+    internalConsumption: [],
     ready: false,
 };
 
@@ -155,6 +156,7 @@ async function initDb() {
         _refreshExpenses().catch(() => {}),
         _refreshExpenseCategories().catch(() => {}),
         _refreshRecurringExpenses().catch(() => {}),
+        _refreshInternalConsumption().catch(() => {}),
     ]);
     _cache.ready = true;
     _connectWs();
@@ -168,6 +170,7 @@ async function _refreshCustomers()         { _cache.customers         = await _f
 async function _refreshExpenses()          { _cache.expenses          = await _fetchJson('/api/expenses'); }
 async function _refreshExpenseCategories() { _cache.expenseCategories = await _fetchJson('/api/expense-categories'); }
 async function _refreshRecurringExpenses() { _cache.recurringExpenses = await _fetchJson('/api/recurring-expenses'); }
+async function _refreshInternalConsumption() { _cache.internalConsumption = await _fetchJson('/api/internal-consumption'); }
 
 // --- Leituras síncronas (cache) ---
 function getOrders()            { return _cache.orders.slice(); }
@@ -177,6 +180,7 @@ function getCustomers()         { return applyCustomerOverrides(_cache.customers
 function getExpenses()          { return _cache.expenses.slice(); }
 function getExpenseCategories() { return _cache.expenseCategories.slice(); }
 function getRecurringExpenses() { return _cache.recurringExpenses.slice(); }
+function getInternalConsumption() { return _cache.internalConsumption.slice(); }
 function isReady()              { return _cache.ready; }
 
 // --- Mutadores (chamam a API; WS dispara a atualização do cache) ---
@@ -228,6 +232,14 @@ async function getDashboardStats(queryString = '') {
 
 async function createNeighborhood(payload) {
     return _fetchJson('/api/neighborhoods', { method: 'POST', body: payload });
+}
+
+async function createInternalConsumption(payload) {
+    return _fetchJson('/api/internal-consumption', { method: 'POST', body: payload });
+}
+
+async function deleteInternalConsumption(id) {
+    return _fetchJson(`/api/internal-consumption/${id}`, { method: 'DELETE', expectStatus: 204 });
 }
 
 // --- Financeiro ---
@@ -285,7 +297,7 @@ function _connectWs() {
         _emitConnection();
         // Após reconectar, refaz fetch para recuperar eventos perdidos durante o downtime
         try {
-            await Promise.all([_refreshFlavors(), _refreshNeighborhoods().catch(() => {}), _refreshOrders(), _refreshCustomers()]);
+            await Promise.all([_refreshFlavors(), _refreshNeighborhoods().catch(() => {}), _refreshOrders(), _refreshCustomers(), _refreshInternalConsumption().catch(() => {})]);
             _connection.lastUpdate = Date.now();
             _emit();
             _emitConnection();
@@ -355,6 +367,13 @@ function _applyEvent(type, payload) {
         case 'order:deleted':
             _cache.orders = _cache.orders.filter(o => o.id !== payload.id);
             _refreshCustomers().catch(() => {});
+            break;
+
+        case 'internal-consumption:created':
+            (Array.isArray(payload) ? payload : [payload]).forEach(entry => _cache.internalConsumption.unshift(entry));
+            break;
+        case 'internal-consumption:deleted':
+            _cache.internalConsumption = _cache.internalConsumption.filter(e => e.id !== payload.id);
             break;
 
         case 'expense:created':

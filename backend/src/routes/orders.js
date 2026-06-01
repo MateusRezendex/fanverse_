@@ -477,6 +477,20 @@ router.get('/stats/dashboard', async (req, res, next) => {
             .sort((a, b) => Number(b.revenue) - Number(a.revenue)).slice(0, 5)
             .map(r => ({ name: r.name, qty: r.qty, revenue: Number(r.revenue) }));
 
+        const soldItemsToday = todayOrders
+            .filter(o => o.status !== 'Cancelado')
+            .reduce((acc, o) => acc + (o.items || []).reduce((sum, i) => sum + Number(i.quantity || 0), 0), 0);
+
+        const internalRows = (await query(`
+            SELECT name,
+                   SUM(quantity)::int AS qty
+            FROM internal_consumption
+            WHERE consumed_at::date = CURRENT_DATE
+            GROUP BY name
+            ORDER BY qty DESC, name ASC
+        `)).rows.map(r => ({ name: r.name, qty: r.qty }));
+        const internalTotal = internalRows.reduce((acc, r) => acc + Number(r.qty || 0), 0);
+
         // Top clientes (período variável)
         const topCustomers = (await query(`
             SELECT COALESCE(NULLIF(phone, ''), customer) AS key,
@@ -528,6 +542,15 @@ router.get('/stats/dashboard', async (req, res, next) => {
             topNeighborhoods,
             topByQuantity,
             topByRevenue,
+            internalConsumption: {
+                today: internalTotal,
+                byFlavor: internalRows,
+            },
+            productionToday: {
+                sold: soldItemsToday,
+                internal: internalTotal,
+                total: soldItemsToday + internalTotal,
+            },
             topCustomers,
             sourceBreakdown,
         });

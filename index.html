@@ -139,15 +139,22 @@
                         </span>
                     </p>
                 </div>
-                <button onclick="openNewOrderModal()"
-                    class="self-start sm:self-center bg-gradient-to-r from-red-600 to-orange-500 text-white font-extrabold py-3 px-6 rounded-xl shadow-lg shadow-red-950/40 hover:shadow-red-500/20 active:scale-95 transition-all duration-200 flex items-center gap-2 text-sm">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    Novo Pedido
-                </button>
+                <div class="self-start sm:self-center flex flex-wrap items-center gap-2">
+                    <button onclick="openInternalConsumptionModal()"
+                        class="bg-brand-card border border-brand-border text-gray-200 font-extrabold py-3 px-4 rounded-xl hover:border-brand-accentOrange/50 hover:text-white active:scale-95 transition-all duration-200 flex items-center gap-2 text-sm">
+                        <i data-lucide="chef-hat" class="w-4 h-4 text-brand-accentOrange"></i>
+                        Consumo interno
+                    </button>
+                    <button onclick="openNewOrderModal()"
+                        class="bg-gradient-to-r from-red-600 to-orange-500 text-white font-extrabold py-3 px-6 rounded-xl shadow-lg shadow-red-950/40 hover:shadow-red-500/20 active:scale-95 transition-all duration-200 flex items-center gap-2 text-sm">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        Novo Pedido
+                    </button>
+                </div>
             </div>
 
             <!-- Grade de Cartões de Métricas -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <!-- Pedidos Hoje -->
                 <div
                     class="bg-brand-card p-5 rounded-2xl border border-brand-border flex items-center justify-between shadow-md relative overflow-hidden group">
@@ -197,6 +204,20 @@
                     <div
                         class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-all duration-300">
                         <i data-lucide="check-circle" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <!-- Consumo interno -->
+                <div
+                    class="bg-brand-card p-5 rounded-2xl border border-brand-border flex items-center justify-between shadow-md relative overflow-hidden group">
+                    <div class="space-y-1 min-w-0">
+                        <span class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Para nÃ³s hoje</span>
+                        <h3 id="stat-consumo-interno" class="text-3xl font-black text-white">0</h3>
+                        <p id="stat-producao-hoje" class="text-[10px] text-gray-500 truncate">assadas: 0</p>
+                    </div>
+                    <div
+                        class="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-brand-accentOrange group-hover:scale-110 transition-all duration-300">
+                        <i data-lucide="chef-hat" class="w-6 h-6"></i>
                     </div>
                 </div>
             </div>
@@ -480,7 +501,7 @@
 
                 <div class="space-y-3">
                     <label class="text-xs font-bold uppercase text-gray-400 block">Escolher Sabores</label>
-                    <div id="order-flavors-selection" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                    <div id="order-flavors-selection" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-56 overflow-y-auto pr-1">
                         <!-- Gerado dinamicamente -->
                     </div>
                 </div>
@@ -585,6 +606,55 @@
 
     </div>
 
+    <!-- MODAL: CONSUMO INTERNO -->
+    <div id="modal-consumo-interno"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div
+            class="bg-brand-card w-full max-w-lg rounded-2xl border border-brand-border overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
+                <h3 class="text-white font-bold text-lg flex items-center gap-2">
+                    <i data-lucide="chef-hat" class="text-brand-accentOrange w-5 h-5"></i>
+                    Consumo Interno
+                </h3>
+                <button onclick="closeInternalConsumptionModal()" class="text-gray-400 hover:text-white transition-all">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-4 overflow-y-auto flex-1">
+                <div class="space-y-3">
+                    <label class="text-xs font-bold uppercase text-gray-400 block">Sabores assados para nós</label>
+                    <div id="internal-flavors-selection" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1">
+                        <!-- Gerado dinamicamente -->
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold uppercase text-gray-400">Observação</label>
+                    <textarea id="internal-notes" rows="2" placeholder="Ex: lanche da equipe"
+                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm resize-none"></textarea>
+                </div>
+            </div>
+
+            <div class="p-5 border-t border-brand-border flex items-center justify-between bg-black/20">
+                <div class="text-left">
+                    <span class="text-[10px] uppercase text-gray-500 font-bold block">Quantidade</span>
+                    <span id="internal-preview-total" class="text-brand-accentOrange font-black text-xl">0 un.</span>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="closeInternalConsumptionModal()"
+                        class="border border-brand-border text-gray-400 hover:text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all">
+                        Cancelar
+                    </button>
+                    <button onclick="submitInternalConsumption()"
+                        class="bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:opacity-90 active:scale-95 transition-all">
+                        Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- NOTIFICAÇÃO POPUP CUSTOMIZADA -->
     <div id="toast"
         class="fixed bottom-6 right-6 bg-brand-card border border-emerald-500 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform translate-y-20 opacity-0 pointer-events-none transition-all duration-300 z-50">
@@ -610,6 +680,7 @@
         let tableFilter = null;       // { type: 'neighborhood'|'customer', value: ... }
         let neighborhoods = [];
         let customers = [];
+        let internalConsumption = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
             applyGreeting();
@@ -718,9 +789,12 @@
             if (['input', 'textarea', 'select'].includes(tag)) return;
             if (e.ctrlKey || e.metaKey || e.altKey) return;
 
-            const modalOpen = !document.getElementById('modal-novo-pedido').classList.contains('hidden');
+            const orderModalOpen = !document.getElementById('modal-novo-pedido').classList.contains('hidden');
+            const internalModalOpen = !document.getElementById('modal-consumo-interno').classList.contains('hidden');
+            const modalOpen = orderModalOpen || internalModalOpen;
             if (e.key === 'Escape' && modalOpen) {
-                closeNewOrderModal();
+                if (orderModalOpen) closeNewOrderModal();
+                if (internalModalOpen) closeInternalConsumptionModal();
                 e.preventDefault();
                 return;
             }
@@ -759,6 +833,7 @@
             orders  = getOrders();
             neighborhoods = (typeof getNeighborhoods === 'function') ? getNeighborhoods() : [];
             customers = (typeof getCustomers === 'function') ? getCustomers() : [];
+            internalConsumption = (typeof getInternalConsumption === 'function') ? getInternalConsumption() : [];
         }
 
         function initCustomerLookup() {
@@ -884,6 +959,7 @@
             renderHourlyChart();
             renderRankings();
             renderSourceBreakdown();
+            renderInternalConsumptionCard();
             updateNeighborhoodOptions();
             renderTableFilterBadge();
             renderProfitCard();
@@ -932,6 +1008,22 @@
             sub.innerHTML = profitToday.revenue.gross > 0
                 ? `margem <span class="${marginCls} font-bold">${margin.toFixed(1)}%</span> · receita ${formatBRL(profitToday.revenue.gross)}`
                 : 'configure custos e despesas em Financeiro';
+        }
+
+        function renderInternalConsumptionCard() {
+            const qtyEl = document.getElementById('stat-consumo-interno');
+            const subEl = document.getElementById('stat-producao-hoje');
+            if (!qtyEl || !subEl) return;
+
+            const internal = (dashboardStats && dashboardStats.internalConsumption) || {};
+            const production = (dashboardStats && dashboardStats.productionToday) || {};
+            const internalQty = Number(internal.today || 0);
+            const totalBaked = Number(production.total || internalQty);
+            const soldQty = Number(production.sold || 0);
+
+            qtyEl.textContent = internalQty;
+            qtyEl.className = `text-3xl font-black ${internalQty > 0 ? 'text-brand-accentOrange' : 'text-white'}`;
+            subEl.textContent = `assadas: ${totalBaked} total, ${soldQty} vendidas`;
         }
 
         function renderTableFilterBadge() {
@@ -1301,6 +1393,105 @@
             chartAreaPath.setAttribute('d', areaData);
         }
 
+        // --- MODAL: consumo interno ---
+        function openInternalConsumptionModal() {
+            flavors = getFlavors();
+            renderInternalConsumptionSelection();
+            document.getElementById('internal-notes').value = '';
+            document.getElementById('internal-preview-total').innerText = '0 un.';
+            document.getElementById('modal-consumo-interno').classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function closeInternalConsumptionModal() {
+            document.getElementById('modal-consumo-interno').classList.add('hidden');
+        }
+
+        function renderInternalConsumptionSelection() {
+            const container = document.getElementById('internal-flavors-selection');
+            const availableFlavors = flavors.filter(f => f.available);
+
+            if (availableFlavors.length === 0) {
+                container.innerHTML = `<div class="text-center py-4 text-gray-400 text-xs">Nenhum sabor disponivel no cardapio atualmente.</div>`;
+                return;
+            }
+
+            const renderFlavor = flavor => `
+                <div class="flex items-center justify-between bg-brand-dark/40 p-2.5 rounded-xl border border-brand-border/60">
+                    <div class="min-w-0 pr-2">
+                        <span class="text-sm font-semibold text-white block truncate">${escapeHtml(flavor.name)}</span>
+                    </div>
+                    <div class="flex items-center gap-0 shrink-0">
+                        <button type="button" onclick="updateInternalQuantity(${flavor.id}, -1)" class="w-7 h-7 bg-brand-border text-white rounded-lg flex items-center justify-center font-bold hover:bg-brand-border/80 active:scale-90 transition-all">-</button>
+                        <input type="number" id="internal-qty-${flavor.id}" data-id="${flavor.id}" value="0" min="0" readonly class="w-5 h-7 leading-7 bg-transparent text-center text-white font-bold text-sm focus:outline-none">
+                        <button type="button" onclick="updateInternalQuantity(${flavor.id}, 1)" class="w-7 h-7 bg-brand-border text-white rounded-lg flex items-center justify-center font-bold hover:bg-brand-border/80 active:scale-90 transition-all">+</button>
+                    </div>
+                </div>
+            `;
+
+            const groups = [
+                { title: 'Salgados', items: availableFlavors.filter(f => f.category !== 'Doce') },
+                { title: 'Doces', items: availableFlavors.filter(f => f.category === 'Doce') },
+            ];
+
+            container.innerHTML = groups.map(group => `
+                <div class="space-y-2 min-w-0">
+                    <div class="text-[10px] font-black uppercase tracking-wider text-gray-500 px-1">${group.title}</div>
+                    ${group.items.length
+                        ? group.items.map(renderFlavor).join('')
+                        : `<div class="text-center py-4 text-gray-500 text-xs border border-dashed border-brand-border/60 rounded-xl">Nenhum sabor</div>`}
+                </div>
+            `).join('');
+        }
+
+        function updateInternalQuantity(flavorId, change) {
+            const input = document.getElementById(`internal-qty-${flavorId}`);
+            if (!input) return;
+            let v = (parseInt(input.value, 10) || 0) + change;
+            if (v < 0) v = 0;
+            input.value = v;
+            calculateInternalPreview();
+        }
+
+        function collectInternalItems() {
+            const items = [];
+            flavors.filter(f => f.available).forEach(flavor => {
+                const input = document.getElementById(`internal-qty-${flavor.id}`);
+                if (!input) return;
+                const qty = parseInt(input.value, 10) || 0;
+                if (qty <= 0) return;
+                items.push({ flavorId: flavor.id, quantity: qty });
+            });
+            return items;
+        }
+
+        function calculateInternalPreview() {
+            const total = collectInternalItems().reduce((acc, item) => acc + item.quantity, 0);
+            document.getElementById('internal-preview-total').innerText = `${total} un.`;
+            return total;
+        }
+
+        async function submitInternalConsumption() {
+            const items = collectInternalItems();
+            if (items.length === 0) {
+                showToast('Sem itens', 'Informe pelo menos uma esfiha para contabilizar.', true);
+                return;
+            }
+
+            const notes = document.getElementById('internal-notes').value.trim();
+            const total = items.reduce((acc, item) => acc + item.quantity, 0);
+
+            try {
+                await createInternalConsumption({ items, notes });
+                await refreshStats();
+                updateDashboard();
+                closeInternalConsumptionModal();
+                showToast('Consumo registrado', `${total} esfiha(s) contabilizada(s) para nos.`);
+            } catch (e) {
+                showToast('Erro', e.message, true);
+            }
+        }
+
         // --- MODAL: novo pedido ---
         function openNewOrderModal() {
             editingOrderId = null;
@@ -1346,17 +1537,31 @@
                 return;
             }
 
-            container.innerHTML = availableFlavors.map(flavor => `
+            const renderFlavor = flavor => `
                 <div class="flex items-center justify-between bg-brand-dark/40 p-2.5 rounded-xl border border-brand-border/60">
-                    <div>
+                    <div class="min-w-0 pr-2">
                         <span class="text-sm font-semibold text-white block">${escapeHtml(flavor.name)}</span>
                         <span class="text-xs text-brand-accentOrange font-medium">${formatBRL(flavor.price)}</span>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-0 shrink-0">
                         <button type="button" onclick="updateQuantity(${flavor.id}, -1)" class="w-7 h-7 bg-brand-border text-white rounded-lg flex items-center justify-center font-bold hover:bg-brand-border/80 active:scale-90 transition-all">-</button>
-                        <input type="number" id="flavor-qty-${flavor.id}" data-id="${flavor.id}" data-price="${flavor.price}" value="0" min="0" readonly class="w-10 bg-transparent text-center text-white font-bold text-sm focus:outline-none">
+                        <input type="number" id="flavor-qty-${flavor.id}" data-id="${flavor.id}" data-price="${flavor.price}" value="0" min="0" readonly class="w-5 h-7 leading-7 bg-transparent text-center text-white font-bold text-sm focus:outline-none">
                         <button type="button" onclick="updateQuantity(${flavor.id}, 1)" class="w-7 h-7 bg-brand-border text-white rounded-lg flex items-center justify-center font-bold hover:bg-brand-border/80 active:scale-90 transition-all">+</button>
                     </div>
+                </div>
+            `;
+
+            const groups = [
+                { title: 'Salgados', items: availableFlavors.filter(f => f.category !== 'Doce') },
+                { title: 'Doces', items: availableFlavors.filter(f => f.category === 'Doce') },
+            ];
+
+            container.innerHTML = groups.map(group => `
+                <div class="space-y-2 min-w-0">
+                    <div class="text-[10px] font-black uppercase tracking-wider text-gray-500 px-1">${group.title}</div>
+                    ${group.items.length
+                        ? group.items.map(renderFlavor).join('')
+                        : `<div class="text-center py-4 text-gray-500 text-xs border border-dashed border-brand-border/60 rounded-xl">Nenhum sabor</div>`}
                 </div>
             `).join('');
         }

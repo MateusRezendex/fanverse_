@@ -13,6 +13,7 @@ const recurringExpensesRouter   = require('./routes/recurring-expenses');
 const reportsRouter             = require('./routes/reports');
 const neighborhoodsRouter       = require('./routes/neighborhoods');
 const costsRouter               = require('./routes/costs');
+const internalConsumptionRouter = require('./routes/internal-consumption');
 const ws = require('./ws');
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -35,6 +36,7 @@ app.use('/api/recurring-expenses',  recurringExpensesRouter);
 app.use('/api/reports',             reportsRouter);
 app.use('/api/neighborhoods',       neighborhoodsRouter);
 app.use('/api/costs',               costsRouter);
+app.use('/api/internal-consumption', internalConsumptionRouter);
 
 // Webhook do WhatsApp (agnóstico de provedor)
 app.use('/webhook/whatsapp', whatsappRouter);
