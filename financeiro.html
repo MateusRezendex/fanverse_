@@ -129,16 +129,32 @@
         </div>
 
         <!-- GRÁFICO + RANKING SABORES -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="bg-brand-card p-6 rounded-2xl border border-brand-border lg:col-span-2 space-y-4">
-                <h4 class="text-white font-bold text-base">Lucro por dia</h4>
-                <p class="text-xs text-gray-500 -mt-3">Verde = lucro, vermelho = prejuízo no dia.</p>
-                <div id="profit-chart" class="flex items-stretch gap-1 h-48"></div>
-                <div id="profit-chart-labels" class="text-[10px] text-gray-500 text-center"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-10 gap-6">
+	            <div class="bg-brand-card p-6 rounded-2xl border border-brand-border lg:col-span-7 space-y-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h4 class="text-white font-bold text-base">Lucro por dia</h4>
+                        <p class="text-xs text-gray-500 -mt-1">Passe o mouse para ver detalhes. Verde = lucro, vermelho = prejuízo.</p>
+                    </div>
+                    <div class="text-[11px] text-gray-500 text-right leading-tight">
+                        <div><span class="text-emerald-400 font-bold">■</span> lucro</div>
+                        <div><span class="text-red-400 font-bold">■</span> prejuízo</div>
+                    </div>
+                </div>
+                <div id="profit-chart-wrap" class="relative">
+                    <div id="profit-chart" class="flex items-stretch gap-1 h-56"></div>
+                    <div id="profit-tooltip" class="hidden absolute z-20 pointer-events-none bg-black/80 border border-brand-border rounded-xl px-3 py-2 text-xs text-gray-200 shadow-2xl max-w-[240px]"></div>
+                </div>
+                <div id="profit-chart-labels" class="text-[10px] text-gray-500 text-center select-none"></div>
             </div>
-            <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-3">
-                <h4 class="text-white font-bold text-base">Sabores mais lucrativos</h4>
-                <p class="text-xs text-gray-500 -mt-3">Lucro = (preço − custo) × qty vendido no período.</p>
+            <div class="bg-brand-card p-6 rounded-2xl border border-brand-border lg:col-span-3 space-y-3">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h4 class="text-white font-bold text-base">Sabores mais lucrativos</h4>
+                        <p class="text-xs text-gray-500 -mt-1">Lucro = (preço − custo) × qty vendido no período.</p>
+                    </div>
+                    <button id="flavor-margins-toggle" onclick="toggleFlavorMargins()" class="text-xs font-bold text-gray-400 hover:text-white transition-all whitespace-nowrap"></button>
+                </div>
                 <div id="flavor-margins" class="space-y-3"></div>
             </div>
         </div>
@@ -335,7 +351,7 @@
             <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
                 <div>
                     <h3 class="text-white font-bold text-lg">Categorias de despesa</h3>
-                    <p class="text-xs text-gray-500">Edite, crie ou remova categorias (as fixas nÃ£o podem ser removidas).</p>
+                    <p class="text-xs text-gray-500">Edite, crie ou remova categorias (as fixas não podem ser removidas).</p>
                 </div>
                 <button onclick="closeManageCategoriesModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
             </div>
@@ -354,7 +370,7 @@
                         <thead>
                             <tr class="bg-black/20 text-[10px] uppercase tracking-wider text-gray-500 font-bold border-b border-brand-border">
                                 <th class="py-3 px-5">Nome</th>
-                                <th class="py-3 px-5 text-right">AÃ§Ã£o</th>
+                                <th class="py-3 px-5 text-right">Ação</th>
                             </tr>
                         </thead>
                         <tbody id="catm-tbody" class="divide-y divide-brand-border/40"></tbody>
@@ -369,12 +385,13 @@
     </div>
 
     <script>
-        let report = null;
-        let currentPeriod = '30d';
-        let compareEnabled = false;
-        let editingExpenseId = null;
-        let editingRecurringId = null;
-        let categoryTargetSelectId = null;
+	        let report = null;
+	        let currentPeriod = '30d';
+	        let compareEnabled = false;
+	        let editingExpenseId = null;
+	        let editingRecurringId = null;
+	        let categoryTargetSelectId = null;
+	        let _showAllFlavorMargins = false;
 
         document.addEventListener('DOMContentLoaded', async () => {
             try { await initDb(); }
@@ -520,7 +537,7 @@
 
         async function submitCategoryManagerAdd() {
             const name = (document.getElementById('catm-new-name').value || '').trim();
-            if (!name) { showToast('AtenÃ§Ã£o', 'Informe o nome da categoria.', true); return; }
+            if (!name) { showToast('Atenção', 'Informe o nome da categoria.', true); return; }
             try {
                 await createExpenseCategory({ name });
                 document.getElementById('catm-new-name').value = '';
@@ -529,13 +546,13 @@
                 showToast('Categoria adicionada', `\"${name}\" foi criada.`);
                 lucide.createIcons();
             } catch (e) {
-                showToast('Erro', e.message || 'NÃ£o foi possÃ­vel criar a categoria.', true);
+                showToast('Erro', e.message || 'Não foi possível criar a categoria.', true);
             }
         }
 
         async function saveCategoryManager(id) {
             const name = (document.getElementById(`catm-name-${id}`).value || '').trim();
-            if (!name) { showToast('Erro', 'Nome invÃ¡lido.', true); return; }
+            if (!name) { showToast('Erro', 'Nome inválido.', true); return; }
             try {
                 await updateExpenseCategory(id, { name });
                 renderManageCategories();
@@ -543,20 +560,20 @@
                 showToast('Atualizado', 'Categoria atualizada.');
                 lucide.createIcons();
             } catch (e) {
-                showToast('Erro', e.message || 'NÃ£o foi possÃ­vel atualizar.', true);
+                showToast('Erro', e.message || 'Não foi possível atualizar.', true);
             }
         }
 
         async function deleteCategoryManager(id) {
-            if (!confirm('Excluir esta categoria? Despesas e recorrentes ficarÃ£o sem categoria.')) return;
+            if (!confirm('Excluir esta categoria? Despesas e recorrentes ficarão sem categoria.')) return;
             try {
                 await deleteExpenseCategory(id);
                 renderManageCategories();
                 populateCategorySelects();
-                showToast('Removida', 'Categoria excluÃ­da.');
+                showToast('Removida', 'Categoria excluída.');
                 lucide.createIcons();
             } catch (e) {
-                showToast('Erro', e.message || 'NÃ£o foi possÃ­vel excluir.', true);
+                showToast('Erro', e.message || 'Não foi possível excluir.', true);
             }
         }
 
@@ -646,43 +663,138 @@
         function renderProfitChart() {
             const container = document.getElementById('profit-chart');
             const labels    = document.getElementById('profit-chart-labels');
+            const tooltip   = document.getElementById('profit-tooltip');
+            const wrap      = document.getElementById('profit-chart-wrap');
             const data = report.perDay || [];
             if (data.length === 0) {
                 container.innerHTML = `<div class="text-xs text-gray-500 m-auto">sem dados no período</div>`;
                 labels.innerHTML = '';
+                if (tooltip) tooltip.classList.add('hidden');
                 return;
             }
-            const maxAbs = Math.max(1, ...data.map(d => Math.abs(d.profit)));
+            const safeNum = (v) => (isFinite(Number(v)) ? Number(v) : 0);
+            const maxAbs = Math.max(1, ...data.map(d => Math.abs(safeNum(d.profit))));
 
-            container.innerHTML = data.map(d => {
-                const pct = Math.max(4, (Math.abs(d.profit) / maxAbs) * 100);
-                const isPositive = d.profit >= 0;
-                const bg = isPositive ? 'bg-gradient-to-t from-emerald-700 to-emerald-400' : 'bg-gradient-to-t from-red-700 to-red-400';
+            const peakIdx = (() => {
+                const byAbs = data
+                    .map((d, idx) => ({ idx, abs: Math.abs(safeNum(d.profit)) }))
+                    .sort((a, b) => b.abs - a.abs)
+                    .slice(0, 2)
+                    .map(x => x.idx);
+                return new Set([0, data.length - 1, ...byAbs]);
+            })();
+
+            const isMonday = (iso) => {
+                const dt = new Date(String(iso).slice(0, 10) + 'T00:00:00');
+                return dt.getDay && dt.getDay() === 1;
+            };
+
+            const labelIdx = (() => {
+                const set = new Set([0, data.length - 1]);
+                data.forEach((d, idx) => { if (isMonday(d.day)) set.add(idx); });
+                if (set.size > 10) {
+                    const sparse = new Set([0, data.length - 1]);
+                    for (let i = 0; i < data.length; i += 7) sparse.add(i);
+                    peakIdx.forEach(i => sparse.add(i));
+                    return sparse;
+                }
+                peakIdx.forEach(i => set.add(i));
+                return set;
+            })();
+
+            const tooltipHtml = (d) => {
+                const iso = String(d.day || '').slice(0, 10);
+                const [y, m, day] = iso.split('-');
+                const title = (day && m) ? `${day}/${m}/${y}` : iso;
+                const profit = safeNum(d.profit);
+                const profitCls = profit >= 0 ? 'text-emerald-300' : 'text-red-300';
                 return `
-                    <div class="flex-1 flex flex-col items-stretch justify-end group relative" title="${d.day}: ${formatBRL(d.profit)}">
-                        <div class="text-[9px] text-center text-gray-400 font-bold mb-0.5">${formatBRL(d.profit)}</div>
-                        <div class="${bg} rounded-t" style="height: ${pct}%"></div>
+                    <div class="text-white font-bold">${escapeHtml(title)}</div>
+                    <div class="mt-1 text-[11px] text-gray-300">
+                        <div class="flex items-center justify-between gap-3"><span class="text-gray-400">Lucro</span><span class="font-bold ${profitCls}">${formatBRL(profit)}</span></div>
+                        <div class="flex items-center justify-between gap-3"><span class="text-gray-400">Receita</span><span class="text-gray-200 font-semibold">${formatBRL(safeNum(d.revenue))}</span></div>
+                        <div class="flex items-center justify-between gap-3"><span class="text-gray-400">CPV</span><span class="text-gray-200 font-semibold">${formatBRL(safeNum(d.cogs))}</span></div>
+                        <div class="flex items-center justify-between gap-3"><span class="text-gray-400">Despesas</span><span class="text-gray-200 font-semibold">${formatBRL(safeNum(d.expenses))}</span></div>
+                    </div>
+                `;
+            };
+
+            container.innerHTML = data.map((d, idx) => {
+                const profit = safeNum(d.profit);
+                const pct = Math.max(3, (Math.abs(profit) / maxAbs) * 100);
+                const isPositive = profit >= 0;
+                const bg = isPositive ? 'bg-gradient-to-t from-emerald-800 to-emerald-400' : 'bg-gradient-to-t from-red-800 to-red-400';
+                const showPeakLabel = peakIdx.has(idx) && profit !== 0;
+                const labelCls = isPositive ? 'text-emerald-300' : 'text-red-300';
+                return `
+                    <div class="flex-1 flex flex-col items-stretch justify-end relative">
+                        <div class="text-[10px] text-center font-bold mb-1 ${showPeakLabel ? labelCls : 'text-transparent'} select-none">${showPeakLabel ? formatBRL(profit) : '—'}</div>
+                        <div class="${bg} rounded-t opacity-90 hover:opacity-100 transition-opacity cursor-default"
+                             style="height: ${pct}%"
+                             data-idx="${idx}"
+                             tabindex="0"
+                        ></div>
                     </div>
                 `;
             }).join('');
 
-            // Labels mostram só dia/mês para 7d/30d
+            // Eixo X: evita poluir mostrando poucos labels (mantém alinhamento via placeholders transparentes)
             labels.style.display = 'grid';
             labels.style.gridTemplateColumns = `repeat(${data.length}, minmax(0, 1fr))`;
-            labels.innerHTML = data.map(d => {
+            labels.innerHTML = data.map((d, idx) => {
                 const [y, m, day] = String(d.day).slice(0, 10).split('-');
-                return `<div>${day}/${m}</div>`;
+                const txt = (labelIdx.has(idx) && day && m) ? `${day}/${m}` : '';
+                return `<div class="${txt ? '' : 'text-transparent'}">${txt || '—'}</div>`;
             }).join('');
+
+            // Tooltip: detalhes só sob demanda (hover/focus)
+            if (tooltip && wrap) {
+                const bars = container.querySelectorAll('[data-idx]');
+                const hide = () => tooltip.classList.add('hidden');
+                const showAt = (clientX, clientY, idx) => {
+                    const d = data[idx];
+                    if (!d) return;
+                    tooltip.innerHTML = tooltipHtml(d);
+                    tooltip.classList.remove('hidden');
+                    const rect = wrap.getBoundingClientRect();
+                    const x = (clientX - rect.left) + 12;
+                    const y = (clientY - rect.top) - 12;
+                    tooltip.style.left = `${Math.max(8, Math.min(x, rect.width - 16))}px`;
+                    tooltip.style.top  = `${Math.max(8, Math.min(y, rect.height - 16))}px`;
+                    tooltip.style.transform = 'translate(-10%, -100%)';
+                };
+
+                bars.forEach(el => {
+                    const idx = parseInt(el.getAttribute('data-idx'), 10);
+                    el.addEventListener('mouseenter', (e) => showAt(e.clientX, e.clientY, idx));
+                    el.addEventListener('mousemove',  (e) => showAt(e.clientX, e.clientY, idx));
+                    el.addEventListener('mouseleave', hide);
+                    el.addEventListener('focus', () => {
+                        const rect = el.getBoundingClientRect();
+                        showAt(rect.left + rect.width / 2, rect.top, idx);
+                    });
+                    el.addEventListener('blur', hide);
+                });
+            }
         }
 
         function renderFlavorMargins() {
             const el = document.getElementById('flavor-margins');
+            const toggle = document.getElementById('flavor-margins-toggle');
             const rows = (report.flavorMargins || []).filter(f => f.cost > 0 || f.qtySold > 0);
             if (rows.length === 0) {
                 el.innerHTML = `<p class="text-xs text-gray-500 py-4 text-center">defina o custo dos sabores em <a href="sabores.html" class="text-brand-accentOrange underline">Sabores</a> para ver lucratividade</p>`;
+                if (toggle) toggle.textContent = '';
                 return;
             }
-            el.innerHTML = rows.map((f, idx) => {
+
+            const showing = _showAllFlavorMargins ? rows : rows.slice(0, 5);
+            if (toggle) {
+                toggle.textContent = rows.length > 5 ? (_showAllFlavorMargins ? 'ver menos' : 'ver mais') : '';
+                toggle.classList.toggle('hidden', rows.length <= 5);
+            }
+
+            el.innerHTML = showing.map((f, idx) => {
                 const cls = f.marginPct >= 50 ? 'text-emerald-400'
                           : f.marginPct >= 30 ? 'text-amber-400'
                           : 'text-red-400';
@@ -699,6 +811,11 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        function toggleFlavorMargins() {
+            _showAllFlavorMargins = !_showAllFlavorMargins;
+            renderFlavorMargins();
         }
 
         function renderExpensesTable() {

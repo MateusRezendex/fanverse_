@@ -1,4 +1,4 @@
--- Itens de custo (composiÃ§Ã£o do custo de produÃ§Ã£o de cada sabor)
+-- Itens de custo (composição do custo de produção de cada sabor)
 CREATE TABLE IF NOT EXISTS flavor_cost_items (
     id         SERIAL PRIMARY KEY,
     flavor_id  INTEGER NOT NULL REFERENCES flavors(id) ON DELETE CASCADE,

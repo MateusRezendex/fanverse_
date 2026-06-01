@@ -190,7 +190,7 @@ async function deleteFlavor(id) {
     return _fetchJson(`/api/flavors/${id}`, { method: 'DELETE', expectStatus: 204 });
 }
 
-// --- Custos base (massa/embalagem/gÃ¡s) ---
+// --- Custos base (massa/embalagem/gás) ---
 async function getBaseCosts() {
     return _fetchJson('/api/costs');
 }

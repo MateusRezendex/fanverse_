@@ -300,10 +300,21 @@ router.get('/customers/aggregate', async (_req, res, next) => {
     } catch (e) { next(e); }
 });
 
-// Dashboard: agregaÃ§Ã£o completa em um Ãºnico endpoint
-// Query param ?period=today|7d|30d  â€” afeta apenas rankings (sabores, bairros, clientes)
+// Dashboard: agregação completa em um único endpoint
+// Query param ?period=today|7d|30d — afeta apenas rankings (sabores, bairros, clientes)
 router.get('/stats/dashboard', async (req, res, next) => {
     try {
+        const percentile = (arr, p) => {
+            if (!arr || arr.length === 0) return 0;
+            const list = [...arr].sort((a, b) => a - b);
+            const idx = Math.max(0, Math.min(list.length - 1, (list.length - 1) * p));
+            const lo = Math.floor(idx);
+            const hi = Math.ceil(idx);
+            if (lo === hi) return list[lo];
+            const w = idx - lo;
+            return list[lo] * (1 - w) + list[hi] * w;
+        };
+
         const period = ['today', '7d', '30d'].includes(req.query.period) ? req.query.period : '30d';
         const periodSql =
             period === 'today' ? "CURRENT_DATE"
@@ -324,9 +335,9 @@ router.get('/stats/dashboard', async (req, res, next) => {
             ORDER BY o.created_at ASC
         `)).rows;
 
-        // Pedidos de ontem com horÃ¡rio-corte: comparamos apenas atÃ© o mesmo momento
-        // do dia (ex.: Ã s 11h da manhÃ£, comparamos com atÃ© 11h de ontem).
-        // Isso evita que "hoje" sempre pareÃ§a pior sÃ³ porque o dia ainda nÃ£o acabou.
+        // Pedidos de ontem com horário-corte: comparamos apenas até o mesmo momento
+        // do dia (ex.: às 11h da manhã, comparamos com até 11h de ontem).
+        // Isso evita que "hoje" sempre pareça pior só porque o dia ainda não acabou.
         const yesterdayOrders = (await query(`
             SELECT o.*, COALESCE(SUM(oi.quantity), 0) AS items_count
             FROM orders o
@@ -336,7 +347,7 @@ router.get('/stats/dashboard', async (req, res, next) => {
             GROUP BY o.id
         `)).rows;
 
-        // -- MÃ©tricas operacionais (hoje) --
+        // -- Métricas operacionais (hoje) --
         const active = todayOrders.filter(o => !['Cancelado', 'Entregue'].includes(o.status));
         const now = Date.now();
         const lateOrders = active
@@ -357,7 +368,7 @@ router.get('/stats/dashboard', async (req, res, next) => {
                 threshold: x.threshold,
             }));
 
-        // Tempo mÃ©dio de preparo (do created_at ao ready_at) â€” hoje
+        // Tempo médio de preparo (do created_at ao ready_at) — hoje
         const preparedToday = todayOrders.filter(o => o.ready_at);
         const avgPrepMs = preparedToday.length > 0
             ? preparedToday.reduce((acc, o) => acc + (new Date(o.ready_at) - new Date(o.created_at)), 0) / preparedToday.length
@@ -369,7 +380,33 @@ router.get('/stats/dashboard', async (req, res, next) => {
             ? preparedYesterday.reduce((acc, o) => acc + (new Date(o.ready_at) - new Date(o.created_at)), 0) / preparedYesterday.length
             : 0;
 
-        // Pedidos por hora â€” hoje
+        // Tempo até finalizar atendimento (do created_at ao delivered_at) — hoje/ontem
+        const deliveredToday = todayOrders.filter(o => o.status === 'Entregue' && o.delivered_at);
+        const serviceMinutesToday = deliveredToday
+            .map(o => (new Date(o.delivered_at) - new Date(o.created_at)) / 60000)
+            .filter(x => isFinite(x) && x >= 0);
+        const avgServiceMinutes = serviceMinutesToday.length > 0
+            ? serviceMinutesToday.reduce((a, x) => a + x, 0) / serviceMinutesToday.length
+            : 0;
+
+        const deliveredYesterday = yesterdayOrders.filter(o => o.status === 'Entregue' && o.delivered_at);
+        const serviceMinutesYesterday = deliveredYesterday
+            .map(o => (new Date(o.delivered_at) - new Date(o.created_at)) / 60000)
+            .filter(x => isFinite(x) && x >= 0);
+        const avgServiceMinutesYesterday = serviceMinutesYesterday.length > 0
+            ? serviceMinutesYesterday.reduce((a, x) => a + x, 0) / serviceMinutesYesterday.length
+            : 0;
+
+        // Espera atual (pedidos em andamento)
+        const activeWaitMinutes = active
+            .map(o => (now - new Date(o.created_at).getTime()) / 60000)
+            .filter(x => isFinite(x) && x >= 0);
+        const avgActiveWaitMinutes = activeWaitMinutes.length > 0
+            ? activeWaitMinutes.reduce((a, x) => a + x, 0) / activeWaitMinutes.length
+            : 0;
+        const maxActiveWaitMinutes = activeWaitMinutes.length > 0 ? Math.max(...activeWaitMinutes) : 0;
+
+        // Pedidos por hora — hoje
         const ordersByHour = new Array(24).fill(0);
         todayOrders.forEach(o => {
             const h = new Date(o.created_at).getHours();
@@ -377,7 +414,7 @@ router.get('/stats/dashboard', async (req, res, next) => {
         });
         const peakHour = ordersByHour.indexOf(Math.max(...ordersByHour));
 
-        // Doce vs Salgado vs Premium â€” hoje
+        // Doce vs Salgado vs Premium — hoje
         const categoryBreakdown = { Salgada: 0, Doce: 0, Premium: 0, Outros: 0 };
         todayOrders.forEach(o => {
             if (o.status === 'Cancelado') return;
@@ -388,7 +425,7 @@ router.get('/stats/dashboard', async (req, res, next) => {
             });
         });
 
-        // Origem dos pedidos no perÃ­odo (para o card de aquisiÃ§Ã£o)
+        // Origem dos pedidos no período (para o card de aquisição)
         const sourceBreakdown = (await query(`
             SELECT COALESCE(NULLIF(source, ''), 'Não informado') AS source,
                    COUNT(*)::int AS orders,
@@ -400,7 +437,7 @@ router.get('/stats/dashboard', async (req, res, next) => {
             ORDER BY orders DESC
         `)).rows.map(r => ({ source: r.source, orders: r.orders, revenue: Number(r.revenue) }));
 
-        // ComparaÃ§Ã£o hoje vs ontem
+        // Comparação hoje vs ontem
         const todayActive  = todayOrders.filter(o => o.status !== 'Cancelado');
         const yestActive   = yesterdayOrders.filter(o => o.status !== 'Cancelado');
         const todayRevenue = todayOrders.filter(o => o.status === 'Entregue').reduce((a, o) => a + Number(o.total), 0);
@@ -410,7 +447,7 @@ router.get('/stats/dashboard', async (req, res, next) => {
         const todayCancRate = todayOrders.length ? (todayOrders.filter(o => o.status === 'Cancelado').length / todayOrders.length) * 100 : 0;
         const yestCancRate  = yesterdayOrders.length ? (yesterdayOrders.filter(o => o.status === 'Cancelado').length / yesterdayOrders.length) * 100 : 0;
 
-        // Top bairros (perÃ­odo variÃ¡vel, nÃ£o cancelados)
+        // Top bairros (período variável, não cancelados)
         const topNeighborhoods = (await query(`
             SELECT neighborhood, COUNT(*)::int AS orders, COALESCE(SUM(total), 0)::numeric AS revenue
             FROM orders
@@ -422,7 +459,7 @@ router.get('/stats/dashboard', async (req, res, next) => {
             LIMIT 5
         `)).rows.map(r => ({ neighborhood: r.neighborhood, orders: r.orders, revenue: Number(r.revenue) }));
 
-        // Ranking de sabores por VOLUME e por FATURAMENTO (perÃ­odo variÃ¡vel)
+        // Ranking de sabores por VOLUME e por FATURAMENTO (período variável)
         const flavorStats = (await query(`
             SELECT oi.name,
                    SUM(oi.quantity)::int AS qty,
@@ -440,7 +477,7 @@ router.get('/stats/dashboard', async (req, res, next) => {
             .sort((a, b) => Number(b.revenue) - Number(a.revenue)).slice(0, 5)
             .map(r => ({ name: r.name, qty: r.qty, revenue: Number(r.revenue) }));
 
-        // Top clientes (perÃ­odo variÃ¡vel)
+        // Top clientes (período variável)
         const topCustomers = (await query(`
             SELECT COALESCE(NULLIF(phone, ''), customer) AS key,
                    MAX(customer) AS name,
@@ -464,6 +501,12 @@ router.get('/stats/dashboard', async (req, res, next) => {
             late: lateOrders,
             avgPrepMinutes: avgPrepMs / 60000,
             avgPrepMinutesYesterday: avgPrepMsYesterday / 60000,
+            avgServiceMinutes,
+            avgServiceMinutesYesterday,
+            medianServiceMinutes: percentile(serviceMinutesToday, 0.5),
+            p90ServiceMinutes: percentile(serviceMinutesToday, 0.9),
+            avgActiveWaitMinutes,
+            maxActiveWaitMinutes,
             ordersByHour,
             peakHour,
             categoryBreakdown,
@@ -491,7 +534,7 @@ router.get('/stats/dashboard', async (req, res, next) => {
     } catch (e) { next(e); }
 });
 
-// Stats: faturamento dos Ãºltimos 7 dias (pedidos entregues)
+// Stats: faturamento dos últimos 7 dias (pedidos entregues)
 router.get('/stats/weekly', async (_req, res, next) => {
     try {
         const { rows } = await query(`

@@ -218,9 +218,10 @@
             <!-- Cards operacionais: Tempo médio, Pico, Doce/Salgado, Lucro -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="bg-brand-card p-5 rounded-2xl border border-brand-border">
-                    <span class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Tempo médio de preparo</span>
+                    <span class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Tempo médio até finalizar</span>
                     <h3 id="stat-tempo-medio" class="text-3xl font-black text-white mt-1">—</h3>
                     <p id="stat-tempo-medio-delta" class="text-xs text-gray-500 mt-1">ontem: —</p>
+                    <p id="stat-tempo-medio-sub" class="text-[10px] text-gray-500 mt-1">preparo: —</p>
                 </div>
                 <div class="bg-brand-card p-5 rounded-2xl border border-brand-border">
                     <span class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Pico de hoje</span>
@@ -970,23 +971,34 @@
             const s = dashboardStats || {};
             const tempoEl = document.getElementById('stat-tempo-medio');
             const deltaEl = document.getElementById('stat-tempo-medio-delta');
+            const subEl   = document.getElementById('stat-tempo-medio-sub');
             const picoEl  = document.getElementById('stat-pico');
             const compEl  = document.getElementById('stat-composicao');
 
-            const avg = Math.round(s.avgPrepMinutes || 0);
-            const avgY = Math.round(s.avgPrepMinutesYesterday || 0);
+            const avg = Math.round(s.avgServiceMinutes || 0);
+            const avgY = Math.round(s.avgServiceMinutesYesterday || 0);
+            const prepAvg = Math.round(s.avgPrepMinutes || 0);
+            const p90 = Math.round(s.p90ServiceMinutes || 0);
+            const activeAvg = Math.round(s.avgActiveWaitMinutes || 0);
 
-            // Cor por threshold: ≤15 verde, 16-25 amarelo, >25 vermelho
+            // Cor por threshold: ≤25 verde, 26-40 amarelo, >40 vermelho
             let tempoCls = 'text-white';
-            if (avg > 0)       tempoCls = avg <= 15 ? 'text-emerald-400' : (avg <= 25 ? 'text-amber-400' : 'text-red-400');
+            if (avg > 0) tempoCls = avg <= 25 ? 'text-emerald-400' : (avg <= 40 ? 'text-amber-400' : 'text-red-400');
             tempoEl.className = `text-3xl font-black mt-1 ${tempoCls}`;
             tempoEl.textContent = avg > 0 ? `${avg} min` : '—';
+            if (subEl) {
+                const parts = [];
+                parts.push(prepAvg > 0 ? `preparo: ${prepAvg} min` : 'preparo: —');
+                if (p90 > 0) parts.push(`p90: ${p90} min`);
+                if (activeAvg > 0) parts.push(`em andamento: ${activeAvg} min`);
+                subEl.textContent = parts.join(' • ');
+            }
 
             // Delta vs ontem (se temos dados)
             if (avgY > 0 && avg > 0) {
                 const diff = avg - avgY;
                 const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '–';
-                // Tempo de preparo: menor é melhor → diff negativo = bom
+                // Tempo: menor é melhor → diff negativo = bom
                 const cls = diff < 0 ? 'text-emerald-400' : (diff > 0 ? 'text-red-400' : 'text-gray-500');
                 deltaEl.innerHTML = `ontem: ${avgY} min <span class="${cls} font-bold ml-1">${arrow}${Math.abs(diff)}min</span>`;
             } else {
@@ -1320,7 +1332,7 @@
             const wrap = document.getElementById('order-referrer-wrap');
             const input = document.getElementById('order-referrer');
             if (!wrap || !input) return;
-            const show = source === 'Indicação' || source === 'IndicaÃ§Ã£o';
+            const show = source === 'Indicação';
             wrap.classList.toggle('hidden', !show);
             if (!show) input.value = '';
         }
@@ -1467,7 +1479,7 @@
 
             try {
                 await ensureNeighborhoodSaved(neighborhood);
-                const referrer = (source === 'Indicação' || source === 'IndicaÃ§Ã£o')
+                const referrer = (source === 'Indicação')
                     ? String(referrerRaw || '').trim()
                     : '';
                 if (editingOrderId) {

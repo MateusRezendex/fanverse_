@@ -29,15 +29,15 @@ router.patch('/', async (req, res, next) => {
     try {
         const { items } = req.body || {};
         if (!Array.isArray(items) || items.length === 0) {
-            return res.status(400).json({ error: 'items invÃ¡lido' });
+            return res.status(400).json({ error: 'items inválido' });
         }
 
         const result = await withTx(async (client) => {
             for (const it of items) {
-                if (!it || typeof it.key !== 'string') return { bad: true, msg: 'key invÃ¡lido' };
+                if (!it || typeof it.key !== 'string') return { bad: true, msg: 'key inválido' };
                 const key = it.key.trim();
                 const amount = Number(it.amount);
-                if (!isFinite(amount) || amount < 0) return { bad: true, msg: 'amount invÃ¡lido' };
+                if (!isFinite(amount) || amount < 0) return { bad: true, msg: 'amount inválido' };
                 const updated = await client.query(
                     'UPDATE base_costs SET amount = $2 WHERE key = $1 RETURNING *',
                     [key, amount]
@@ -80,4 +80,3 @@ router.patch('/', async (req, res, next) => {
 });
 
 module.exports = router;
-

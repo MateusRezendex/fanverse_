@@ -219,7 +219,7 @@
                     </div>
                 </div>
                 <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-gray-400 uppercase">GÃ¡s (R$)</label>
+                    <label class="text-xs font-bold text-gray-400 uppercase">Gás (R$)</label>
                     <input type="number" step="0.01" min="0" id="base-gas" oninput="_renderBaseTotal()"
                         class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange text-sm">
                     <p class="text-[11px] text-gray-500">Custo base total: <span id="base-total" class="text-white font-bold">R$ 0,00</span></p>
@@ -487,7 +487,7 @@
             const item = (document.getElementById('ci-new-item').value || '').trim();
             const amount = parseFloat(document.getElementById('ci-new-amount').value);
             if (!item) { showToast('Erro', 'Informe o item.', true); return; }
-            if (isNaN(amount) || amount < 0) { showToast('Erro', 'Valor invÃ¡lido.', true); return; }
+            if (isNaN(amount) || amount < 0) { showToast('Erro', 'Valor inválido.', true); return; }
             try {
                 await createFlavorCostItem(costItemsFlavorId, { item, amount });
                 document.getElementById('ci-new-item').value = '';
@@ -503,8 +503,8 @@
             if (!costItemsFlavorId) return;
             const item = (document.getElementById(`ci-item-${itemId}`).value || '').trim();
             const amount = parseFloat(document.getElementById(`ci-amount-${itemId}`).value);
-            if (!item) { showToast('Erro', 'Item invÃ¡lido.', true); return; }
-            if (isNaN(amount) || amount < 0) { showToast('Erro', 'Valor invÃ¡lido.', true); return; }
+            if (!item) { showToast('Erro', 'Item inválido.', true); return; }
+            if (isNaN(amount) || amount < 0) { showToast('Erro', 'Valor inválido.', true); return; }
             try {
                 await updateFlavorCostItem(costItemsFlavorId, itemId, { item, amount });
                 await _reloadCostItems();
@@ -520,7 +520,7 @@
             try {
                 await deleteFlavorCostItem(costItemsFlavorId, itemId);
                 await _reloadCostItems();
-                showToast('Removido', 'Item excluÃ­do.');
+                showToast('Removido', 'Item excluído.');
             } catch (e) {
                 showToast('Erro', e.message, true);
             }
@@ -531,8 +531,8 @@
             const flavor = flavors.find(f => f.id === costItemsFlavorId);
             if (!flavor) return;
             const current = Number(flavor.costPrice || 0);
-            if (!(current > 0)) { showToast('Nada a fazer', 'Este produto ainda nÃ£o tem custo definido.', true); return; }
-            if (costItems && costItems.length > 0) { showToast('AtenÃ§Ã£o', 'Este produto jÃ¡ tem itens de custo.', true); return; }
+            if (!(current > 0)) { showToast('Nada a fazer', 'Este produto ainda não tem custo definido.', true); return; }
+            if (costItems && costItems.length > 0) { showToast('Atenção', 'Este produto já tem itens de custo.', true); return; }
             try {
                 await createFlavorCostItem(costItemsFlavorId, { item: 'Custo total', amount: current });
                 await _reloadCostItems();

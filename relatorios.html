@@ -152,6 +152,20 @@
                 </div>
             </div>
 
+            <!-- Tempo de atendimento (médias no período) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-2">
+                    <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Tempo médio de preparo</span>
+                    <h4 id="insights-tempo-preparo" class="text-3xl font-black text-white">—</h4>
+                    <p class="text-xs text-gray-500" data-period-caption="Média do tempo até ficar pronto {period}.">Média do tempo até ficar pronto hoje.</p>
+                </div>
+                <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-2">
+                    <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Tempo médio até finalizar</span>
+                    <h4 id="insights-tempo-finalizar" class="text-3xl font-black text-white">—</h4>
+                    <p class="text-xs text-gray-500" data-period-caption="Média do tempo até entregar {period}.">Média do tempo até entregar hoje.</p>
+                </div>
+            </div>
+
             <!-- Quadro de Ranking de Vendas por Sabor (Conforme a imagem enviada) -->
             <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-6">
                 <h3 class="text-white font-extrabold text-lg">Ranking de Vendas por Sabor</h3>
@@ -274,6 +288,21 @@
             const nonCancelled = scoped.filter(o => o.status !== 'Cancelado');
             const delivered    = scoped.filter(o => o.status === 'Entregue');
 
+            const avgMinutesBetween = (list, startKey, endKey) => {
+                const mins = [];
+                for (const o of (list || [])) {
+                    const startRaw = o && o[startKey];
+                    const endRaw = o && o[endKey];
+                    if (!startRaw || !endRaw) continue;
+                    const start = new Date(startRaw);
+                    const end = new Date(endRaw);
+                    const diff = (end - start) / 60000;
+                    if (isFinite(diff) && diff >= 0) mins.push(diff);
+                }
+                if (mins.length === 0) return 0;
+                return mins.reduce((a, x) => a + x, 0) / mins.length;
+            };
+
             // Se não há pedidos entregues ainda no período, usa os ativos como referência
             const reference = delivered.length > 0 ? delivered : nonCancelled;
             const totalRevenue = reference.reduce((acc, o) => acc + (o.total || 0), 0);
@@ -288,6 +317,17 @@
             document.getElementById('insights-ticket-medio').innerText  = formatBRL(avgTicket);
             document.getElementById('insights-total-esfihas').innerText = `${totalItems} unidades`;
             document.getElementById('insights-cancelamentos').innerText = `${cancellationRate.toFixed(0)}%`;
+
+            const avgPrep = avgMinutesBetween(nonCancelled, 'createdAt', 'readyAt');
+            const avgService = avgMinutesBetween(delivered, 'createdAt', 'deliveredAt');
+            const prepEl = document.getElementById('insights-tempo-preparo');
+            const serviceEl = document.getElementById('insights-tempo-finalizar');
+            if (prepEl) prepEl.innerText = avgPrep > 0
+                ? (typeof formatDurationMinutes === 'function' ? formatDurationMinutes(avgPrep) : `${Math.round(avgPrep)} min`)
+                : '—';
+            if (serviceEl) serviceEl.innerText = avgService > 0
+                ? (typeof formatDurationMinutes === 'function' ? formatDurationMinutes(avgService) : `${Math.round(avgService)} min`)
+                : '—';
 
             const volumes = {};
             nonCancelled.forEach(o => o.items.forEach(i => {
