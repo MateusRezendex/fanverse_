@@ -538,12 +538,6 @@
                     </div>
                 </div>
 
-                <div id="order-referrer-wrap" class="space-y-1.5 hidden">
-                    <label class="text-xs font-bold uppercase text-gray-400">Quem indicou?</label>
-                    <input type="text" id="order-referrer" placeholder="Nome da pessoa que indicou"
-                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
-                </div>
-
                 <div class="space-y-1.5">
                     <label class="text-xs font-bold uppercase text-gray-400">Desconto</label>
                     <input type="number" id="order-discount" min="0" step="0.01" value="0" oninput="calculateTotalPreview()"
@@ -570,6 +564,8 @@
                             <option value="">— não informado —</option>
                             <option value="Indicação">Indicação</option>
                             <option value="Anúncio">Anúncio</option>
+                            <option value="Facebook Anúncio">Facebook Anúncio</option>
+                            <option value="Instagram Anúncio">Instagram Anúncio</option>
                             <option value="Instagram">Instagram</option>
                             <option value="WhatsApp">WhatsApp</option>
                             <option value="Recorrente">Cliente recorrente</option>
@@ -577,6 +573,12 @@
                             <option value="Outro">Outro</option>
                         </select>
                     </div>
+                </div>
+
+                <div id="order-referrer-wrap" class="space-y-1.5 hidden">
+                    <label class="text-xs font-bold uppercase text-gray-400">Quem indicou?</label>
+                    <input type="text" id="order-referrer" placeholder="Nome da pessoa que indicou"
+                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
                 </div>
 
                 <div class="space-y-1.5">
