@@ -28,6 +28,8 @@ fanverse_/
 
 Existem dois cenários. Escolha um.
 
+> Se alguma porta estiver ocupada na sua máquina, ajuste `POSTGRES_PORT` e/ou `BACKEND_PORT` no `.env` (raiz) e/ou `PORT` no `backend/.env`.
+
 ### Cenário A — só o **Postgres** em Docker, backend local (recomendado em dev)
 
 ```bash
@@ -38,11 +40,11 @@ docker compose up -d postgres
 cd backend
 npm install
 cp .env.example .env           # já vem apontando para localhost:5432
-npm run migrate                # cria tabelas (sem seed/mock)
+npm run migrate                # cria tabelas + seed inicial
 npm start
 ```
 
-Abra http://localhost:3000
+Abra http://localhost:3000 (ou a porta definida em `PORT` no `backend/.env`).
 
 ### Cenário B — **tudo** em Docker (sem precisar de Node instalado)
 
@@ -53,7 +55,7 @@ cp .env.example .env
 docker compose --profile app up --build
 ```
 
-O backend roda as migrations automaticamente no startup e fica disponível em http://localhost:3000.
+O backend roda as migrations automaticamente no startup e fica disponível em `http://localhost:${BACKEND_PORT}` (default `3000`).
 
 ## Comandos úteis
 

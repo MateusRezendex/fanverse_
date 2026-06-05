@@ -1,0 +1,14 @@
+.git
+.vscode
+**/.env
+**/*.log
+**/*.err
+
+# Large/local artifacts
+backend/node_modules
+node_modules
+*.dump
+
+# OS noise
+.DS_Store
+Thumbs.db
