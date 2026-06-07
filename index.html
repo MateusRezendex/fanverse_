@@ -11,6 +11,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Banco de dados único (localStorage) -->
     <script src="js/db.js"></script>
+    <script src="js/sidebar.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -466,7 +467,7 @@
     <div id="modal-novo-pedido"
         class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div
-            class="bg-brand-card w-full max-w-lg rounded-2xl border border-brand-border overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            class="bg-brand-card w-full max-w-3xl rounded-2xl border border-brand-border overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
                 <h3 class="text-white font-bold text-lg flex items-center gap-2">
                     <i data-lucide="shopping-bag" class="text-brand-accentOrange w-5 h-5"></i>
@@ -499,10 +500,28 @@
                         class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
                 </div>
 
-                <div class="space-y-3">
-                    <label class="text-xs font-bold uppercase text-gray-400 block">Escolher Sabores</label>
-                    <div id="order-flavors-selection" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-56 overflow-y-auto pr-1">
-                        <!-- Gerado dinamicamente -->
+                <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_18rem] gap-4 items-start">
+                    <div class="space-y-3 min-w-0">
+                        <label class="text-xs font-bold uppercase text-gray-400 block">Escolher Sabores</label>
+                        <div id="order-flavors-selection" class="space-y-3 max-h-[22rem] overflow-y-auto pr-1">
+                            <!-- Gerado dinamicamente -->
+                        </div>
+                    </div>
+
+                    <div id="order-items-preview"
+                        class="bg-brand-dark/50 border border-brand-border/70 rounded-xl p-3 space-y-2 lg:sticky lg:top-0">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-xs font-bold uppercase text-gray-400">Previa do Pedido</span>
+                            <span id="order-preview-count" class="text-[11px] font-bold text-gray-500">0 itens</span>
+                        </div>
+                        <div id="order-preview-items" class="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                            <div class="text-xs text-gray-500 text-center py-3 border border-dashed border-brand-border/60 rounded-lg">
+                                Nenhum sabor selecionado.
+                            </div>
+                        </div>
+                        <div id="order-preview-adjustments"
+                            class="hidden border-t border-brand-border/60 pt-2 space-y-1 text-xs">
+                        </div>
                     </div>
                 </div>
 
@@ -612,7 +631,7 @@
     <div id="modal-consumo-interno"
         class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div
-            class="bg-brand-card w-full max-w-lg rounded-2xl border border-brand-border overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            class="bg-brand-card w-full max-w-3xl rounded-2xl border border-brand-border overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
                 <h3 class="text-white font-bold text-lg flex items-center gap-2">
                     <i data-lucide="chef-hat" class="text-brand-accentOrange w-5 h-5"></i>
@@ -877,6 +896,7 @@
                     <button type="button" data-customer-item="1"
                         data-name="${escapeHtml(c.name || '')}" data-phone="${escapeHtml(c.phone || '')}"
                         data-address="${escapeHtml(c.address || '')}" data-neighborhood="${escapeHtml(c.neighborhood || '')}" data-source="${escapeHtml(c.source || '')}"
+                        data-delivery-fee-customer="${Number(c.deliveryFeeCustomer || 0)}" data-delivery-fee-cost="${Number(c.deliveryFeeCost || 0)}"
                         class="w-full text-left px-4 py-3 hover:bg-white/5 transition-all flex items-center justify-between gap-3 border-b border-brand-border/40 last:border-b-0"
                     >
                         <div class="min-w-0">
@@ -892,22 +912,47 @@
                 lucide.createIcons();
             }
 
-            listEl.addEventListener('click', (e) => {
-                const btn = e.target.closest('button[data-customer-item="1"]');
-                if (!btn) return;
-                const name = btn.dataset.name || '';
-                const phone = btn.dataset.phone || '';
-                const address = btn.dataset.address || '';
-                const neighborhood = btn.dataset.neighborhood || '';
-                const source = btn.dataset.source || '';
-                nameInput.value = String(name).trim();
-                phoneInput.value = String(phone).trim();
+            function applyCustomer(customer) {
+                if (!customer) return;
+                nameInput.value = String(customer.name || '').trim();
+                phoneInput.value = String(customer.phone || '').trim();
                 const addrEl = document.getElementById('order-address');
                 const neighEl = document.getElementById('order-neighborhood');
                 const sourceEl = document.getElementById('order-source');
-                if (addrEl && address) addrEl.value = String(address).trim();
-                if (neighEl && neighborhood) neighEl.value = String(neighborhood).trim();
-                if (sourceEl && source) sourceEl.value = String(source).trim();
+                const feeCustomerEl = document.getElementById('order-delivery-fee-customer');
+                const feeCostEl = document.getElementById('order-delivery-fee-cost');
+                if (addrEl && customer.address) addrEl.value = String(customer.address).trim();
+                if (neighEl && customer.neighborhood) neighEl.value = String(customer.neighborhood).trim();
+                if (sourceEl && customer.source) sourceEl.value = String(customer.source).trim();
+                if (feeCustomerEl) feeCustomerEl.value = String(Number(customer.deliveryFeeCustomer || 0));
+                if (feeCostEl) feeCostEl.value = String(Number(customer.deliveryFeeCost || 0));
+                calculateTotalPreview();
+            }
+
+            function applyExactCustomerMatch() {
+                if (editingOrderId) return;
+                const phone = String(phoneInput.value || '').replace(/\D/g, '');
+                const name = normalizeText(nameInput.value);
+                const match = (customers || []).find(c => {
+                    const customerPhone = String(c.phone || '').replace(/\D/g, '');
+                    return (phone && customerPhone === phone)
+                        || (!phone && name && normalizeText(c.name) === name);
+                });
+                if (match) applyCustomer(match);
+            }
+
+            listEl.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-customer-item="1"]');
+                if (!btn) return;
+                applyCustomer({
+                    name: btn.dataset.name || '',
+                    phone: btn.dataset.phone || '',
+                    address: btn.dataset.address || '',
+                    neighborhood: btn.dataset.neighborhood || '',
+                    source: btn.dataset.source || '',
+                    deliveryFeeCustomer: Number(btn.dataset.deliveryFeeCustomer || 0),
+                    deliveryFeeCost: Number(btn.dataset.deliveryFeeCost || 0),
+                });
                 hide();
                 setTimeout(() => document.getElementById('order-address')?.focus(), 0);
             });
@@ -916,6 +961,8 @@
             phoneInput.addEventListener('input', () => render(phoneInput.value));
             nameInput.addEventListener('focus', () => render(nameInput.value));
             phoneInput.addEventListener('focus', () => render(phoneInput.value));
+            nameInput.addEventListener('blur', () => setTimeout(applyExactCustomerMatch, 100));
+            phoneInput.addEventListener('blur', () => setTimeout(applyExactCustomerMatch, 100));
 
             document.addEventListener('click', (e) => {
                 if (box.classList.contains('hidden')) return;
@@ -1440,7 +1487,7 @@
                 <div class="space-y-2 min-w-0">
                     <div class="text-[10px] font-black uppercase tracking-wider text-gray-500 px-1">${group.title}</div>
                     ${group.items.length
-                        ? group.items.map(renderFlavor).join('')
+                        ? `<div class="space-y-2">${group.items.map(renderFlavor).join('')}</div>`
                         : `<div class="text-center py-4 text-gray-500 text-xs border border-dashed border-brand-border/60 rounded-xl">Nenhum sabor</div>`}
                 </div>
             `).join('');
@@ -1511,6 +1558,7 @@
             document.getElementById('order-source').value = '';
             document.getElementById('order-referrer').value = '';
             document.getElementById('order-preview-total').innerText = formatBRL(0);
+            renderOrderItemsPreview([], 0, 0, 0);
             toggleReferrerField();
             document.getElementById('modal-novo-pedido').classList.remove('hidden');
         }
@@ -1579,11 +1627,17 @@
 
         function calculateTotalPreview() {
             let itemsTotal = 0;
+            const selectedItems = [];
             flavors.filter(f => f.available).forEach(flavor => {
                 const input = document.getElementById(`flavor-qty-${flavor.id}`);
                 if (input) {
                     const qty = parseInt(input.value, 10) || 0;
-                    itemsTotal += qty * parseFloat(input.dataset.price);
+                    const price = parseFloat(input.dataset.price) || 0;
+                    if (qty > 0) {
+                        const subtotal = qty * price;
+                        selectedItems.push({ name: flavor.name, quantity: qty, price, subtotal });
+                        itemsTotal += subtotal;
+                    }
                 }
             });
             const feeRaw = document.getElementById('order-delivery-fee-customer')?.value ?? '0';
@@ -1591,8 +1645,58 @@
             const discRaw = document.getElementById('order-discount')?.value ?? '0';
             const discount = Math.max(0, Number(String(discRaw).replace(',', '.')) || 0);
             const total = Math.max(0, itemsTotal + deliveryFee - discount);
+            renderOrderItemsPreview(selectedItems, itemsTotal, deliveryFee, discount);
             document.getElementById('order-preview-total').innerText = formatBRL(total);
             return total;
+        }
+
+        function renderOrderItemsPreview(items, itemsTotal, deliveryFee, discount) {
+            const listEl = document.getElementById('order-preview-items');
+            const countEl = document.getElementById('order-preview-count');
+            const adjustmentsEl = document.getElementById('order-preview-adjustments');
+            if (!listEl || !countEl || !adjustmentsEl) return;
+
+            const totalQty = items.reduce((acc, item) => acc + item.quantity, 0);
+            countEl.textContent = `${totalQty} ${totalQty === 1 ? 'item' : 'itens'}`;
+
+            if (items.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-xs text-gray-500 text-center py-3 border border-dashed border-brand-border/60 rounded-lg">
+                        Nenhum sabor selecionado.
+                    </div>
+                `;
+            } else {
+                listEl.innerHTML = items.map(item => `
+                    <div class="flex items-center justify-between gap-3 bg-black/20 rounded-lg px-3 py-2">
+                        <div class="min-w-0 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-md bg-brand-accentOrange/15 text-brand-accentOrange flex items-center justify-center text-xs font-black shrink-0">${item.quantity}</span>
+                            <span class="text-sm font-semibold text-white truncate">${escapeHtml(item.name)}</span>
+                        </div>
+                        <span class="text-xs font-bold text-gray-300 shrink-0">${formatBRL(item.subtotal)}</span>
+                    </div>
+                `).join('');
+            }
+
+            const adjustmentRows = [];
+            if (deliveryFee > 0) {
+                adjustmentRows.push(`
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-500">Taxa de entrega</span>
+                        <span class="font-bold text-gray-300">+ ${formatBRL(deliveryFee)}</span>
+                    </div>
+                `);
+            }
+            if (discount > 0) {
+                adjustmentRows.push(`
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-500">Desconto</span>
+                        <span class="font-bold text-emerald-400">- ${formatBRL(discount)}</span>
+                    </div>
+                `);
+            }
+
+            adjustmentsEl.classList.toggle('hidden', adjustmentRows.length === 0);
+            adjustmentsEl.innerHTML = adjustmentRows.join('');
         }
 
         function collectSelectedItems() {

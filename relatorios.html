@@ -10,6 +10,7 @@
     <!-- Lucide Icons para ícones vetorizados de alta qualidade -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="js/db.js"></script>
+    <script src="js/sidebar.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -178,7 +179,7 @@
 
     <!-- MODAL: NOVO PEDIDO (Sincronizado) -->
     <div id="modal-novo-pedido" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-brand-card w-full max-w-lg rounded-2xl border border-brand-border overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="bg-brand-card w-full max-w-3xl rounded-2xl border border-brand-border overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
                 <h3 class="text-white font-bold text-lg flex items-center gap-2">
                     <i data-lucide="shopping-bag" class="text-brand-accentOrange w-5 h-5"></i>
@@ -202,10 +203,25 @@
                         class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
                 </div>
 
-                <div class="space-y-3">
-                    <label class="text-xs font-bold uppercase text-gray-400 block">Escolher Sabores</label>
-                    <div id="order-flavors-selection" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-56 overflow-y-auto pr-1">
-                        <!-- Gerado dinamicamente -->
+                <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_18rem] gap-4 items-start">
+                    <div class="space-y-3 min-w-0">
+                        <label class="text-xs font-bold uppercase text-gray-400 block">Escolher Sabores</label>
+                        <div id="order-flavors-selection" class="space-y-3 max-h-[22rem] overflow-y-auto pr-1">
+                            <!-- Gerado dinamicamente -->
+                        </div>
+                    </div>
+
+                    <div id="order-items-preview"
+                        class="bg-brand-dark/50 border border-brand-border/70 rounded-xl p-3 space-y-2 lg:sticky lg:top-0">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-xs font-bold uppercase text-gray-400">Previa do Pedido</span>
+                            <span id="order-preview-count" class="text-[11px] font-bold text-gray-500">0 itens</span>
+                        </div>
+                        <div id="order-preview-items" class="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                            <div class="text-xs text-gray-500 text-center py-3 border border-dashed border-brand-border/60 rounded-lg">
+                                Nenhum sabor selecionado.
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -380,6 +396,7 @@
             document.getElementById('order-phone').value = '';
             document.getElementById('order-notes').value = '';
             document.getElementById('order-preview-total').innerText = formatBRL(0);
+            renderOrderItemsPreview([]);
             document.getElementById('modal-novo-pedido').classList.remove('hidden');
         }
 
@@ -413,7 +430,7 @@
                 <div class="space-y-2 min-w-0">
                     <div class="text-[10px] font-black uppercase tracking-wider text-gray-500 px-1">${group.title}</div>
                     ${group.items.length
-                        ? group.items.map(renderFlavor).join('')
+                        ? `<div class="space-y-2">${group.items.map(renderFlavor).join('')}</div>`
                         : `<div class="text-center py-4 text-gray-500 text-xs border border-dashed border-brand-border/60 rounded-xl">Nenhum sabor</div>`}
                 </div>
             `).join('');
@@ -421,13 +438,47 @@
 
         function calculateOrderTotal() {
             let total = 0;
+            const selectedItems = [];
             document.querySelectorAll("#order-flavors-selection input[type='checkbox']:checked").forEach(cb => {
                 const fid = parseInt(cb.value, 10);
                 const flavor = flavors.find(f => f.id === fid);
                 const qty = parseInt(document.getElementById(`qty-flavor-${fid}`).value, 10) || 1;
-                if (flavor) total += flavor.price * qty;
+                if (flavor) {
+                    const subtotal = flavor.price * qty;
+                    selectedItems.push({ name: flavor.name, quantity: qty, subtotal });
+                    total += subtotal;
+                }
             });
+            renderOrderItemsPreview(selectedItems);
             document.getElementById('order-preview-total').innerText = formatBRL(total);
+        }
+
+        function renderOrderItemsPreview(items) {
+            const listEl = document.getElementById('order-preview-items');
+            const countEl = document.getElementById('order-preview-count');
+            if (!listEl || !countEl) return;
+
+            const totalQty = items.reduce((acc, item) => acc + item.quantity, 0);
+            countEl.textContent = `${totalQty} ${totalQty === 1 ? 'item' : 'itens'}`;
+
+            if (items.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-xs text-gray-500 text-center py-3 border border-dashed border-brand-border/60 rounded-lg">
+                        Nenhum sabor selecionado.
+                    </div>
+                `;
+                return;
+            }
+
+            listEl.innerHTML = items.map(item => `
+                <div class="flex items-center justify-between gap-3 bg-black/20 rounded-lg px-3 py-2">
+                    <div class="min-w-0 flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-md bg-brand-accentOrange/15 text-brand-accentOrange flex items-center justify-center text-xs font-black shrink-0">${item.quantity}</span>
+                        <span class="text-sm font-semibold text-white truncate">${escapeHtml(item.name)}</span>
+                    </div>
+                    <span class="text-xs font-bold text-gray-300 shrink-0">${formatBRL(item.subtotal)}</span>
+                </div>
+            `).join('');
         }
 
         async function submitNewOrder() {

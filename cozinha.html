@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="js/db.js"></script>
+    <script src="js/sidebar.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -81,13 +82,13 @@
             <p class="text-gray-400 text-sm">Monitorização e preparação de esfihas em tempo real.</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,.9fr)] gap-6">
             <!-- Fila -->
             <div class="bg-brand-card p-4 rounded-2xl border border-brand-border h-[600px] flex flex-col">
                 <h3
-                    class="font-bold text-white text-sm border-b border-brand-border pb-3 mb-4 flex justify-between items-center">
+                    class="font-bold text-white text-base border-b border-brand-border pb-3 mb-4 flex justify-between items-center">
                     <span>Fila de Espera</span>
-                    <span id="c-pendente" class="bg-red-500/15 text-red-400 px-2.5 py-0.5 rounded-full text-xs">0</span>
+                    <span id="c-pendente" class="bg-red-500/15 text-red-400 px-2.5 py-0.5 rounded-full text-sm">0</span>
                 </h3>
                 <div id="list-pendente" class="flex-1 space-y-3 overflow-y-auto"></div>
             </div>
@@ -95,48 +96,75 @@
             <!-- No Forno -->
             <div class="bg-brand-card p-4 rounded-2xl border border-brand-border h-[600px] flex flex-col">
                 <h3
-                    class="font-bold text-white text-sm border-b border-brand-border pb-3 mb-4 flex justify-between items-center">
+                    class="font-bold text-white text-base border-b border-brand-border pb-3 mb-4 flex justify-between items-center">
                     <span>No Forno / Preparando</span>
                     <span id="c-preparo"
-                        class="bg-orange-500/15 text-orange-400 px-2.5 py-0.5 rounded-full text-xs">0</span>
+                        class="bg-orange-500/15 text-orange-400 px-2.5 py-0.5 rounded-full text-sm">0</span>
                 </h3>
                 <div id="list-preparo" class="flex-1 space-y-3 overflow-y-auto"></div>
-            </div>
-
-            <!-- Pronto -->
-            <div class="bg-brand-card p-4 rounded-2xl border border-brand-border h-[600px] flex flex-col">
-                <h3
-                    class="font-bold text-white text-sm border-b border-brand-border pb-3 mb-4 flex justify-between items-center">
-                    <span>Pronto para Entrega</span>
-                    <span id="c-pronto"
-                        class="bg-emerald-500/15 text-emerald-400 px-2.5 py-0.5 rounded-full text-xs">0</span>
-                </h3>
-                <div id="list-pronto" class="flex-1 space-y-3 overflow-y-auto"></div>
             </div>
         </div>
     </main>
 
     <script>
         let orders = [];
+        let flavors = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
             try { await initDb(); }
             catch (e) { showToast('Erro de conexão', 'Falha ao conectar ao servidor.', true); console.error(e); return; }
-            onDataChange(() => { orders = getOrders(); renderKanban(); });
-            orders = getOrders();
+            onDataChange(() => { syncCache(); renderKanban(); });
+            syncCache();
             renderKanban();
             lucide.createIcons();
         });
 
+        function syncCache() {
+            orders = getOrders();
+            flavors = getFlavors();
+        }
+
+        function getItemCategory(item) {
+            const flavor = flavors.find(f => f.id === item.flavorId)
+                || flavors.find(f => String(f.name || '').toLowerCase() === String(item.name || '').toLowerCase());
+            return flavor && flavor.category === 'Doce' ? 'Doce' : 'Salgada';
+        }
+
+        function renderGroupedItems(items) {
+            const groups = [
+                { title: 'Salgadas', items: [] },
+                { title: 'Doces', items: [] },
+            ];
+
+            (items || []).forEach(item => {
+                const target = getItemCategory(item) === 'Doce' ? groups[1] : groups[0];
+                target.items.push(item);
+            });
+
+            return groups
+                .filter(group => group.items.length > 0)
+                .map(group => `
+                    <div class="space-y-1.5">
+                        <div class="text-[11px] uppercase tracking-wider text-gray-500 font-black">${group.title}</div>
+                        <div class="space-y-1.5">
+                            ${group.items.map(i => `
+                                <div class="flex items-start gap-3 text-base md:text-lg leading-snug">
+                                    <span class="text-brand-accentOrange font-black shrink-0">${i.quantity}x</span>
+                                    <span class="text-white font-semibold">${escapeHtml(i.name)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('');
+        }
+
         function renderKanban() {
             const listPendente = document.getElementById('list-pendente');
             const listPreparo  = document.getElementById('list-preparo');
-            const listPronto   = document.getElementById('list-pronto');
 
             listPendente.innerHTML = '';
             listPreparo.innerHTML  = '';
-            listPronto.innerHTML   = '';
-            let p = 0, pr = 0, pt = 0;
+            let p = 0, pr = 0;
 
             // Mostra pedidos ativos (não entregues/cancelados). Se o pedido não é de hoje,
             // ainda assim deve aparecer (ex: pedido pendente que ficou para trás).
@@ -145,11 +173,9 @@
                 const isOld = !isToday(order.createdAt);
 
                 const card = document.createElement('div');
-                card.className = "bg-brand-dark p-4 rounded-xl border border-brand-border space-y-3";
+                card.className = "bg-brand-dark p-5 rounded-xl border border-brand-border space-y-4";
                 if (isOld) card.classList.add('opacity-80');
-                const itemsList = order.items.map(i =>
-                    `<div class="flex justify-between text-xs"><span>${escapeHtml(i.name)}</span><span class="text-brand-accentOrange font-black">x${i.quantity}</span></div>`
-                ).join('');
+                const itemsList = renderGroupedItems(order.items);
 
                 const prev = previousStatus(order.status);
                 const next = nextStatus(order.status);
@@ -162,22 +188,20 @@
 
                 card.innerHTML = `
                     <div>
-                        <span class="text-brand-accentOrange font-bold text-sm">${escapeHtml(order.id)}</span>
-                        <h4 class="text-white font-bold text-xs">${escapeHtml(order.customer)}</h4>
+                        <span class="text-brand-accentOrange font-bold text-base">${escapeHtml(order.id)}</span>
+                        <h4 class="text-white font-bold text-lg">${escapeHtml(order.customer)}</h4>
                         ${isOld ? `<div class="text-[10px] text-gray-500 mt-0.5">Pedido antigo • ${formatTime(order.createdAt)}</div>` : ``}
                     </div>
-                    <div class="border-t border-brand-border/40 pt-2 space-y-1">${itemsList}</div>
+                    <div class="border-t border-brand-border/40 pt-3 space-y-3">${itemsList}</div>
                     <div class="flex gap-2">${backBtn}${fwdBtn}</div>
                 `;
 
                 if (order.status === 'Pendente')       { listPendente.appendChild(card); p++; }
                 else if (order.status === 'Em Preparo') { listPreparo.appendChild(card);  pr++; }
-                else if (order.status === 'Pronto')     { listPronto.appendChild(card);   pt++; }
             });
 
             document.getElementById('c-pendente').textContent = p;
             document.getElementById('c-preparo').textContent  = pr;
-            document.getElementById('c-pronto').textContent   = pt;
         }
 
         async function advance(id) {
