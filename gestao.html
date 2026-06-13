@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Estratégica - Esfiha Delivery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script>
+        tailwind.config = { theme: { extend: { colors: { brand: {
+            dark: '#120c08', card: '#1a120e', border: '#2a1e17', accentOrange: '#f97316'
+        }}}}};
+    </script>
+    <style>
+        html { scroll-behavior: smooth; }
+        .card { background:#fff; border:1px solid #e5e7eb; border-radius:1rem; box-shadow:0 8px 24px rgb(15 23 42 / .05); }
+        .kpi-value { color:#111827; font-size:1.55rem; line-height:1.2; font-weight:900; }
+        .section-title { color:#111827; font-size:1.05rem; font-weight:900; }
+        .muted { color:#6b7280; }
+        .field { width:100%; background:#fff; color:#111827; border:1px solid #d1d5db; border-radius:.75rem; padding:.7rem .85rem; font-size:.875rem; outline:none; }
+        .field:focus { border-color:#f97316; box-shadow:0 0 0 3px rgb(249 115 22 / .12); }
+        .btn { display:inline-flex; align-items:center; justify-content:center; gap:.45rem; border-radius:.75rem; padding:.7rem 1rem; font-size:.8rem; font-weight:800; transition:.2s; }
+        .btn-primary { color:#fff; background:linear-gradient(90deg,#dc2626,#f97316); }
+        .btn-secondary { color:#374151; background:#fff; border:1px solid #d1d5db; }
+        .tab.active { color:#fff; background:#111827; }
+        .tab-panel { display:none; }
+        .tab-panel.active { display:block; }
+        .chart-wrap { position:relative; height:280px; }
+        .progress { height:.55rem; border-radius:999px; background:#e5e7eb; overflow:hidden; }
+        .progress > div { height:100%; border-radius:inherit; background:linear-gradient(90deg,#dc2626,#f97316); }
+        @media print {
+            aside, .no-print, #toast { display:none !important; }
+            main { padding:0 !important; }
+            .tab-panel { display:block !important; page-break-inside:avoid; }
+            .card { box-shadow:none; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col md:flex-row">
+    <aside class="w-full md:w-64 bg-white border-r border-gray-200 flex flex-col shrink-0 p-5 z-20">
+        <div>
+            <div class="flex items-center gap-3 mb-8">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center"><span class="text-white font-black text-xl">S</span></div>
+                <div><span class="text-xs uppercase text-orange-500 tracking-wider font-bold">Esfiha</span><h1 class="font-black">Gestão</h1></div>
+            </div>
+            <nav class="space-y-1">
+                <a href="index.html" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-100 font-semibold text-sm"><i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard</a>
+                <a href="pedidos.html" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-100 font-semibold text-sm"><i data-lucide="shopping-cart" class="w-5 h-5"></i> Pedidos</a>
+                <a href="financeiro.html" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-100 font-semibold text-sm"><i data-lucide="dollar-sign" class="w-5 h-5"></i> Financeiro</a>
+                <a href="gestao.html" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white font-semibold text-sm"><i data-lucide="brain-circuit" class="w-5 h-5"></i> Gestão</a>
+            </nav>
+        </div>
+    </aside>
+
+    <main class="flex-1 min-w-0 p-4 md:p-8 space-y-6">
+        <header class="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+            <div>
+                <p class="text-xs font-black uppercase tracking-[.18em] text-orange-500">Visão executiva</p>
+                <h2 class="text-2xl md:text-3xl font-black text-gray-900">Central de Gestão</h2>
+                <p class="text-sm text-gray-500 mt-1">Vendas, clientes, lucro, marketing, estoque e crescimento em tempo real.</p>
+            </div>
+            <div class="flex flex-wrap gap-2 no-print">
+                <input id="export-from" type="date" class="field !w-auto" title="Data inicial">
+                <input id="export-to" type="date" class="field !w-auto" title="Data final">
+                <button class="btn btn-secondary" onclick="exportData()"><i data-lucide="sheet" class="w-4 h-4"></i> Excel/CSV</button>
+                <button class="btn btn-secondary" onclick="window.print()"><i data-lucide="file-text" class="w-4 h-4"></i> PDF</button>
+                <button class="btn btn-primary" onclick="loadAll()"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Atualizar</button>
+            </div>
+        </header>
+
+        <section id="kpis" class="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3"></section>
+
+        <section class="grid lg:grid-cols-3 gap-4" id="comparisons"></section>
+
+        <nav class="flex gap-2 overflow-x-auto pb-1 no-print" id="tabs">
+            <button class="tab active btn btn-secondary whitespace-nowrap" data-tab="sales">Vendas</button>
+            <button class="tab btn btn-secondary whitespace-nowrap" data-tab="customers">Clientes</button>
+            <button class="tab btn btn-secondary whitespace-nowrap" data-tab="products">Produtos</button>
+            <button class="tab btn btn-secondary whitespace-nowrap" data-tab="finance">Lucro</button>
+            <button class="tab btn btn-secondary whitespace-nowrap" data-tab="marketing">Marketing</button>
+            <button class="tab btn btn-secondary whitespace-nowrap" data-tab="stock">Estoque</button>
+            <button class="tab btn btn-secondary whitespace-nowrap" data-tab="goals">Metas e IA</button>
+        </nav>
+
+        <section id="sales" class="tab-panel active space-y-4">
+            <div class="grid xl:grid-cols-2 gap-4">
+                <div class="card p-5"><h3 class="section-title">Faturamento por dia</h3><p class="muted text-xs mb-4">Evolução dos últimos 30 dias</p><div class="chart-wrap"><canvas id="daily-chart"></canvas></div></div>
+                <div class="card p-5"><h3 class="section-title">Faturamento por semana</h3><p class="muted text-xs mb-4">Consolidado das últimas 12 semanas</p><div class="chart-wrap"><canvas id="weekly-chart"></canvas></div></div>
+                <div class="card p-5"><h3 class="section-title">Histórico mensal</h3><p class="muted text-xs mb-4">Receita e ticket médio por mês</p><div class="chart-wrap"><canvas id="monthly-chart"></canvas></div></div>
+                <div class="card p-5"><h3 class="section-title">Pedidos por dia da semana</h3><p id="best-day" class="text-xs text-orange-600 font-bold mb-4"></p><div class="chart-wrap"><canvas id="weekday-chart"></canvas></div></div>
+            </div>
+            <div class="card p-5">
+                <h3 class="section-title mb-4">Ticket médio</h3>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div class="rounded-xl bg-orange-50 p-4"><p class="muted text-xs font-bold uppercase">Geral no mês</p><p id="ticket-general" class="kpi-value mt-1"></p></div>
+                    <div class="md:col-span-2 overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left text-gray-500 border-b"><th class="py-2">Canal</th><th>Pedidos</th><th>Receita</th><th>Ticket</th></tr></thead><tbody id="ticket-channels"></tbody></table></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="customers" class="tab-panel space-y-4">
+            <div id="customer-kpis" class="grid grid-cols-2 lg:grid-cols-5 gap-3"></div>
+            <div class="card p-5 overflow-x-auto">
+                <h3 class="section-title mb-4">Top 20 clientes</h3>
+                <table class="w-full text-sm"><thead><tr class="text-left text-gray-500 border-b"><th class="py-3">#</th><th>Nome</th><th>Total gasto</th><th>Pedidos</th><th>Última compra</th></tr></thead><tbody id="customer-ranking"></tbody></table>
+            </div>
+        </section>
+
+        <section id="products" class="tab-panel space-y-4">
+            <div class="grid xl:grid-cols-2 gap-4">
+                <div class="card p-5"><h3 class="section-title mb-4">Top 10 sabores</h3><div id="products-top"></div></div>
+                <div class="card p-5"><h3 class="section-title mb-4">Menos vendidos</h3><div id="products-bottom"></div></div>
+                <div class="card p-5"><h3 class="section-title mb-4">Maior margem</h3><div id="products-margin-high"></div></div>
+                <div class="card p-5"><h3 class="section-title mb-4">Menor margem</h3><div id="products-margin-low"></div></div>
+            </div>
+            <div class="card p-5"><h3 class="section-title mb-4">Top 10 combos</h3><div id="products-combos"></div></div>
+        </section>
+
+        <section id="finance" class="tab-panel space-y-4">
+            <div id="financial-kpis" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+            <div class="card p-5"><h3 class="section-title">Evolução da margem</h3><p class="muted text-xs mb-4">Margem líquida consolidada</p><div class="chart-wrap"><canvas id="margin-chart"></canvas></div></div>
+        </section>
+
+        <section id="marketing" class="tab-panel space-y-4">
+            <div class="grid xl:grid-cols-2 gap-4">
+                <div class="card p-5"><h3 class="section-title mb-4">Origem dos pedidos</h3><div class="chart-wrap"><canvas id="source-chart"></canvas></div></div>
+                <div class="card p-5 overflow-x-auto"><h3 class="section-title mb-4">Desempenho por canal</h3><table class="w-full text-sm"><thead><tr class="text-left text-gray-500 border-b"><th class="py-2">Origem</th><th>Pedidos</th><th>Receita</th><th>Ticket</th><th>Conversão</th></tr></thead><tbody id="marketing-table"></tbody></table><p class="text-[10px] text-gray-500 mt-3">Conversão exige o cadastro de leads/visualizações de cada canal.</p></div>
+            </div>
+            <div class="card p-5">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4"><div><h3 class="section-title">Campanhas</h3><p class="muted text-xs">Investimento, receita e ROI</p></div><button class="btn btn-primary no-print" onclick="toggleForm('campaign-form')"><i data-lucide="plus" class="w-4 h-4"></i> Nova campanha</button></div>
+                <form id="campaign-form" class="hidden grid md:grid-cols-3 gap-3 mb-5 p-4 rounded-xl bg-gray-50">
+                    <input class="field" name="name" placeholder="Nome da campanha" required>
+                    <select class="field" name="channel"><option>Instagram</option><option>WhatsApp</option><option>Google</option><option>Indicação</option><option>iFood</option><option>Site</option></select>
+                    <input class="field" name="investment" type="number" step=".01" placeholder="Investimento">
+                    <input class="field" name="ordersGenerated" type="number" placeholder="Pedidos gerados">
+                    <input class="field" name="revenueGenerated" type="number" step=".01" placeholder="Receita gerada">
+                    <button class="btn btn-primary" type="submit">Salvar campanha</button>
+                </form>
+                <div id="campaign-list" class="grid md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+            </div>
+        </section>
+
+        <section id="stock" class="tab-panel space-y-4">
+            <div class="card p-5">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4"><div><h3 class="section-title">Ingredientes e alertas</h3><p class="muted text-xs">Estoque é baixado quando o pedido é entregue</p></div><button class="btn btn-primary no-print" onclick="toggleForm('ingredient-form')"><i data-lucide="plus" class="w-4 h-4"></i> Ingrediente</button></div>
+                <form id="ingredient-form" class="hidden grid md:grid-cols-5 gap-3 mb-5 p-4 rounded-xl bg-gray-50">
+                    <input class="field" name="name" placeholder="Nome" required>
+                    <input class="field" name="unit" placeholder="Unidade (kg, g, un)" required>
+                    <input class="field" name="costPerUnit" type="number" step=".0001" placeholder="Custo/unidade">
+                    <input class="field" name="currentStock" type="number" step=".001" placeholder="Estoque atual">
+                    <input class="field" name="minimumStock" type="number" step=".001" placeholder="Estoque mínimo">
+                    <button class="btn btn-primary md:col-span-5" type="submit">Cadastrar ingrediente</button>
+                </form>
+                <div id="stock-list" class="grid md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+            </div>
+            <div class="card p-5">
+                <h3 class="section-title">Ficha técnica por sabor</h3>
+                <p class="muted text-xs mb-4">Selecione o sabor e informe o consumo de cada ingrediente por unidade vendida.</p>
+                <div class="grid lg:grid-cols-[280px_1fr] gap-4">
+                    <select id="recipe-flavor" class="field"></select>
+                    <div><div id="recipe-items" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-2"></div><button class="btn btn-primary mt-4 no-print" onclick="saveRecipe()">Salvar ficha técnica</button></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="goals" class="tab-panel space-y-4">
+            <div class="card p-5">
+                <div class="flex flex-col md:flex-row justify-between gap-3 mb-4"><div><h3 class="section-title">Metas mensais</h3><p class="muted text-xs">Receita, lucro e pedidos</p></div><button class="btn btn-primary no-print" onclick="toggleForm('goal-form')">Editar metas</button></div>
+                <form id="goal-form" class="hidden grid md:grid-cols-4 gap-3 mb-5 p-4 rounded-xl bg-gray-50">
+                    <input class="field" name="month" type="month" required>
+                    <input class="field" name="revenueTarget" type="number" step=".01" placeholder="Meta de receita">
+                    <input class="field" name="profitTarget" type="number" step=".01" placeholder="Meta de lucro">
+                    <input class="field" name="ordersTarget" type="number" placeholder="Meta de pedidos">
+                    <button class="btn btn-primary md:col-span-4" type="submit">Salvar metas</button>
+                </form>
+                <div id="goal-cards" class="grid md:grid-cols-3 gap-4"></div>
+            </div>
+            <div class="grid xl:grid-cols-2 gap-4">
+                <div class="card p-5"><h3 class="section-title mb-4">Insights automáticos</h3><div id="insights" class="space-y-3"></div></div>
+                <div class="card p-5"><h3 class="section-title mb-4">Previsão até o fim do mês</h3><div id="forecast" class="grid grid-cols-3 gap-3"></div></div>
+            </div>
+            <div class="card p-5"><h3 class="section-title mb-4">Indicadores estratégicos</h3><div id="strategic" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div></div>
+        </section>
+    </main>
+
+    <div id="toast" class="fixed bottom-5 right-5 hidden bg-gray-900 text-white rounded-xl px-5 py-3 shadow-2xl text-sm font-bold z-50"></div>
+
+    <script>
+        let data = null, ingredients = [], recipes = [], charts = {};
+        const money = value => Number(value || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+        const number = value => Number(value || 0).toLocaleString('pt-BR', { maximumFractionDigits:1 });
+        const percent = value => `${number(value)}%`;
+        const dateBR = value => value ? new Date(value).toLocaleDateString('pt-BR') : '—';
+        const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+        async function api(path, options={}) {
+            const response = await fetch(path, { headers:{'Content-Type':'application/json'}, ...options, body:options.body ? JSON.stringify(options.body) : undefined });
+            if (!response.ok) { const body = await response.json().catch(()=>({})); throw new Error(body.error || `Erro ${response.status}`); }
+            return response.status === 204 ? null : response.json();
+        }
+        function toast(message) { const el=document.getElementById('toast'); el.textContent=message; el.classList.remove('hidden'); setTimeout(()=>el.classList.add('hidden'),2600); }
+        function toggleForm(id) { document.getElementById(id).classList.toggle('hidden'); }
+        function exportData() {
+            const params=new URLSearchParams(), from=document.getElementById('export-from').value, to=document.getElementById('export-to').value;
+            if(from)params.set('from',from); if(to)params.set('to',to);
+            location.href=`/api/management/export.csv?${params}`;
+        }
+        function kpi(label, value, sub='', tone='orange') {
+            return `<article class="card p-4"><div class="flex items-start justify-between gap-2"><p class="text-[10px] uppercase tracking-wider font-black text-gray-500">${label}</p><span class="w-2 h-2 rounded-full bg-${tone}-500"></span></div><p class="kpi-value mt-2">${value}</p><p class="text-[11px] text-gray-500 mt-1">${sub}</p></article>`;
+        }
+        function createChart(id, type, labels, datasets, options={}) {
+            if (charts[id]) charts[id].destroy();
+            charts[id] = new Chart(document.getElementById(id), {
+                type, data:{ labels, datasets }, options:{ responsive:true, maintainAspectRatio:false,
+                    plugins:{ legend:{ display:datasets.length>1, labels:{ usePointStyle:true, boxWidth:8 }}},
+                    scales:{ x:{ grid:{display:false}, ticks:{maxRotation:0, autoSkip:true}}, y:{beginAtZero:true, grid:{color:'#f3f4f6'}}}, ...options }
+            });
+        }
+        function lineDataset(label, values, color='#f97316') { return { label, data:values, borderColor:color, backgroundColor:color+'20', fill:true, tension:.35, pointRadius:2, borderWidth:2.5 }; }
+        function productRows(rows) {
+            if (!rows.length) return '<p class="muted text-sm">Sem dados suficientes.</p>';
+            return rows.map((r,i)=>`<div class="flex items-center gap-3 py-2.5 border-b last:border-0"><span class="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center font-black text-xs">${i+1}</span><div class="min-w-0 flex-1"><p class="font-bold text-sm truncate">${escapeHtml(r.name)}</p><p class="text-[11px] text-gray-500">${r.quantity} un · ${money(r.revenue)}</p></div><div class="text-right"><p class="font-black text-sm">${money(r.profit)}</p><p class="text-[10px] text-gray-500">${percent(r.margin)} margem</p></div></div>`).join('');
+        }
+        function goalCard(label, goal, format) {
+            const progress=Math.max(0,Math.min(100,goal.progress||0));
+            return `<div class="rounded-xl border p-4"><div class="flex justify-between gap-2"><p class="font-black">${label}</p><span class="font-black text-orange-600">${percent(progress)}</span></div><p class="text-xs text-gray-500 mt-2">Atual: ${format(goal.current)} · Meta: ${format(goal.target)}</p><div class="progress mt-3"><div style="width:${progress}%"></div></div></div>`;
+        }
+
+        function render() {
+            const k=data.kpis;
+            document.getElementById('kpis').innerHTML = [
+                kpi('Faturamento do mês',money(k.revenue),`${percent(k.growth)} vs mês anterior`,k.growth>=0?'emerald':'red'),
+                kpi('Lucro do mês',money(k.profit),`${percent(data.financial.margin)} de margem`,k.profit>=0?'emerald':'red'),
+                kpi('Ticket médio',money(k.ticket),'Receita ÷ pedidos'),
+                kpi('Número de pedidos',number(k.orders),'Entregues no mês'),
+                kpi('Clientes no mês',number(k.customers),`${k.newCustomers} novos`),
+                kpi('Clientes recorrentes',number(k.recurringCustomers),`${percent(data.customers.retentionRate)} retenção`),
+                kpi('Crescimento mensal',percent(k.growth),'Em relação ao mês anterior',k.growth>=0?'emerald':'red'),
+                kpi('Meta mensal',percent(k.revenueGoalProgress),'Percentual atingido',k.revenueGoalProgress>=80?'emerald':'amber'),
+            ].join('');
+            document.getElementById('comparisons').innerHTML=data.comparisons.map(c=>`<article class="card p-4"><p class="font-black text-sm">${c.label}</p><div class="grid grid-cols-2 gap-3 mt-3"><div><p class="text-[10px] text-gray-500 uppercase">Receita</p><p class="font-black">${money(c.current.revenue)}</p><p class="text-xs font-bold ${c.revenueDelta>=0?'text-emerald-600':'text-red-600'}">${c.revenueDelta>=0?'↑':'↓'} ${percent(Math.abs(c.revenueDelta))}</p></div><div><p class="text-[10px] text-gray-500 uppercase">Pedidos</p><p class="font-black">${c.current.orders}</p><p class="text-xs font-bold ${c.ordersDelta>=0?'text-emerald-600':'text-red-600'}">${c.ordersDelta>=0?'↑':'↓'} ${percent(Math.abs(c.ordersDelta))}</p></div></div></article>`).join('');
+
+            createChart('daily-chart','line',data.sales.daily.map(x=>dateBR(x.date).slice(0,5)),[lineDataset('Receita',data.sales.daily.map(x=>x.revenue))]);
+            createChart('weekly-chart','bar',data.sales.weekly.map(x=>dateBR(x.date)),[{label:'Receita',data:data.sales.weekly.map(x=>x.revenue),backgroundColor:'#f97316',borderRadius:8}]);
+            createChart('monthly-chart','line',data.sales.monthly.map(x=>new Date(x.date).toLocaleDateString('pt-BR',{month:'short',year:'2-digit'})),[
+                lineDataset('Receita',data.sales.monthly.map(x=>x.revenue)),
+                {...lineDataset('Ticket',data.tickets.monthly.map(x=>x.ticket),'#2563eb'),yAxisID:'y'}
+            ]);
+            createChart('weekday-chart','bar',data.sales.weekdays.map(x=>x.name.slice(0,3)),[{label:'Pedidos',data:data.sales.weekdays.map(x=>x.orders),backgroundColor:'#111827',borderRadius:8}]);
+            const best=[...data.sales.weekdays].sort((a,b)=>b.revenue-a.revenue)[0];
+            document.getElementById('best-day').textContent=best && best.orders ? `Melhor dia: ${best.name} (${best.orders} pedidos)` : 'Aguardando histórico de vendas.';
+            document.getElementById('ticket-general').textContent=money(data.tickets.general);
+            document.getElementById('ticket-channels').innerHTML=data.tickets.byChannel.map(x=>`<tr class="border-b"><td class="py-2 font-bold">${escapeHtml(x.channel)}</td><td>${x.orders}</td><td>${money(x.revenue)}</td><td class="font-black">${money(x.ticket)}</td></tr>`).join('');
+
+            const c=data.customers;
+            document.getElementById('customer-kpis').innerHTML=[
+                kpi('Clientes novos',c.new,'Primeira compra no mês'),
+                kpi('Recorrentes',c.recurring,'Mais de uma compra'),
+                kpi('Retenção',percent(c.retentionRate),'Recorrentes ÷ total'),
+                kpi('Frequência média',number(c.averageFrequency),'Compras por cliente'),
+                kpi('LTV médio',money(c.ltv),'Valor por cliente')
+            ].join('');
+            document.getElementById('customer-ranking').innerHTML=c.ranking.map((x,i)=>`<tr class="border-b"><td class="py-3 font-black text-orange-600">${i+1}</td><td class="font-bold">${escapeHtml(x.name)}</td><td>${money(x.spent)}</td><td>${x.orders}</td><td>${dateBR(x.lastBuy)}</td></tr>`).join('');
+
+            document.getElementById('products-top').innerHTML=productRows(data.products.top);
+            document.getElementById('products-bottom').innerHTML=productRows(data.products.bottom);
+            document.getElementById('products-margin-high').innerHTML=productRows(data.products.highestMargin);
+            document.getElementById('products-margin-low').innerHTML=productRows(data.products.lowestMargin);
+            document.getElementById('products-combos').innerHTML=productRows(data.products.combos);
+
+            const f=data.financial;
+            document.getElementById('financial-kpis').innerHTML=[
+                kpi('Receita bruta',money(f.grossRevenue)),
+                kpi('CPV ingredientes',money(f.cogs)),
+                kpi('Despesas operacionais',money(f.operationalExpenses)),
+                kpi('Embalagens',money(f.packaging)),
+                kpi('Delivery',money(f.delivery)),
+                kpi('Marketing',money(f.marketing)),
+                kpi('Taxas',money(f.fees)),
+                kpi('Lucro líquido',money(f.netProfit),percent(f.margin),f.netProfit>=0?'emerald':'red')
+            ].join('');
+            createChart('margin-chart','line',f.marginEvolution.map(x=>new Date(x.date).toLocaleDateString('pt-BR',{month:'short'})),[lineDataset('Margem %',f.marginEvolution.map(x=>x.margin),'#16a34a')]);
+
+            createChart('source-chart','doughnut',data.marketing.map(x=>x.source),[{data:data.marketing.map(x=>x.revenue),backgroundColor:['#f97316','#dc2626','#2563eb','#16a34a','#9333ea','#eab308','#64748b']}],{scales:{}});
+            document.getElementById('marketing-table').innerHTML=data.marketing.map(x=>`<tr class="border-b"><td class="py-2 font-bold">${escapeHtml(x.source)}</td><td>${x.orders}</td><td>${money(x.revenue)}</td><td>${money(x.ticket)}</td><td>${x.conversion==null?'N/D':percent(x.conversion)}</td></tr>`).join('');
+            document.getElementById('campaign-list').innerHTML=data.campaigns.length?data.campaigns.map(x=>`<article class="rounded-xl border p-4"><div class="flex justify-between gap-2"><div><p class="font-black">${escapeHtml(x.name)}</p><p class="text-xs text-gray-500">${escapeHtml(x.channel)}</p></div><button class="text-red-500 no-print" onclick="removeCampaign(${x.id})"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div><div class="grid grid-cols-3 gap-2 mt-4 text-xs"><div><p class="text-gray-500">Invest.</p><b>${money(x.investment)}</b></div><div><p class="text-gray-500">Receita</p><b>${money(x.revenueGenerated)}</b></div><div><p class="text-gray-500">ROI</p><b class="${x.roi>=0?'text-emerald-600':'text-red-600'}">${percent(x.roi)}</b></div></div></article>`).join(''):'<p class="muted text-sm">Nenhuma campanha cadastrada.</p>';
+
+            renderStock();
+            document.getElementById('goal-cards').innerHTML=[
+                goalCard('Receita',data.goals.revenue,money), goalCard('Lucro',data.goals.profit,money), goalCard('Pedidos',data.goals.orders,number)
+            ].join('');
+            const goalForm=document.getElementById('goal-form'); goalForm.month.value=String(data.goals.month).slice(0,7);
+            goalForm.revenueTarget.value=data.goals.revenue.target||''; goalForm.profitTarget.value=data.goals.profit.target||''; goalForm.ordersTarget.value=data.goals.orders.target||'';
+            document.getElementById('insights').innerHTML=data.insights.map(x=>`<div class="flex gap-3 rounded-xl bg-orange-50 p-3"><i data-lucide="sparkles" class="w-5 h-5 text-orange-500 shrink-0"></i><p class="text-sm font-semibold">${escapeHtml(x)}</p></div>`).join('');
+            document.getElementById('forecast').innerHTML=[
+                kpi('Faturamento',money(data.forecast.revenue),'Projeção'),kpi('Lucro',money(data.forecast.profit),'Projeção'),kpi('Pedidos',number(data.forecast.orders),'Projeção')
+            ].join('');
+            const s=data.strategic;
+            document.getElementById('strategic').innerHTML=[
+                kpi('Ticket médio',money(s.ticket)),kpi('CAC',money(s.cac)),kpi('LTV',money(s.ltv)),
+                kpi('Taxa de recompra',percent(s.repurchaseRate)),kpi('Margem líquida',percent(s.netMargin)),
+                kpi('Crescimento',percent(s.monthlyGrowth)),kpi('ROI campanhas',percent(s.campaignRoi)),kpi('Clientes ativos',s.activeCustomers)
+            ].join('');
+            lucide.createIcons();
+        }
+
+        function renderStock() {
+            document.getElementById('stock-list').innerHTML=ingredients.length?ingredients.map(i=>`<article class="rounded-xl border p-4 ${i.lowStock?'border-red-300 bg-red-50':''}"><div class="flex justify-between gap-2"><div><p class="font-black">${escapeHtml(i.name)}</p><p class="text-xs text-gray-500">${money(i.costPerUnit)} / ${escapeHtml(i.unit)}</p></div>${i.lowStock?'<span class="text-[10px] font-black text-red-600 uppercase">Estoque baixo</span>':''}</div><div class="flex items-end justify-between mt-4"><div><p class="text-xs text-gray-500">Atual / mínimo</p><p class="font-black">${number(i.currentStock)} / ${number(i.minimumStock)} ${escapeHtml(i.unit)}</p></div><button class="btn btn-secondary no-print !py-2" onclick="adjustStock(${i.id})">Ajustar</button></div></article>`).join(''):'<p class="muted text-sm">Cadastre os ingredientes para ativar o controle de estoque.</p>';
+        }
+        function renderRecipe() {
+            const flavorId=Number(document.getElementById('recipe-flavor').value);
+            const recipe=recipes.find(r=>r.flavorId===flavorId);
+            const quantities=new Map((recipe?.ingredients||[]).map(x=>[x.ingredientId,x.quantity]));
+            document.getElementById('recipe-items').innerHTML=ingredients.map(i=>`<label class="rounded-xl border p-3"><span class="block font-bold text-sm">${escapeHtml(i.name)}</span><span class="text-[10px] text-gray-500">Quantidade em ${escapeHtml(i.unit)}</span><input class="field mt-2 recipe-qty" data-id="${i.id}" type="number" min="0" step=".001" value="${quantities.get(i.id)||''}" placeholder="0"></label>`).join('');
+        }
+        async function saveRecipe() {
+            const flavorId=Number(document.getElementById('recipe-flavor').value);
+            const items=[...document.querySelectorAll('.recipe-qty')].map(x=>({ingredientId:Number(x.dataset.id),quantity:Number(x.value)})).filter(x=>x.quantity>0);
+            await api(`/api/management/recipes/${flavorId}`,{method:'PUT',body:{ingredients:items}}); toast('Ficha técnica salva'); await loadSupport();
+        }
+        async function adjustStock(id) {
+            const value=prompt('Informe o ajuste. Use valor negativo para saída (ex.: -2) ou positivo para entrada (ex.: 10).');
+            if (value===null || !Number(value)) return;
+            await api(`/api/management/ingredients/${id}/movements`,{method:'POST',body:{delta:Number(value),reason:'Ajuste manual'}}); toast('Estoque atualizado'); await loadAll();
+        }
+        async function removeCampaign(id) { if(!confirm('Excluir esta campanha?'))return; await api(`/api/management/campaigns/${id}`,{method:'DELETE'}); await loadAll(); }
+        async function loadSupport() {
+            [ingredients,recipes]=await Promise.all([api('/api/management/ingredients'),api('/api/management/recipes')]);
+            const select=document.getElementById('recipe-flavor'), current=select.value;
+            select.innerHTML=recipes.map(r=>`<option value="${r.flavorId}">${escapeHtml(r.flavorName)}</option>`).join('');
+            if(current)select.value=current; renderRecipe();
+        }
+        async function loadAll() {
+            try { [data]=await Promise.all([api('/api/management/analytics'),loadSupport()]); render(); }
+            catch(e){ console.error(e); toast(e.message); }
+        }
+
+        document.getElementById('tabs').addEventListener('click',e=>{
+            const button=e.target.closest('[data-tab]'); if(!button)return;
+            document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===button));
+            document.querySelectorAll('.tab-panel').forEach(x=>x.classList.toggle('active',x.id===button.dataset.tab));
+        });
+        document.getElementById('recipe-flavor').addEventListener('change',renderRecipe);
+        document.getElementById('ingredient-form').addEventListener('submit',async e=>{
+            e.preventDefault(); const b=Object.fromEntries(new FormData(e.target)); await api('/api/management/ingredients',{method:'POST',body:b}); e.target.reset(); e.target.classList.add('hidden'); toast('Ingrediente cadastrado'); await loadAll();
+        });
+        document.getElementById('campaign-form').addEventListener('submit',async e=>{
+            e.preventDefault(); const b=Object.fromEntries(new FormData(e.target)); await api('/api/management/campaigns',{method:'POST',body:b}); e.target.reset(); e.target.classList.add('hidden'); toast('Campanha cadastrada'); await loadAll();
+        });
+        document.getElementById('goal-form').addEventListener('submit',async e=>{
+            e.preventDefault(); const b=Object.fromEntries(new FormData(e.target)); await api(`/api/management/goals/${b.month}`,{method:'PUT',body:b}); e.target.classList.add('hidden'); toast('Metas atualizadas'); await loadAll();
+        });
+        document.addEventListener('DOMContentLoaded',()=>{ lucide.createIcons(); loadAll(); });
+    </script>
+</body>
+</html>

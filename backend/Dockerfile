@@ -15,7 +15,7 @@ ENV FRONTEND_DIR=/app/frontend
 # Copia o frontend para dentro da imagem (permite rodar sem bind-mounts)
 WORKDIR /app
 RUN mkdir -p /app/frontend
-COPY index.html pedidos.html cozinha.html sabores.html clientes.html relatorios.html financeiro.html /app/frontend/
+COPY index.html pedidos.html cozinha.html sabores.html clientes.html relatorios.html financeiro.html gestao.html /app/frontend/
 COPY js /app/frontend/js
 
 EXPOSE 3000

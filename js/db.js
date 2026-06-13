@@ -12,6 +12,20 @@
 const API_BASE = (location.origin && location.origin !== 'null') ? location.origin : 'http://localhost:3000';
 const WS_URL   = API_BASE.replace(/^http/, 'ws') + '/ws';
 
+function cleanTrackingParamsFromUrl() {
+    const params = new URLSearchParams(location.search);
+    const hadTrackingParams = params.has('origem') || params.has('destino');
+    if (!hadTrackingParams) return;
+
+    params.delete('origem');
+    params.delete('destino');
+
+    const cleanUrl = `${location.pathname}${params.toString() ? `?${params}` : ''}${location.hash}`;
+    history.replaceState(null, document.title, cleanUrl);
+}
+
+cleanTrackingParamsFromUrl();
+
 const _cache = {
     orders: [],
     flavors: [],

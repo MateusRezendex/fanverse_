@@ -11,13 +11,22 @@
             body,
             main {
                 background: #ffffff !important;
-                color: #1f2937;
+                color: #000000 !important;
             }
 
             aside,
             .bg-brand-card,
-            .bg-brand-dark {
+            .bg-brand-dark,
+            .bg-brand-dark\\/40,
+            .bg-brand-dark\\/50,
+            .bg-brand-dark\\/60,
+            .bg-brand-dark\\/95 {
                 background-color: #ffffff !important;
+            }
+
+            body,
+            body * {
+                color: #000000 !important;
             }
 
             .border-brand-border,
@@ -25,39 +34,25 @@
                 border-color: #e5e7eb !important;
             }
 
-            main .text-white,
-            aside .text-white,
-            main .text-gray-200,
-            aside .text-gray-200 {
-                color: #111827 !important;
-            }
-
-            main .text-gray-300,
-            aside .text-gray-300 {
-                color: #374151 !important;
-            }
-
-            main .text-gray-400,
-            aside .text-gray-400 {
-                color: #4b5563 !important;
-            }
-
-            main .text-gray-500,
-            aside .text-gray-500,
-            main .text-gray-600,
-            aside .text-gray-600 {
-                color: #6b7280 !important;
-            }
-
-            main input,
-            main select,
-            main textarea {
+            input,
+            select,
+            textarea,
+            option {
                 background: #ffffff !important;
-                color: #111827 !important;
+                color: #000000 !important;
+            }
+
+            input::placeholder,
+            textarea::placeholder {
+                color: #000000 !important;
+                opacity: .65;
             }
 
             main .bg-black\\/20,
-            main .bg-black\\/30 {
+            main .bg-black\\/30,
+            .bg-black\\/20,
+            .bg-black\\/30,
+            .bg-black\\/80 {
                 background-color: #f9fafb !important;
             }
 
@@ -66,18 +61,7 @@
             main .hover\\:bg-white\\/5:hover,
             main .hover\\:bg-white\\/\\[0\\.02\\]:hover {
                 background-color: #f3f4f6 !important;
-                color: #111827 !important;
-            }
-
-            .bg-gradient-to-r,
-            .bg-gradient-to-br,
-            button.bg-brand-accentOrange,
-            main button.text-white,
-            main a.text-white,
-            aside a.text-white,
-            .bg-gradient-to-r .text-white,
-            .bg-gradient-to-br .text-white {
-                color: #ffffff !important;
+                color: #000000 !important;
             }
 
             .fixed.inset-0.bg-black\\/80 {
@@ -85,7 +69,7 @@
             }
 
             #modal-novo-pedido {
-                color: #111827;
+                color: #000000;
             }
 
             #modal-novo-pedido .bg-brand-card,
@@ -104,23 +88,24 @@
             #modal-novo-pedido select,
             #modal-novo-pedido textarea {
                 background-color: #ffffff !important;
-                color: #111827 !important;
+                color: #000000 !important;
                 border-color: #d1d5db !important;
             }
 
             #modal-novo-pedido input::placeholder,
             #modal-novo-pedido textarea::placeholder {
-                color: #9ca3af !important;
+                color: #000000 !important;
+                opacity: .65;
             }
 
             #modal-novo-pedido label,
             #modal-novo-pedido .text-gray-400,
             #modal-novo-pedido .text-gray-500 {
-                color: #4b5563 !important;
+                color: #000000 !important;
             }
 
             #modal-novo-pedido .text-white {
-                color: #111827 !important;
+                color: #000000 !important;
             }
 
             #modal-novo-pedido #customer-suggest {
@@ -139,14 +124,14 @@
             }
 
             #modal-novo-pedido #order-flavors-selection button {
-                background-color: #29211d !important;
-                color: #ffffff !important;
+                background-color: #f3f4f6 !important;
+                color: #000000 !important;
             }
 
             #modal-novo-pedido #order-flavors-selection input[readonly] {
                 width: 2.25rem !important;
-                background-color: #29211d !important;
-                color: #ffffff !important;
+                background-color: #f3f4f6 !important;
+                color: #000000 !important;
                 border: 0 !important;
                 border-radius: .5rem;
                 font-weight: 900;
@@ -154,7 +139,7 @@
 
             #modal-novo-pedido button.bg-gradient-to-r,
             #modal-novo-pedido button.bg-brand-accentOrange {
-                color: #ffffff !important;
+                color: #000000 !important;
             }
 
             .sidebar-toggle {
@@ -163,7 +148,7 @@
                 border-radius: 9999px;
                 border: 1px solid #e5e7eb;
                 background: #ffffff;
-                color: #4b5563;
+                color: #000000;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
@@ -171,7 +156,7 @@
             }
 
             .sidebar-toggle:hover {
-                color: #111827;
+                color: #000000;
                 border-color: rgba(249, 115, 22, .55);
                 background: #f9fafb;
             }
@@ -230,6 +215,15 @@
 
         injectStyles();
         aside.classList.add('relative', 'transition-all', 'duration-200');
+
+        const nav = aside.querySelector('nav');
+        if (nav && !nav.querySelector('a[href="gestao.html"]')) {
+            const managementLink = document.createElement('a');
+            managementLink.href = 'gestao.html';
+            managementLink.className = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm';
+            managementLink.innerHTML = '<i data-lucide="brain-circuit" class="w-5 h-5"></i> Gestão';
+            nav.appendChild(managementLink);
+        }
 
         const firstBlock = aside.firstElementChild;
         const brandRow = firstBlock ? firstBlock.firstElementChild : null;

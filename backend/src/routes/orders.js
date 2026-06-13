@@ -52,6 +52,50 @@ async function loadOrderById(client, id) {
     return normalizeOrder(o.rows[0], items.rows);
 }
 
+async function deductOrderStock(client, orderId) {
+    const { rows } = await client.query(`
+        SELECT fi.ingredient_id, SUM(oi.quantity * fi.quantity)::numeric AS quantity
+        FROM order_items oi
+        JOIN flavor_ingredients fi ON fi.flavor_id = oi.flavor_id
+        WHERE oi.order_id = $1
+        GROUP BY fi.ingredient_id
+    `, [orderId]);
+
+    for (const row of rows) {
+        await client.query(
+            'UPDATE ingredients SET current_stock = current_stock - $1, updated_at = NOW() WHERE id = $2',
+            [row.quantity, row.ingredient_id]
+        );
+        await client.query(`
+            INSERT INTO order_stock_deductions (order_id, ingredient_id, quantity)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (order_id, ingredient_id) DO UPDATE SET quantity = EXCLUDED.quantity, created_at = NOW()
+        `, [orderId, row.ingredient_id, row.quantity]);
+        await client.query(`
+            INSERT INTO stock_movements (ingredient_id, order_id, delta, reason)
+            VALUES ($1, $2, $3 * -1, 'Baixa automática por venda')
+        `, [row.ingredient_id, orderId, row.quantity]);
+    }
+}
+
+async function restoreOrderStock(client, orderId) {
+    const { rows } = await client.query(
+        'SELECT ingredient_id, quantity FROM order_stock_deductions WHERE order_id = $1',
+        [orderId]
+    );
+    for (const row of rows) {
+        await client.query(
+            'UPDATE ingredients SET current_stock = current_stock + $1, updated_at = NOW() WHERE id = $2',
+            [row.quantity, row.ingredient_id]
+        );
+        await client.query(`
+            INSERT INTO stock_movements (ingredient_id, order_id, delta, reason)
+            VALUES ($1, $2, $3, 'Estorno de baixa automática')
+        `, [row.ingredient_id, orderId, row.quantity]);
+    }
+    await client.query('DELETE FROM order_stock_deductions WHERE order_id = $1', [orderId]);
+}
+
 router.get('/', async (_req, res, next) => {
     try {
         const orders = (await query('SELECT * FROM orders ORDER BY created_at ASC')).rows;
@@ -117,6 +161,7 @@ router.post('/', async (req, res, next) => {
                     [id, it.flavorId ?? null, it.name, it.quantity, it.price]
                 );
             }
+            if (status === 'Entregue') await deductOrderStock(client, id);
             return loadOrderById(client, id);
         });
 
@@ -164,6 +209,10 @@ router.patch('/:id', async (req, res, next) => {
             const existing = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
             if (existing.rows.length === 0) return null;
             previousStatus = existing.rows[0].status;
+            const finalStatus = status !== undefined ? status : previousStatus;
+            const needsStockRecalculation = previousStatus === 'Entregue'
+                && (items !== undefined || finalStatus !== 'Entregue');
+            if (needsStockRecalculation) await restoreOrderStock(client, id);
 
             const sets = [];
             const values = [];
@@ -230,6 +279,10 @@ router.patch('/:id', async (req, res, next) => {
                 }
             }
 
+            if (finalStatus === 'Entregue' && (previousStatus !== 'Entregue' || items !== undefined)) {
+                await deductOrderStock(client, id);
+            }
+
             return loadOrderById(client, id);
         });
 
@@ -245,7 +298,13 @@ router.patch('/:id', async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
     try {
         const id = req.params.id;
-        const { rowCount } = await query('DELETE FROM orders WHERE id = $1', [id]);
+        const rowCount = await withTx(async client => {
+            const existing = await client.query('SELECT status FROM orders WHERE id = $1', [id]);
+            if (!existing.rows.length) return 0;
+            if (existing.rows[0].status === 'Entregue') await restoreOrderStock(client, id);
+            const deleted = await client.query('DELETE FROM orders WHERE id = $1', [id]);
+            return deleted.rowCount;
+        });
         if (rowCount === 0) return res.status(404).json({ error: 'pedido não encontrado' });
         broadcast('order:deleted', { id });
         res.status(204).end();
@@ -273,7 +332,9 @@ router.get('/customers/aggregate', async (_req, res, next) => {
                     COALESCE(NULLIF(phone, ''), customer) AS key,
                     address,
                     neighborhood,
-                    source
+                    source,
+                    delivery_fee,
+                    delivery_fee_cost
                 FROM orders
                 WHERE status <> 'Cancelado'
                 ORDER BY COALESCE(NULLIF(phone, ''), customer), created_at DESC
@@ -282,7 +343,9 @@ router.get('/customers/aggregate', async (_req, res, next) => {
                 agg.*,
                 COALESCE(last_order.address, '') AS address,
                 COALESCE(last_order.neighborhood, '') AS neighborhood,
-                COALESCE(last_order.source, '') AS source
+                COALESCE(last_order.source, '') AS source,
+                COALESCE(last_order.delivery_fee, 0)::numeric AS delivery_fee,
+                COALESCE(last_order.delivery_fee_cost, 0)::numeric AS delivery_fee_cost
             FROM agg
             LEFT JOIN last_order ON last_order.key = agg.key
             ORDER BY agg.total_spent DESC
@@ -293,6 +356,8 @@ router.get('/customers/aggregate', async (_req, res, next) => {
             address: r.address,
             neighborhood: r.neighborhood,
             source: r.source,
+            deliveryFeeCustomer: Number(r.delivery_fee),
+            deliveryFeeCost: Number(r.delivery_fee_cost),
             totalOrders: r.total_orders,
             totalSpent: Number(r.total_spent),
             lastBuy: r.last_buy,
@@ -561,8 +626,12 @@ router.get('/stats/dashboard', async (req, res, next) => {
 router.get('/stats/weekly', async (_req, res, next) => {
     try {
         const { rows } = await query(`
-            WITH days AS (
-                SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day')::date AS d
+            WITH local_today AS (
+                SELECT (NOW() AT TIME ZONE 'America/Sao_Paulo')::date AS d
+            ),
+            days AS (
+                SELECT generate_series(local_today.d - INTERVAL '6 days', local_today.d, INTERVAL '1 day')::date AS d
+                FROM local_today
             )
             SELECT
                 days.d AS day,
@@ -570,7 +639,10 @@ router.get('/stats/weekly', async (_req, res, next) => {
             FROM days
             LEFT JOIN orders o
               ON o.status = 'Entregue'
-             AND (o.delivered_at::date = days.d OR (o.delivered_at IS NULL AND o.created_at::date = days.d))
+             AND (
+                (o.delivered_at AT TIME ZONE 'America/Sao_Paulo')::date = days.d
+                OR (o.delivered_at IS NULL AND (o.created_at AT TIME ZONE 'America/Sao_Paulo')::date = days.d)
+             )
             GROUP BY days.d
             ORDER BY days.d
         `);

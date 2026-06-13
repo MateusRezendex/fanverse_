@@ -46,6 +46,7 @@ services:
       - ./clientes.html:/app/frontend/clientes.html:ro
       - ./relatorios.html:/app/frontend/relatorios.html:ro
       - ./financeiro.html:/app/frontend/financeiro.html:ro
+      - ./gestao.html:/app/frontend/gestao.html:ro
       - ./js:/app/frontend/js:ro
     profiles:
       - app

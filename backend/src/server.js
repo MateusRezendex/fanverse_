@@ -14,6 +14,7 @@ const reportsRouter             = require('./routes/reports');
 const neighborhoodsRouter       = require('./routes/neighborhoods');
 const costsRouter               = require('./routes/costs');
 const internalConsumptionRouter = require('./routes/internal-consumption');
+const managementRouter          = require('./routes/management');
 const ws = require('./ws');
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -37,6 +38,7 @@ app.use('/api/reports',             reportsRouter);
 app.use('/api/neighborhoods',       neighborhoodsRouter);
 app.use('/api/costs',               costsRouter);
 app.use('/api/internal-consumption', internalConsumptionRouter);
+app.use('/api/management',           managementRouter);
 
 // Webhook do WhatsApp (agnóstico de provedor)
 app.use('/webhook/whatsapp', whatsappRouter);
