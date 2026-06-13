@@ -119,15 +119,23 @@
                     <h2 class="text-2xl font-black text-white">Métricas Avançadas</h2>
                     <p class="text-gray-400 text-sm">Análise detalhada do desempenho de vendas e faturamento.</p>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center justify-end gap-2">
                     <label class="text-xs font-bold text-gray-400 uppercase">Período:</label>
-                    <select id="period-filter" onchange="renderReports()"
+                    <select id="period-filter" onchange="handlePeriodChange()"
                         class="bg-brand-card border border-brand-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-accentOrange">
                         <option value="today">Hoje</option>
+                        <option value="date">Período específico</option>
                         <option value="7d">Últimos 7 dias</option>
                         <option value="30d">Últimos 30 dias</option>
                         <option value="all">Tudo</option>
                     </select>
+                    <input type="date" id="specific-date-start" onchange="handleSpecificDateChange('start')"
+                        aria-label="Data inicial"
+                        class="hidden bg-brand-card border border-brand-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-accentOrange">
+                    <span id="specific-date-separator" class="hidden text-xs font-bold text-gray-500">até</span>
+                    <input type="date" id="specific-date-end" onchange="handleSpecificDateChange('end')"
+                        aria-label="Data final"
+                        class="hidden bg-brand-card border border-brand-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-accentOrange">
                 </div>
             </div>
 
@@ -282,9 +290,53 @@
             flavors = getFlavors();
         }
 
+        function localDateValue(date = new Date()) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function handlePeriodChange() {
+            const period = document.getElementById('period-filter').value;
+            const startInput = document.getElementById('specific-date-start');
+            const endInput = document.getElementById('specific-date-end');
+            const separator = document.getElementById('specific-date-separator');
+            [startInput, endInput, separator].forEach(el => el.classList.toggle('hidden', period !== 'date'));
+            if (period === 'date') {
+                if (!startInput.value) startInput.value = localDateValue();
+                if (!endInput.value) endInput.value = startInput.value;
+            }
+            renderReports();
+        }
+
+        function handleSpecificDateChange(changedField) {
+            const startInput = document.getElementById('specific-date-start');
+            const endInput = document.getElementById('specific-date-end');
+            if (!startInput.value || !endInput.value) return renderReports();
+            if (startInput.value > endInput.value) {
+                if (changedField === 'start') endInput.value = startInput.value;
+                else startInput.value = endInput.value;
+            }
+            renderReports();
+        }
+
         function filterOrdersByPeriod(list) {
             const period = (document.getElementById('period-filter') || {}).value || 'today';
             if (period === 'all') return list;
+            if (period === 'date') {
+                const startValue = document.getElementById('specific-date-start').value || localDateValue();
+                const endValue = document.getElementById('specific-date-end').value || startValue;
+                const [startYear, startMonth, startDay] = startValue.split('-').map(Number);
+                const [endYear, endMonth, endDay] = endValue.split('-').map(Number);
+                const start = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+                const end = new Date(endYear, endMonth - 1, endDay + 1, 0, 0, 0, 0);
+                return list.filter(o => {
+                    if (!o.createdAt) return false;
+                    const createdAt = new Date(o.createdAt);
+                    return createdAt >= start && createdAt < end;
+                });
+            }
             const now = new Date();
             const cutoff = new Date(now);
             if (period === 'today') {
@@ -351,8 +403,15 @@
             }));
 
             // Texto de apoio nos cards reflete o período selecionado
+            const selectedStartDate = document.getElementById('specific-date-start').value;
+            const selectedEndDate = document.getElementById('specific-date-end').value;
+            const formatSelectedDate = value => new Intl.DateTimeFormat('pt-BR').format(new Date(`${value}T12:00:00`));
+            const dateLabel = selectedStartDate && selectedEndDate
+                ? `${formatSelectedDate(selectedStartDate)} até ${formatSelectedDate(selectedEndDate)}`
+                : 'no período selecionado';
             const periodLabel = {
                 today: 'hoje',
+                date: `em ${dateLabel}`,
                 '7d': 'nos últimos 7 dias',
                 '30d': 'nos últimos 30 dias',
                 all: 'no histórico completo',

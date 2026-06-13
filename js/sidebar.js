@@ -84,6 +84,79 @@
                 background-color: rgb(17 24 39 / 0.55) !important;
             }
 
+            #modal-novo-pedido {
+                color: #111827;
+            }
+
+            #modal-novo-pedido .bg-brand-card,
+            #modal-novo-pedido .bg-brand-dark\\/40,
+            #modal-novo-pedido .bg-brand-dark\\/50,
+            #modal-novo-pedido .bg-brand-dark\\/60,
+            #modal-novo-pedido .bg-brand-dark\\/95 {
+                background-color: #ffffff !important;
+            }
+
+            #modal-novo-pedido .bg-black\\/20 {
+                background-color: #f9fafb !important;
+            }
+
+            #modal-novo-pedido input,
+            #modal-novo-pedido select,
+            #modal-novo-pedido textarea {
+                background-color: #ffffff !important;
+                color: #111827 !important;
+                border-color: #d1d5db !important;
+            }
+
+            #modal-novo-pedido input::placeholder,
+            #modal-novo-pedido textarea::placeholder {
+                color: #9ca3af !important;
+            }
+
+            #modal-novo-pedido label,
+            #modal-novo-pedido .text-gray-400,
+            #modal-novo-pedido .text-gray-500 {
+                color: #4b5563 !important;
+            }
+
+            #modal-novo-pedido .text-white {
+                color: #111827 !important;
+            }
+
+            #modal-novo-pedido #customer-suggest {
+                background-color: #ffffff !important;
+                border-color: #d1d5db !important;
+                box-shadow: 0 16px 35px rgb(15 23 42 / 0.18);
+            }
+
+            #modal-novo-pedido #customer-suggest-list button:hover {
+                background-color: #fff7ed !important;
+            }
+
+            #modal-novo-pedido #order-flavors-selection > div > div:not(:first-child) {
+                background-color: #f9fafb !important;
+                border-color: #d1d5db !important;
+            }
+
+            #modal-novo-pedido #order-flavors-selection button {
+                background-color: #29211d !important;
+                color: #ffffff !important;
+            }
+
+            #modal-novo-pedido #order-flavors-selection input[readonly] {
+                width: 2.25rem !important;
+                background-color: #29211d !important;
+                color: #ffffff !important;
+                border: 0 !important;
+                border-radius: .5rem;
+                font-weight: 900;
+            }
+
+            #modal-novo-pedido button.bg-gradient-to-r,
+            #modal-novo-pedido button.bg-brand-accentOrange {
+                color: #ffffff !important;
+            }
+
             .sidebar-toggle {
                 width: 2rem;
                 height: 2rem;

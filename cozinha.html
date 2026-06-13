@@ -148,7 +148,7 @@
                                 ${group.items.length > 0
                                     ? group.items.map(i => `
                                         <div class="flex items-center gap-2 min-w-0 leading-none">
-                                            <span class="text-brand-accentOrange font-black shrink-0 text-2xl md:text-3xl">${i.quantity}x</span>
+                                            <span class="text-gray-950 font-black shrink-0 leading-none" style="font-size: clamp(36px, 3.6vw, 48px);">${i.quantity}x</span>
                                             <span class="text-white font-black leading-none break-words" style="font-size: clamp(32px, 3.2vw, 44px);">${escapeHtml(i.name)}</span>
                                         </div>
                                     `).join('')
@@ -212,6 +212,7 @@
                         <span class="text-brand-accentOrange font-black leading-none" style="font-size: clamp(32px, 3.2vw, 44px);">${totalItems}</span>
                         <span class="text-white font-black leading-none" style="font-size: clamp(32px, 3.2vw, 44px);">esfihas</span>
                         <span class="ml-2 text-brand-accentOrange font-black leading-none" style="font-size: clamp(32px, 3.2vw, 44px);">${escapeHtml(order.id)}</span>
+                        <span class="ml-2 text-sm font-black text-gray-700">${escapeHtml(order.customer)}</span>
                     </div>
                     <div class="border-t border-brand-border/40 pt-2 space-y-2">${itemsList}</div>
                     ${notesBlock}
