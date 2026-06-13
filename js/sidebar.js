@@ -7,13 +7,90 @@
         const style = document.createElement('style');
         style.id = 'sidebar-collapse-style';
         style.textContent = `
+            html,
+            body,
+            main {
+                background: #ffffff !important;
+                color: #1f2937;
+            }
+
+            aside,
+            .bg-brand-card,
+            .bg-brand-dark {
+                background-color: #ffffff !important;
+            }
+
+            .border-brand-border,
+            .divide-brand-border\\/40 > :not([hidden]) ~ :not([hidden]) {
+                border-color: #e5e7eb !important;
+            }
+
+            main .text-white,
+            aside .text-white,
+            main .text-gray-200,
+            aside .text-gray-200 {
+                color: #111827 !important;
+            }
+
+            main .text-gray-300,
+            aside .text-gray-300 {
+                color: #374151 !important;
+            }
+
+            main .text-gray-400,
+            aside .text-gray-400 {
+                color: #4b5563 !important;
+            }
+
+            main .text-gray-500,
+            aside .text-gray-500,
+            main .text-gray-600,
+            aside .text-gray-600 {
+                color: #6b7280 !important;
+            }
+
+            main input,
+            main select,
+            main textarea {
+                background: #ffffff !important;
+                color: #111827 !important;
+            }
+
+            main .bg-black\\/20,
+            main .bg-black\\/30 {
+                background-color: #f9fafb !important;
+            }
+
+            aside nav a:hover,
+            aside nav button:hover,
+            main .hover\\:bg-white\\/5:hover,
+            main .hover\\:bg-white\\/\\[0\\.02\\]:hover {
+                background-color: #f3f4f6 !important;
+                color: #111827 !important;
+            }
+
+            .bg-gradient-to-r,
+            .bg-gradient-to-br,
+            button.bg-brand-accentOrange,
+            main button.text-white,
+            main a.text-white,
+            aside a.text-white,
+            .bg-gradient-to-r .text-white,
+            .bg-gradient-to-br .text-white {
+                color: #ffffff !important;
+            }
+
+            .fixed.inset-0.bg-black\\/80 {
+                background-color: rgb(17 24 39 / 0.55) !important;
+            }
+
             .sidebar-toggle {
                 width: 2rem;
                 height: 2rem;
                 border-radius: 9999px;
-                border: 1px solid #2a1e17;
-                background: #120c08;
-                color: #cbd5e1;
+                border: 1px solid #e5e7eb;
+                background: #ffffff;
+                color: #4b5563;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
@@ -21,9 +98,9 @@
             }
 
             .sidebar-toggle:hover {
-                color: #fff;
+                color: #111827;
                 border-color: rgba(249, 115, 22, .55);
-                background: rgba(255, 255, 255, .05);
+                background: #f9fafb;
             }
 
             @media (min-width: 768px) {

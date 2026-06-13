@@ -25,6 +25,15 @@
             }
         }
     </script>
+    <style>
+        main > div:first-child p {
+            display: none;
+        }
+
+        main > div:first-child h2 {
+            font-size: 1.25rem;
+        }
+    </style>
 </head>
 
 <body class="bg-brand-dark text-gray-200 font-sans antialiased min-h-screen flex flex-col md:flex-row">
@@ -76,32 +85,21 @@
         </div>
     </aside>
 
-    <main class="flex-1 p-6 md:p-8 overflow-y-auto max-h-screen space-y-6">
-        <div>
+    <main class="flex-1 p-3 md:p-4 overflow-hidden max-h-screen space-y-3">
+        <div class="flex items-center justify-between gap-3">
             <h2 class="text-2xl font-black text-white">Visualização da Cozinha</h2>
             <p class="text-gray-400 text-sm">Monitorização e preparação de esfihas em tempo real.</p>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,.9fr)] gap-6">
+        <div class="grid grid-cols-1 gap-3">
             <!-- Fila -->
-            <div class="bg-brand-card p-4 rounded-2xl border border-brand-border h-[600px] flex flex-col">
+            <div class="bg-brand-card p-2 md:p-3 rounded-2xl border border-brand-border h-[calc(100vh-7.5rem)] flex flex-col">
                 <h3
-                    class="font-bold text-white text-base border-b border-brand-border pb-3 mb-4 flex justify-between items-center">
+                    class="font-bold text-white text-sm border-b border-brand-border px-1 pb-2 mb-2 flex justify-between items-center">
                     <span>Fila de Espera</span>
                     <span id="c-pendente" class="bg-red-500/15 text-red-400 px-2.5 py-0.5 rounded-full text-sm">0</span>
                 </h3>
-                <div id="list-pendente" class="flex-1 space-y-3 overflow-y-auto"></div>
-            </div>
-
-            <!-- No Forno -->
-            <div class="bg-brand-card p-4 rounded-2xl border border-brand-border h-[600px] flex flex-col">
-                <h3
-                    class="font-bold text-white text-base border-b border-brand-border pb-3 mb-4 flex justify-between items-center">
-                    <span>No Forno / Preparando</span>
-                    <span id="c-preparo"
-                        class="bg-orange-500/15 text-orange-400 px-2.5 py-0.5 rounded-full text-sm">0</span>
-                </h3>
-                <div id="list-preparo" class="flex-1 space-y-3 overflow-y-auto"></div>
+                <div id="list-pendente" class="flex-1 space-y-2 overflow-y-auto pr-1"></div>
             </div>
         </div>
     </main>
@@ -141,30 +139,33 @@
                 target.items.push(item);
             });
 
-            return groups
-                .filter(group => group.items.length > 0)
-                .map(group => `
-                    <div class="space-y-1.5">
-                        <div class="text-[11px] uppercase tracking-wider text-gray-500 font-black">${group.title}</div>
-                        <div class="space-y-1.5">
-                            ${group.items.map(i => `
-                                <div class="flex items-start gap-3 text-base md:text-lg leading-snug">
-                                    <span class="text-brand-accentOrange font-black shrink-0">${i.quantity}x</span>
-                                    <span class="text-white font-semibold">${escapeHtml(i.name)}</span>
-                                </div>
-                            `).join('')}
+            return `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-3">
+                    ${groups.map(group => `
+                        <div class="space-y-1">
+                            <div class="text-[10px] uppercase tracking-wider text-gray-500 font-black">${group.title}</div>
+                            <div class="space-y-1">
+                                ${group.items.length > 0
+                                    ? group.items.map(i => `
+                                        <div class="flex items-center gap-2 min-w-0 leading-none">
+                                            <span class="text-brand-accentOrange font-black shrink-0 text-2xl md:text-3xl">${i.quantity}x</span>
+                                            <span class="text-white font-black leading-none break-words" style="font-size: clamp(32px, 3.2vw, 44px);">${escapeHtml(i.name)}</span>
+                                        </div>
+                                    `).join('')
+                                    : `<div class="text-sm text-gray-400">Nenhuma</div>`
+                                }
+                            </div>
                         </div>
-                    </div>
-                `).join('');
+                    `).join('')}
+                </div>
+            `;
         }
 
         function renderKanban() {
             const listPendente = document.getElementById('list-pendente');
-            const listPreparo  = document.getElementById('list-preparo');
 
             listPendente.innerHTML = '';
-            listPreparo.innerHTML  = '';
-            let p = 0, pr = 0;
+            let p = 0;
 
             // Mostra pedidos ativos (não entregues/cancelados). Se o pedido não é de hoje,
             // ainda assim deve aparecer (ex: pedido pendente que ficou para trás).
@@ -173,9 +174,22 @@
                 const isOld = !isToday(order.createdAt);
 
                 const card = document.createElement('div');
-                card.className = "bg-brand-dark p-5 rounded-xl border border-brand-border space-y-4";
+                card.className = "bg-brand-dark p-3 rounded-xl border border-brand-border space-y-2";
                 if (isOld) card.classList.add('opacity-80');
                 const itemsList = renderGroupedItems(order.items);
+                const totalItems = (order.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+                const notes = String(order.notes || '').trim();
+                const notesBlock = notes
+                    ? `
+                        <div class="flex items-start gap-2 rounded-lg border border-amber-400/50 bg-amber-50 px-3 py-2">
+                            <div class="shrink-0 text-[10px] font-black uppercase text-amber-700">
+                                <i data-lucide="message-square-text" class="w-4 h-4"></i>
+                                Observações
+                            </div>
+                            <p class="whitespace-pre-wrap text-sm font-bold leading-snug text-amber-950">${escapeHtml(notes)}</p>
+                        </div>
+                    `
+                    : '';
 
                 const prev = previousStatus(order.status);
                 const next = nextStatus(order.status);
@@ -187,21 +201,30 @@
                     : '';
 
                 card.innerHTML = `
-                    <div>
-                        <span class="text-brand-accentOrange font-bold text-base">${escapeHtml(order.id)}</span>
-                        <h4 class="text-white font-bold text-lg">${escapeHtml(order.customer)}</h4>
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                        <span class="rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${order.status === 'Em Preparo' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}">${escapeHtml(order.status)}</span>
                         ${isOld ? `<div class="text-[10px] text-gray-500 mt-0.5">Pedido antigo • ${formatTime(order.createdAt)}</div>` : ``}
+                        </div>
+                        <div class="flex gap-1.5">${backBtn}${fwdBtn}</div>
                     </div>
-                    <div class="border-t border-brand-border/40 pt-3 space-y-3">${itemsList}</div>
-                    <div class="flex gap-2">${backBtn}${fwdBtn}</div>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-brand-accentOrange font-black leading-none" style="font-size: clamp(32px, 3.2vw, 44px);">${totalItems}</span>
+                        <span class="text-white font-black leading-none" style="font-size: clamp(32px, 3.2vw, 44px);">esfihas</span>
+                        <span class="ml-2 text-brand-accentOrange font-black leading-none" style="font-size: clamp(32px, 3.2vw, 44px);">${escapeHtml(order.id)}</span>
+                    </div>
+                    <div class="border-t border-brand-border/40 pt-2 space-y-2">${itemsList}</div>
+                    ${notesBlock}
                 `;
 
-                if (order.status === 'Pendente')       { listPendente.appendChild(card); p++; }
-                else if (order.status === 'Em Preparo') { listPreparo.appendChild(card);  pr++; }
+                if (['Pendente', 'Em Preparo'].includes(order.status)) {
+                    listPendente.appendChild(card);
+                    p++;
+                }
             });
 
             document.getElementById('c-pendente').textContent = p;
-            document.getElementById('c-preparo').textContent  = pr;
+            lucide.createIcons();
         }
 
         async function advance(id) {
