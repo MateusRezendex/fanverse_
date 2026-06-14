@@ -311,33 +311,57 @@ router.delete('/:id', async (req, res, next) => {
     } catch (e) { next(e); }
 });
 
-// Endpoint utilitÃ¡rio: clientes derivados dos pedidos (agregados em SQL)
+// Endpoint utilitário: clientes derivados dos pedidos (agregados em SQL)
 router.get('/customers/aggregate', async (_req, res, next) => {
     try {
         const { rows } = await query(`
-            WITH agg AS (
+            WITH base AS (
                 SELECT
-                    COALESCE(NULLIF(phone, ''), customer) AS key,
-                    MAX(customer) AS name,
-                    COALESCE(NULLIF(phone, ''), '') AS phone,
+                    o.*,
+                    LOWER(REGEXP_REPLACE(TRIM(customer), '\\s+', ' ', 'g')) AS name_key,
+                    NULLIF(REGEXP_REPLACE(phone, '\\D', '', 'g'), '') AS phone_key
+                FROM orders o
+                WHERE status <> 'Cancelado'
+            ),
+            phones_by_name AS (
+                SELECT name_key, MIN(phone_key) AS phone_key
+                FROM base
+                WHERE phone_key IS NOT NULL
+                GROUP BY name_key
+                HAVING COUNT(DISTINCT phone_key) = 1
+            ),
+            identified AS (
+                SELECT
+                    b.*,
+                    COALESCE(b.phone_key, p.phone_key, 'name:' || b.name_key) AS customer_key
+                FROM base b
+                LEFT JOIN phones_by_name p ON p.name_key = b.name_key
+            ),
+            agg AS (
+                SELECT
+                    customer_key AS key,
+                    (ARRAY_AGG(customer ORDER BY created_at DESC))[1] AS name,
+                    COALESCE(
+                        (ARRAY_AGG(phone ORDER BY (phone_key IS NOT NULL) DESC, created_at DESC)
+                            FILTER (WHERE phone_key IS NOT NULL))[1],
+                        ''
+                    ) AS phone,
                     COUNT(*)::int AS total_orders,
                     COALESCE(SUM(total), 0)::numeric AS total_spent,
                     MAX(created_at) AS last_buy
-                FROM orders
-                WHERE status <> 'Cancelado'
-                GROUP BY key, COALESCE(NULLIF(phone, ''), '')
+                FROM identified
+                GROUP BY customer_key
             ),
             last_order AS (
-                SELECT DISTINCT ON (COALESCE(NULLIF(phone, ''), customer))
-                    COALESCE(NULLIF(phone, ''), customer) AS key,
+                SELECT DISTINCT ON (customer_key)
+                    customer_key AS key,
                     address,
                     neighborhood,
                     source,
                     delivery_fee,
                     delivery_fee_cost
-                FROM orders
-                WHERE status <> 'Cancelado'
-                ORDER BY COALESCE(NULLIF(phone, ''), customer), created_at DESC
+                FROM identified
+                ORDER BY customer_key, created_at DESC
             )
             SELECT
                 agg.*,

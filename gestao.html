@@ -66,9 +66,13 @@
                 <input id="export-to" type="date" class="field !w-auto" title="Data final">
                 <button class="btn btn-secondary" onclick="exportData()"><i data-lucide="sheet" class="w-4 h-4"></i> Excel/CSV</button>
                 <button class="btn btn-secondary" onclick="window.print()"><i data-lucide="file-text" class="w-4 h-4"></i> PDF</button>
-                <button class="btn btn-primary" onclick="loadAll()"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Atualizar</button>
+                <button id="refresh-button" type="button" class="btn btn-primary">
+                    <i data-lucide="refresh-cw" class="refresh-icon w-4 h-4"></i>
+                    <span class="refresh-label">Atualizar</span>
+                </button>
             </div>
         </header>
+        <p id="last-updated" class="text-xs text-gray-500 -mt-4"></p>
 
         <section id="kpis" class="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3"></section>
 
@@ -196,7 +200,12 @@
         const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
         async function api(path, options={}) {
-            const response = await fetch(path, { headers:{'Content-Type':'application/json'}, ...options, body:options.body ? JSON.stringify(options.body) : undefined });
+            const response = await fetch(path, {
+                cache:'no-store',
+                headers:{'Content-Type':'application/json'},
+                ...options,
+                body:options.body ? JSON.stringify(options.body) : undefined
+            });
             if (!response.ok) { const body = await response.json().catch(()=>({})); throw new Error(body.error || `Erro ${response.status}`); }
             return response.status === 204 ? null : response.json();
         }
@@ -332,9 +341,34 @@
             select.innerHTML=recipes.map(r=>`<option value="${r.flavorId}">${escapeHtml(r.flavorName)}</option>`).join('');
             if(current)select.value=current; renderRecipe();
         }
-        async function loadAll() {
-            try { [data]=await Promise.all([api('/api/management/analytics'),loadSupport()]); render(); }
-            catch(e){ console.error(e); toast(e.message); }
+        function setRefreshState(loading) {
+            const button=document.getElementById('refresh-button');
+            if(!button)return;
+            button.disabled=loading;
+            button.classList.toggle('opacity-60',loading);
+            button.classList.toggle('cursor-wait',loading);
+            button.querySelector('.refresh-icon')?.classList.toggle('animate-spin',loading);
+            const label=button.querySelector('.refresh-label');
+            if(label)label.textContent=loading?'Atualizando...':'Atualizar';
+        }
+        async function loadAll({ notify=false }={}) {
+            if(document.getElementById('refresh-button')?.disabled)return;
+            setRefreshState(true);
+            try {
+                [data]=await Promise.all([
+                    api(`/api/management/analytics?_=${Date.now()}`),
+                    loadSupport()
+                ]);
+                render();
+                const updatedAt=new Date(data.generatedAt || Date.now());
+                document.getElementById('last-updated').textContent=`Última atualização: ${updatedAt.toLocaleString('pt-BR')}`;
+                if(notify)toast('Dashboard atualizado com sucesso');
+            } catch(e) {
+                console.error(e);
+                toast(`Não foi possível atualizar: ${e.message}`);
+            } finally {
+                setRefreshState(false);
+            }
         }
 
         document.getElementById('tabs').addEventListener('click',e=>{
@@ -343,6 +377,7 @@
             document.querySelectorAll('.tab-panel').forEach(x=>x.classList.toggle('active',x.id===button.dataset.tab));
         });
         document.getElementById('recipe-flavor').addEventListener('change',renderRecipe);
+        document.getElementById('refresh-button').addEventListener('click',()=>loadAll({notify:true}));
         document.getElementById('ingredient-form').addEventListener('submit',async e=>{
             e.preventDefault(); const b=Object.fromEntries(new FormData(e.target)); await api('/api/management/ingredients',{method:'POST',body:b}); e.target.reset(); e.target.classList.add('hidden'); toast('Ingrediente cadastrado'); await loadAll();
         });

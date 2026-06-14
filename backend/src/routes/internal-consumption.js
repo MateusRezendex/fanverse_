@@ -58,7 +58,7 @@ router.post('/', async (req, res, next) => {
 
         for (const it of items) {
             if (!it || !(Number(it.flavorId) > 0) || !(Number(it.quantity) > 0)) {
-                return res.status(400).json({ error: 'item invalido', item: it });
+                return res.status(400).json({ error: 'item inválido', item: it });
             }
         }
 
@@ -70,7 +70,7 @@ router.post('/', async (req, res, next) => {
             if (categoryId) {
                 const category = await client.query('SELECT id FROM expense_categories WHERE id = $1', [categoryId]);
                 if (category.rows.length === 0) {
-                    const err = new Error('categoria financeira nao encontrada');
+                    const err = new Error('categoria financeira não encontrada');
                     err.status = 400;
                     throw err;
                 }
@@ -99,7 +99,7 @@ router.post('/', async (req, res, next) => {
                 const quantity = Math.floor(Number(it.quantity));
                 const flavor = await client.query('SELECT name, COALESCE(cost_price, 0)::numeric AS cost_price FROM flavors WHERE id = $1', [flavorId]);
                 if (flavor.rows.length === 0) {
-                    const err = new Error(`sabor nao encontrado: ${flavorId}`);
+                    const err = new Error(`sabor não encontrado: ${flavorId}`);
                     err.status = 400;
                     throw err;
                 }
@@ -144,7 +144,7 @@ router.delete('/:id', async (req, res, next) => {
     try {
         const id = Number(req.params.id);
         const existing = await query('SELECT expense_id FROM internal_consumption WHERE id = $1', [id]);
-        if (existing.rows.length === 0) return res.status(404).json({ error: 'registro nao encontrado' });
+        if (existing.rows.length === 0) return res.status(404).json({ error: 'registro não encontrado' });
         const expenseId = existing.rows[0].expense_id;
         await query('DELETE FROM internal_consumption WHERE id = $1', [id]);
         if (expenseId) {

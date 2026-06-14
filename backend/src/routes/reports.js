@@ -277,7 +277,7 @@ router.get('/export.csv', async (req, res, next) => {
                 WHERE e.date BETWEEN $1::date AND $2::date
                 ORDER BY e.date ASC, e.id ASC
             `, [fromDate, toDate])).rows;
-            csv = 'data;categoria;descricao;valor;origem\n' +
+            csv = 'data;categoria;descrição;valor;origem\n' +
                 rows.map(r => [
                     toIsoDate(r.date),
                     csvEscape(r.category || '—'),

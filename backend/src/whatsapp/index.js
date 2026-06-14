@@ -56,7 +56,7 @@ async function notifyOrderStatus(order, previousStatus) {
             msg = `🔥 Pedido *${order.id}* entrou em preparo!`;
             break;
         case 'Pronto':
-            msg = `📦 Pedido *${order.id}* está pronto! Saindo pra entrega em instantes.`;
+            msg = `📦 Pedido *${order.id}* está pronto! Saindo para entrega em instantes.`;
             break;
         case 'Entregue':
             msg = `🎉 Pedido *${order.id}* foi entregue. Obrigado pela preferência!`;

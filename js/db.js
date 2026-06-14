@@ -454,6 +454,49 @@ function formatBRL(value) {
     return 'R$ ' + n.toFixed(2).replace('.', ',');
 }
 
+function formatPhone(value) {
+    let digits = String(value || '').replace(/\D/g, '');
+    if (!digits) return '';
+
+    let countryCode = '';
+    if (digits.length > 11 && digits.startsWith('55')) {
+        countryCode = '+55 ';
+        digits = digits.slice(2);
+    }
+    digits = digits.slice(0, 11);
+
+    if (digits.length <= 2) return countryCode + (digits ? `(${digits}` : '');
+
+    const areaCode = digits.slice(0, 2);
+    const local = digits.slice(2);
+    if (local.length <= 4) return `${countryCode}(${areaCode}) ${local}`;
+
+    const firstPartLength = local.length > 8 ? 5 : 4;
+    const firstPart = local.slice(0, firstPartLength);
+    const lastPart = local.slice(firstPartLength, firstPartLength + 4);
+    return `${countryCode}(${areaCode}) ${firstPart}${lastPart ? `-${lastPart}` : ''}`;
+}
+
+function initPhoneMasks() {
+    const applyMask = input => {
+        input.value = formatPhone(input.value);
+        input.setAttribute('inputmode', 'tel');
+        input.setAttribute('maxlength', '19');
+    };
+
+    document.querySelectorAll('input[type="tel"]').forEach(applyMask);
+    document.addEventListener('input', event => {
+        const input = event.target.closest && event.target.closest('input[type="tel"]');
+        if (input) applyMask(input);
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPhoneMasks);
+} else {
+    initPhoneMasks();
+}
+
 function isSameDay(d1, d2) {
     return d1.getFullYear() === d2.getFullYear()
         && d1.getMonth()    === d2.getMonth()

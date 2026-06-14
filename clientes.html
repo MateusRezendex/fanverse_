@@ -193,7 +193,7 @@
         function openEditCustomerModal(base) {
             editingCustomerBase = base || null;
             document.getElementById('edit-customer-name').value  = (base && base.name)  ? String(base.name)  : '';
-            document.getElementById('edit-customer-phone').value = (base && base.phone) ? String(base.phone) : '';
+            document.getElementById('edit-customer-phone').value = formatPhone(base && base.phone);
             document.getElementById('edit-customer-address').value = (base && base.address) ? String(base.address) : '';
             document.getElementById('edit-customer-neighborhood').value = (base && base.neighborhood) ? String(base.neighborhood) : '';
             document.getElementById('edit-customer-source').value = (base && base.source) ? String(base.source) : '';
@@ -284,7 +284,7 @@
                             ${escapeHtml(c.name)}
                         </div>
                     </td>
-                    <td class="py-4 px-6 text-gray-400">${escapeHtml(c.phone || '—')}</td>
+                    <td class="py-4 px-6 text-gray-400">${escapeHtml(formatPhone(c.phone) || '—')}</td>
                     <td class="py-4 px-6 text-gray-400">${escapeHtml(c.neighborhood || '—')}</td>
                     <td class="py-4 px-6 text-gray-400">${escapeHtml(c.source || '—')}</td>
                     <td class="py-4 px-6 font-semibold">${c.totalOrders} pedidos</td>

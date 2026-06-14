@@ -332,7 +332,7 @@
                     <td class="py-4 px-6 font-bold text-gray-400">${escapeHtml(o.id)}</td>
                     <td class="py-4 px-6 text-white font-semibold">
                         ${escapeHtml(o.customer)}
-                        <span class="block text-xs text-gray-500 font-normal">${escapeHtml(o.phone || '')}</span>
+                        <span class="block text-xs text-gray-500 font-normal">${escapeHtml(formatPhone(o.phone))}</span>
                     </td>
                     <td class="py-4 px-6 text-gray-400">${itemsList}</td>
                     <td class="py-4 px-6 font-bold text-gray-300">${formatBRL(o.deliveryFee || 0)}</td>
