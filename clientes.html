@@ -121,6 +121,27 @@
         </div>
     </main>
 
+    <!-- MODAL: Histórico do Cliente -->
+    <div id="modal-customer-history" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-brand-card w-full max-w-3xl rounded-2xl border border-brand-border overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-5 border-b border-brand-border flex items-center justify-between bg-black/20">
+                <div>
+                    <h3 id="history-customer-name" class="text-white font-bold text-lg">Histórico de pedidos</h3>
+                    <p id="history-customer-summary" class="text-xs text-gray-500 mt-1"></p>
+                </div>
+                <button type="button" onclick="closeCustomerHistory()" class="text-gray-400 hover:text-white">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            <div id="history-orders" class="p-5 space-y-3 overflow-y-auto"></div>
+            <div class="p-5 border-t border-brand-border flex justify-end bg-black/20">
+                <button type="button" onclick="closeCustomerHistory()" class="border border-brand-border text-gray-400 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL: Editar Cliente -->
     <div id="modal-edit-customer" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-brand-card w-full max-w-md rounded-2xl border border-brand-border overflow-hidden shadow-2xl">
@@ -190,6 +211,91 @@
             render();
         }
 
+        function normalizeCustomerName(value) {
+            return String(value || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function customerPhoneDigits(value) {
+            return String(value || '').replace(/\D/g, '');
+        }
+
+        function getCustomerOrderHistory(customer) {
+            const phone = customerPhoneDigits(customer && customer.phone);
+            const name = normalizeCustomerName(customer && customer.name);
+
+            return getOrders()
+                .filter(order => {
+                    const orderPhone = customerPhoneDigits(order.phone);
+                    const sameName = normalizeCustomerName(order.customer) === name;
+                    if (phone) return orderPhone === phone || (!orderPhone && sameName);
+                    return sameName;
+                })
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        }
+
+        function formatHistoryDate(value) {
+            const date = new Date(value);
+            if (isNaN(date.getTime())) return 'Data não informada';
+            return date.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function openCustomerHistory(customer) {
+            const orders = getCustomerOrderHistory(customer);
+            const total = orders
+                .filter(order => order.status !== 'Cancelado')
+                .reduce((sum, order) => sum + Number(order.total || 0), 0);
+
+            document.getElementById('history-customer-name').textContent = customer.name || 'Cliente';
+            document.getElementById('history-customer-summary').textContent =
+                `${formatPhone(customer.phone) || 'Sem telefone'} · ${orders.length} pedido${orders.length === 1 ? '' : 's'} · ${formatBRL(total)}`;
+
+            const container = document.getElementById('history-orders');
+            if (!orders.length) {
+                container.innerHTML = '<p class="py-10 text-center text-sm text-gray-500">Nenhum pedido encontrado para este cliente.</p>';
+            } else {
+                container.innerHTML = orders.map(order => {
+                    const items = (order.items || []).map(item =>
+                        `<li>${Number(item.quantity || 0)}x ${escapeHtml(item.name || 'Item')} <span class="text-gray-500">(${formatBRL(item.price)})</span></li>`
+                    ).join('');
+                    return `
+                        <article class="rounded-xl border border-brand-border p-4">
+                            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <strong class="text-base">${escapeHtml(order.id)}</strong>
+                                        <span class="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-gray-100">${escapeHtml(order.status)}</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">${formatHistoryDate(order.createdAt)}</p>
+                                </div>
+                                <strong class="text-lg text-brand-accentOrange">${formatBRL(order.total)}</strong>
+                            </div>
+                            <ul class="mt-3 space-y-1 text-sm">${items || '<li class="text-gray-500">Sem itens registrados</li>'}</ul>
+                            ${order.address ? `<p class="text-xs text-gray-500 mt-3"><strong>Entrega:</strong> ${escapeHtml(order.address)}${order.neighborhood ? ` · ${escapeHtml(order.neighborhood)}` : ''}</p>` : ''}
+                            ${order.notes ? `<p class="text-xs text-gray-500 mt-1"><strong>Observação:</strong> ${escapeHtml(order.notes)}</p>` : ''}
+                        </article>
+                    `;
+                }).join('');
+            }
+
+            document.getElementById('modal-customer-history').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeCustomerHistory() {
+            document.getElementById('modal-customer-history').classList.add('hidden');
+        }
+
         function openEditCustomerModal(base) {
             editingCustomerBase = base || null;
             document.getElementById('edit-customer-name').value  = (base && base.name)  ? String(base.name)  : '';
@@ -222,8 +328,13 @@
         }
 
         document.addEventListener('keydown', (e) => {
-            const modal = document.getElementById('modal-edit-customer');
-            if (!modal || modal.classList.contains('hidden')) return;
+            const editModal = document.getElementById('modal-edit-customer');
+            const historyModal = document.getElementById('modal-customer-history');
+            if (e.key === 'Escape' && !historyModal.classList.contains('hidden')) {
+                closeCustomerHistory();
+                return;
+            }
+            if (!editModal || editModal.classList.contains('hidden')) return;
             if (e.key === 'Escape') closeEditCustomerModal();
             if (e.key === 'Enter' && document.activeElement && ['edit-customer-name', 'edit-customer-phone', 'edit-customer-address', 'edit-customer-neighborhood'].includes(document.activeElement.id)) {
                 submitEditCustomer();
@@ -275,13 +386,15 @@
 
             customers.forEach(c => {
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-white/5 transition-all";
+                tr.className = "hover:bg-white/5 transition-all cursor-pointer";
+                tr.title = 'Clique para ver o histórico de pedidos';
+                tr.addEventListener('click', () => openCustomerHistory(c));
                 const initial = (c.name || '?').charAt(0).toUpperCase();
                 tr.innerHTML = `
                     <td class="py-4 px-6 font-bold text-white">
                         <div class="flex items-center gap-2">
                             <div class="w-8 h-8 rounded-full bg-brand-border flex items-center justify-center text-brand-accentOrange font-bold text-xs">${escapeHtml(initial)}</div>
-                            ${escapeHtml(c.name)}
+                            <span class="hover:underline">${escapeHtml(c.name)}</span>
                         </div>
                     </td>
                     <td class="py-4 px-6 text-gray-400">${escapeHtml(formatPhone(c.phone) || '—')}</td>
@@ -292,7 +405,7 @@
                     <td class="py-4 px-6 text-right">
                         <button type="button"
                             class="inline-flex items-center gap-1.5 text-xs font-bold bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white px-3 py-1.5 rounded-lg transition-all"
-                            onclick='openEditCustomerModal(${JSON.stringify({ name: c.name || "", phone: c.phone || "", address: c.address || "", neighborhood: c.neighborhood || "", source: c.source || "" })})'>
+                            onclick='event.stopPropagation(); openEditCustomerModal(${JSON.stringify({ name: c.name || "", phone: c.phone || "", address: c.address || "", neighborhood: c.neighborhood || "", source: c.source || "" })})'>
                             <i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar
                         </button>
                     </td>

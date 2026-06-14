@@ -18,6 +18,7 @@ services:
       retries: 10
 
   backend:
+    init: true
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -29,7 +30,18 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sabor}
       PORT: 3000
+      NODE_ENV: production
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}
+      WHATSAPP_PROVIDER: ${WHATSAPP_PROVIDER:-noop}
+      WHATSAPP_WEBHOOK_SECRET: ${WHATSAPP_WEBHOOK_SECRET:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_API_VERSION: ${WHATSAPP_API_VERSION:-v18.0}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-}
+      ZAPI_INSTANCE_ID: ${ZAPI_INSTANCE_ID:-}
+      ZAPI_TOKEN: ${ZAPI_TOKEN:-}
+      ZAPI_CLIENT_TOKEN: ${ZAPI_CLIENT_TOKEN:-}
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     healthcheck:
@@ -37,19 +49,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    volumes:
-      # Bind-mount do frontend para iterar HTML/JS sem rebuild
-      - ./index.html:/app/frontend/index.html:ro
-      - ./pedidos.html:/app/frontend/pedidos.html:ro
-      - ./cozinha.html:/app/frontend/cozinha.html:ro
-      - ./sabores.html:/app/frontend/sabores.html:ro
-      - ./clientes.html:/app/frontend/clientes.html:ro
-      - ./relatorios.html:/app/frontend/relatorios.html:ro
-      - ./financeiro.html:/app/frontend/financeiro.html:ro
-      - ./gestao.html:/app/frontend/gestao.html:ro
-      - ./js:/app/frontend/js:ro
-    profiles:
-      - app
+      start_period: 20s
 
 volumes:
   postgres_data:

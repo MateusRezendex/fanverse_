@@ -10,7 +10,7 @@ Sistema de gestão para esfiharia: dashboard, pedidos, cozinha (kanban), cardáp
 
 ```
 fanverse_/
-├── docker-compose.yml         — Postgres (e backend opcional) em Docker
+├── docker-compose.yml         — Postgres + aplicacao em Docker
 ├── .env.example               — variáveis do compose
 ├── index.html, pedidos.html, cozinha.html, sabores.html, clientes.html, relatorios.html
 ├── js/db.js                   — cliente HTTP + WS com cache local
@@ -52,7 +52,7 @@ Abra http://localhost:3000 (ou a porta definida em `PORT` no `backend/.env`).
 # (opcional) copia .env.example para .env e ajusta credenciais
 cp .env.example .env
 
-docker compose --profile app up --build
+docker compose up -d --build
 ```
 
 O backend roda as migrations automaticamente no startup e fica disponível em `http://localhost:${BACKEND_PORT}` (default `3000`).
@@ -67,7 +67,7 @@ docker compose down
 docker compose down -v
 
 # logs do backend em container
-docker compose --profile app logs -f backend
+docker compose logs -f backend
 
 # acessar o psql do banco em container
 docker compose exec postgres psql -U postgres -d sabor

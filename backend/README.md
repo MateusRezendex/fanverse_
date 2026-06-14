@@ -31,6 +31,13 @@ npm start
 
 Abra `http://localhost:3000` — o backend serve os HTMLs e a API na mesma origem.
 
+## Validacao
+
+```bash
+npm run check
+npm run smoke -- http://localhost:3000
+```
+
 ## API
 
 | Método | Rota                              | Descrição                                |

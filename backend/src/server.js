@@ -15,6 +15,7 @@ const neighborhoodsRouter       = require('./routes/neighborhoods');
 const costsRouter               = require('./routes/costs');
 const internalConsumptionRouter = require('./routes/internal-consumption');
 const managementRouter          = require('./routes/management');
+const { pool }                  = require('./db');
 const ws = require('./ws');
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -26,7 +27,15 @@ app.use(cors({ origin: CORS_ORIGIN }));
 app.use(express.json({ limit: '256kb' }));
 
 // Health-check
-app.get('/api/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
+app.get('/api/health', async (_req, res) => {
+    try {
+        await pool.query('SELECT 1');
+        res.json({ ok: true, database: 'up', ts: Date.now() });
+    } catch (err) {
+        console.error('[health] banco indisponivel:', err.message);
+        res.status(503).json({ ok: false, database: 'down', ts: Date.now() });
+    }
+});
 
 // API
 app.use('/api/flavors',             flavorsRouter);
@@ -59,7 +68,9 @@ app.use('/api', (_req, res) => res.status(404).json({ error: 'rota não encontra
 // Tratamento global de erros
 app.use((err, _req, res, _next) => {
     console.error('[error]', err);
-    res.status(500).json({ error: 'erro interno', detail: err.message });
+    const body = { error: 'erro interno' };
+    if (process.env.NODE_ENV !== 'production') body.detail = err.message;
+    res.status(500).json(body);
 });
 
 const server = http.createServer(app);
@@ -73,10 +84,35 @@ server.listen(PORT, async () => {
 
     // Gera despesas recorrentes que ainda não foram lançadas neste mês
     try {
-        const { pool } = require('./db');
         const r = await fetch(`http://localhost:${PORT}/api/recurring-expenses/run`, { method: 'POST' })
             .then(x => x.json())
             .catch(() => null);
         if (r && r.generated > 0) console.log(`   Recorrentes: ${r.generated} despesa(s) gerada(s) neste boot.`);
     } catch (_) { /* silencioso */ }
 });
+
+let shuttingDown = false;
+function shutdown(signal) {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[shutdown] ${signal} recebido; encerrando conexoes...`);
+
+    const forceExit = setTimeout(() => {
+        console.error('[shutdown] tempo limite excedido.');
+        process.exit(1);
+    }, 10000);
+    forceExit.unref();
+
+    server.close(async (err) => {
+        try {
+            await pool.end();
+        } catch (poolErr) {
+            console.error('[shutdown] falha ao fechar PostgreSQL:', poolErr);
+        }
+        if (err) console.error('[shutdown] falha ao fechar servidor:', err);
+        process.exit(err ? 1 : 0);
+    });
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

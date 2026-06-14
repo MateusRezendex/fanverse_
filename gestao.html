@@ -149,22 +149,25 @@
         <section id="stock" class="tab-panel space-y-4">
             <div class="card p-5">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4"><div><h3 class="section-title">Ingredientes e alertas</h3><p class="muted text-xs">Estoque é baixado quando o pedido é entregue</p></div><button class="btn btn-primary no-print" onclick="toggleForm('ingredient-form')"><i data-lucide="plus" class="w-4 h-4"></i> Ingrediente</button></div>
-                <form id="ingredient-form" class="hidden grid md:grid-cols-5 gap-3 mb-5 p-4 rounded-xl bg-gray-50">
+                <form id="ingredient-form" class="hidden grid md:grid-cols-4 gap-3 mb-5 p-4 rounded-xl bg-gray-50">
                     <input class="field" name="name" placeholder="Nome" required>
                     <input class="field" name="unit" placeholder="Unidade (kg, g, un)" required>
-                    <input class="field" name="costPerUnit" type="number" step=".0001" placeholder="Custo/unidade">
                     <input class="field" name="currentStock" type="number" step=".001" placeholder="Estoque atual">
                     <input class="field" name="minimumStock" type="number" step=".001" placeholder="Estoque mínimo">
-                    <button class="btn btn-primary md:col-span-5" type="submit">Cadastrar ingrediente</button>
+                    <button class="btn btn-primary md:col-span-4" type="submit">Cadastrar ingrediente</button>
                 </form>
                 <div id="stock-list" class="grid md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
             </div>
             <div class="card p-5">
                 <h3 class="section-title">Ficha técnica por sabor</h3>
-                <p class="muted text-xs mb-4">Selecione o sabor e informe o consumo de cada ingrediente por unidade vendida.</p>
+                <p class="muted text-xs mb-1">Selecione o sabor e informe o consumo de cada ingrediente por unidade vendida.</p>
+                <p class="text-[11px] text-gray-500 mb-4">O custo de cada sabor continua sendo configurado na aba Sabores.</p>
                 <div class="grid lg:grid-cols-[280px_1fr] gap-4">
                     <select id="recipe-flavor" class="field"></select>
-                    <div><div id="recipe-items" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-2"></div><button class="btn btn-primary mt-4 no-print" onclick="saveRecipe()">Salvar ficha técnica</button></div>
+                    <div>
+                        <div id="recipe-items" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-2"></div>
+                        <button id="save-recipe-button" class="btn btn-primary mt-4 no-print" onclick="saveRecipe()">Salvar ficha técnica</button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -316,13 +319,54 @@
         }
 
         function renderStock() {
-            document.getElementById('stock-list').innerHTML=ingredients.length?ingredients.map(i=>`<article class="rounded-xl border p-4 ${i.lowStock?'border-red-300 bg-red-50':''}"><div class="flex justify-between gap-2"><div><p class="font-black">${escapeHtml(i.name)}</p><p class="text-xs text-gray-500">${money(i.costPerUnit)} / ${escapeHtml(i.unit)}</p></div>${i.lowStock?'<span class="text-[10px] font-black text-red-600 uppercase">Estoque baixo</span>':''}</div><div class="flex items-end justify-between mt-4"><div><p class="text-xs text-gray-500">Atual / mínimo</p><p class="font-black">${number(i.currentStock)} / ${number(i.minimumStock)} ${escapeHtml(i.unit)}</p></div><button class="btn btn-secondary no-print !py-2" onclick="adjustStock(${i.id})">Ajustar</button></div></article>`).join(''):'<p class="muted text-sm">Cadastre os ingredientes para ativar o controle de estoque.</p>';
+            document.getElementById('stock-list').innerHTML=ingredients.length?ingredients.map(i=>`<article class="rounded-xl border p-4 ${i.lowStock?'border-red-300 bg-red-50':''}"><div class="flex justify-between gap-2"><div><p class="font-black">${escapeHtml(i.name)}</p><p class="text-xs text-gray-500">Unidade: ${escapeHtml(i.unit)}</p></div>${i.lowStock?'<span class="text-[10px] font-black text-red-600 uppercase">Estoque baixo</span>':''}</div><div class="flex items-end justify-between mt-4"><div><p class="text-xs text-gray-500">Atual / mínimo</p><p class="font-black">${number(i.currentStock)} / ${number(i.minimumStock)} ${escapeHtml(i.unit)}</p></div><button class="btn btn-secondary no-print !py-2" onclick="adjustStock(${i.id})">Ajustar</button></div></article>`).join(''):'<p class="muted text-sm">Cadastre os ingredientes para ativar o controle de estoque.</p>';
         }
         function renderRecipe() {
             const flavorId=Number(document.getElementById('recipe-flavor').value);
             const recipe=recipes.find(r=>r.flavorId===flavorId);
             const quantities=new Map((recipe?.ingredients||[]).map(x=>[x.ingredientId,x.quantity]));
-            document.getElementById('recipe-items').innerHTML=ingredients.map(i=>`<label class="rounded-xl border p-3"><span class="block font-bold text-sm">${escapeHtml(i.name)}</span><span class="text-[10px] text-gray-500">Quantidade em ${escapeHtml(i.unit)}</span><input class="field mt-2 recipe-qty" data-id="${i.id}" type="number" min="0" step=".001" value="${quantities.get(i.id)||''}" placeholder="0"></label>`).join('');
+            const container=document.getElementById('recipe-items');
+            const saveButton=document.getElementById('save-recipe-button');
+
+            if(!ingredients.length) {
+                saveButton.classList.add('hidden');
+                container.className='block';
+                container.innerHTML=`
+                    <div class="rounded-xl border border-orange-200 bg-orange-50 p-4">
+                        <p class="font-black text-sm">Cadastre o primeiro ingrediente</p>
+                        <p class="text-xs text-gray-600 mt-1 mb-4">Depois do cadastro, o campo de consumo aparecerá aqui para todos os sabores.</p>
+                        <form id="recipe-ingredient-form" class="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                            <input class="field" name="name" placeholder="Nome do ingrediente" required>
+                            <input class="field" name="unit" placeholder="Unidade (kg, g, ml, un)" required>
+                            <input class="field" name="currentStock" type="number" step=".001" placeholder="Estoque atual">
+                            <input class="field" name="minimumStock" type="number" min="0" step=".001" placeholder="Estoque mínimo">
+                            <button class="btn btn-primary sm:col-span-2 xl:col-span-4" type="submit">
+                                <i data-lucide="plus" class="w-4 h-4"></i> Cadastrar ingrediente
+                            </button>
+                        </form>
+                    </div>`;
+                document.getElementById('recipe-ingredient-form').addEventListener('submit',createIngredient);
+                lucide.createIcons();
+                return;
+            }
+
+            saveButton.classList.remove('hidden');
+            container.className='grid sm:grid-cols-2 xl:grid-cols-3 gap-2';
+            container.innerHTML=ingredients.map(i=>`<label class="rounded-xl border p-3"><span class="block font-bold text-sm">${escapeHtml(i.name)}</span><span class="text-[10px] text-gray-500">Quantidade em ${escapeHtml(i.unit)}</span><input class="field mt-2 recipe-qty" data-id="${i.id}" type="number" min="0" step=".001" value="${quantities.get(i.id)||''}" placeholder="0"></label>`).join('');
+        }
+        async function createIngredient(event) {
+            event.preventDefault();
+            const form=event.currentTarget;
+            const body=Object.fromEntries(new FormData(form));
+            try {
+                await api('/api/management/ingredients',{method:'POST',body});
+                form.reset();
+                document.getElementById('ingredient-form').classList.add('hidden');
+                toast('Ingrediente cadastrado');
+                await loadAll();
+            } catch(error) {
+                toast(`Não foi possível cadastrar: ${error.message}`);
+            }
         }
         async function saveRecipe() {
             const flavorId=Number(document.getElementById('recipe-flavor').value);
@@ -378,9 +422,7 @@
         });
         document.getElementById('recipe-flavor').addEventListener('change',renderRecipe);
         document.getElementById('refresh-button').addEventListener('click',()=>loadAll({notify:true}));
-        document.getElementById('ingredient-form').addEventListener('submit',async e=>{
-            e.preventDefault(); const b=Object.fromEntries(new FormData(e.target)); await api('/api/management/ingredients',{method:'POST',body:b}); e.target.reset(); e.target.classList.add('hidden'); toast('Ingrediente cadastrado'); await loadAll();
-        });
+        document.getElementById('ingredient-form').addEventListener('submit',createIngredient);
         document.getElementById('campaign-form').addEventListener('submit',async e=>{
             e.preventDefault(); const b=Object.fromEntries(new FormData(e.target)); await api('/api/management/campaigns',{method:'POST',body:b}); e.target.reset(); e.target.classList.add('hidden'); toast('Campanha cadastrada'); await loadAll();
         });
