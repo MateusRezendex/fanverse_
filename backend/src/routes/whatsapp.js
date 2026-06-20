@@ -15,6 +15,7 @@ const { query, withTx } = require('../db');
 const { broadcast } = require('../ws');
 const { parseOrderText } = require('../whatsapp/parser');
 const whatsapp = require('../whatsapp');
+const { calculatePackaging } = require('../packaging');
 
 const router = express.Router();
 
@@ -73,14 +74,24 @@ router.post('/', async (req, res, next) => {
         // Usa o "from" como telefone canônico se não vier na mensagem
         const phone = parsed.phone || from;
         const total = parsed.items.reduce((acc, i) => acc + i.price * i.quantity, 0);
+        const packaging = calculatePackaging(parsed.items.map(item => {
+            const flavor = flavorsNormalized.find(f => f.id === item.flavorId);
+            return { ...item, category: flavor ? flavor.category : 'Salgada' };
+        }));
 
         const order = await withTx(async (client) => {
             const { rows: [idRow] } = await client.query("SELECT '#' || nextval('order_id_seq') AS id");
             const id = idRow.id;
             await client.query(
-                `INSERT INTO orders (id, customer, phone, address, payment, source, total, status, notes)
-                 VALUES ($1, $2, $3, $4, $5, 'WhatsApp', $6, 'Pendente', $7)`,
-                [id, parsed.customer, phone, parsed.address, parsed.payment, total, parsed.notes]
+                `INSERT INTO orders (
+                    id, customer, phone, address, payment, source, total, status, notes,
+                    caixa_sugerida, caixa_utilizada, ocupacao_total
+                 )
+                 VALUES ($1, $2, $3, $4, $5, 'WhatsApp', $6, 'Pendente', $7, $8, $9, $10)`,
+                [
+                    id, parsed.customer, phone, parsed.address, parsed.payment, total, parsed.notes,
+                    packaging.suggestedBox, packaging.suggestedBox, packaging.occupancyTotal,
+                ]
             );
             for (const it of parsed.items) {
                 await client.query(
@@ -100,6 +111,9 @@ router.post('/', async (req, res, next) => {
                 total: Number(o.total),
                 status: o.status,
                 notes: o.notes,
+                caixaSugerida: o.caixa_sugerida || 'Média',
+                caixaUtilizada: o.caixa_utilizada || o.caixa_sugerida || 'Média',
+                ocupacaoTotal: Number(o.ocupacao_total || 0),
                 createdAt: o.created_at,
                 deliveredAt: o.delivered_at,
                 items: items.map(i => ({

@@ -78,9 +78,16 @@
 
     <!-- CONTEÚDO PRINCIPAL -->
     <main class="flex-1 p-6 md:p-8 overflow-y-auto max-h-screen space-y-6">
-        <div>
-            <h2 class="text-2xl font-black text-white">Controle de Pedidos</h2>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+                <h2 class="text-2xl font-black text-white">Controle de Pedidos</h2>
             <p class="text-gray-400 text-sm">Histórico e gestão do progresso operacional.</p>
+            </div>
+            <button onclick="exportFilteredOrdersPdf()"
+                class="inline-flex items-center justify-center gap-2 bg-brand-accentOrange hover:bg-orange-600 text-white rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-orange-950/30">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                Exportar PDF
+            </button>
         </div>
 
         <!-- BARRA DE FILTROS -->
@@ -147,13 +154,10 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-black/20 text-xs font-bold uppercase text-gray-400 border-b border-brand-border">
-                            <th class="py-4 px-6">ID</th>
-                            <th class="py-4 px-6">Cliente</th>
+                            <th class="py-4 px-6 w-64">Pedido</th>
                             <th class="py-4 px-6">Itens</th>
-                            <th class="py-4 px-6">Taxa Entrega</th>
-                            <th class="py-4 px-6">Total</th>
-                            <th class="py-4 px-6">Status</th>
-                            <th class="py-4 px-6">Origem</th>
+                            <th class="py-4 px-6 w-36 text-right">Valores</th>
+                            <th class="py-4 px-6 w-40">Caixa</th>
                             <th class="py-4 px-6 text-right">Ações</th>
                         </tr>
                     </thead>
@@ -301,9 +305,8 @@
                     const flavorName  = flavor ? flavor.name  : (item.name  || 'Sabor removido');
                     const currentPrice = flavor ? flavor.price : (item.price || 0);
                     return `
-                        <div class="mb-1">
-                            <span class="text-white font-semibold">${item.quantity}x ${escapeHtml(flavorName)}</span>
-                            <span class="text-gray-500 text-xs block">${formatBRL(currentPrice)} cada</span>
+                        <div class="rounded-lg bg-black/20 border border-brand-border/40 px-3 py-2 min-w-0">
+                            <span class="text-white font-semibold block truncate">${item.quantity}x ${escapeHtml(flavorName)}</span>
                         </div>
                     `;
                 }).join('');
@@ -312,10 +315,6 @@
                 const total = o.total != null
                     ? o.total
                     : o.items.reduce((acc, i) => acc + ((i.price || 0) * i.quantity), 0);
-
-                let statusColor = 'bg-orange-500/10 text-orange-400';
-                if (o.status === 'Entregue')  statusColor = 'bg-emerald-500/10 text-emerald-400';
-                if (o.status === 'Cancelado') statusColor = 'bg-gray-500/10 text-gray-400';
 
                 let actionBtn;
                 if (o.status === 'Cancelado' || o.status === 'Entregue') {
@@ -328,23 +327,160 @@
                     ? `<span class="text-[10px] uppercase font-bold tracking-wider text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded">${escapeHtml(o.source)}</span>`
                     : `<span class="text-[10px] text-gray-600 italic">—</span>`;
 
+                const usedBox = o.caixaUtilizada || o.caixaSugerida || 'Média';
+                const boxChanged = usedBox !== o.caixaSugerida;
+                let boxClass = boxChanged ? 'text-amber-300 bg-amber-500/10 border-amber-500/20' : 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20';
+                if (usedBox === 'Sem Caixa') boxClass = 'text-gray-300 bg-gray-500/10 border-gray-500/20';
+                const boxDisplay = usedBox === 'Sem Caixa'
+                    ? `<span class="text-xs font-bold text-gray-400">${escapeHtml(usedBox)}</span>`
+                    : `<span class="px-2 py-1 rounded border ${boxClass} font-bold text-xs">${escapeHtml(usedBox)}</span>`;
+
                 tr.innerHTML = `
-                    <td class="py-4 px-6 font-bold text-gray-400">${escapeHtml(o.id)}</td>
-                    <td class="py-4 px-6 text-white font-semibold">
-                        ${escapeHtml(o.customer)}
-                        <span class="block text-xs text-gray-500 font-normal">${escapeHtml(formatPhone(o.phone))}</span>
+                    <td class="py-4 px-6 align-top">
+                        <div class="font-black text-brand-accentOrange">${escapeHtml(o.id)}</div>
+                        <div class="text-white font-bold mt-1">${escapeHtml(o.customer)}</div>
+                        <div class="text-xs text-gray-500 font-normal">${escapeHtml(formatPhone(o.phone))}</div>
                     </td>
-                    <td class="py-4 px-6 text-gray-400">${itemsList}</td>
-                    <td class="py-4 px-6 font-bold text-gray-300">${formatBRL(o.deliveryFee || 0)}</td>
-                    <td class="py-4 px-6 font-black text-brand-accentOrange">${formatBRL(total)}</td>
-                    <td class="py-4 px-6">
-                        <span class="px-2 py-1 rounded ${statusColor} font-bold text-xs">${escapeHtml(o.status)}</span>
+                    <td class="py-4 px-6 align-top">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">${itemsList}</div>
                     </td>
-                    <td class="py-4 px-6">${sourceBadge}</td>
-                    <td class="py-4 px-6 text-right">${actionBtn}</td>
+                    <td class="py-4 px-6 align-top text-right">
+                        <div class="text-[10px] uppercase font-bold text-gray-500">Entrega</div>
+                        <div class="font-bold text-gray-300">${formatBRL(o.deliveryFee || 0)}</div>
+                        <div class="text-[10px] uppercase font-bold text-gray-500 mt-2">Total</div>
+                        <div class="font-black text-brand-accentOrange">${formatBRL(total)}</div>
+                    </td>
+                    <td class="py-4 px-6 align-top">
+                        ${boxDisplay}
+                        <span class="block text-[10px] text-gray-500 mt-1">Sug.: ${escapeHtml(o.caixaSugerida || 'Média')}</span>
+                    </td>
+                    <td class="py-4 px-6 text-right align-top">${actionBtn}</td>
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        function exportFilteredOrdersPdf() {
+            const filtered = filterOrders(orders).slice().reverse();
+            if (!filtered.length) {
+                showToast('Sem pedidos', 'Nenhum pedido encontrado para exportar.', true);
+                return;
+            }
+
+            const filters = getFilters();
+            const periodLabel = { today: 'Hoje', '7d': 'Ultimos 7 dias', '30d': 'Ultimos 30 dias', all: 'Todo o historico' }[filters.period];
+            const total = filtered.reduce((acc, o) => acc + (o.total || 0), 0);
+            const rows = filtered.map(o => {
+                const items = (o.items || []).map(item => {
+                    const flavor = flavors.find(f => f.id === item.flavorId);
+                    const name = flavor ? flavor.name : (item.name || 'Sabor removido');
+                    const price = flavor ? flavor.price : (item.price || 0);
+                    return `${item.quantity}x ${escapeHtml(name)} (${escapeHtml(formatBRL(price))} cada)`;
+                }).join('<br>');
+                const orderTotal = o.total != null
+                    ? o.total
+                    : (o.items || []).reduce((acc, i) => acc + ((i.price || 0) * i.quantity), 0);
+
+                return `
+                    <tr>
+                        <td>${escapeHtml(o.id)}</td>
+                        <td>${escapeHtml(formatPdfDate(o.createdAt))}</td>
+                        <td>
+                            <strong>${escapeHtml(o.customer)}</strong><br>
+                            <span>${escapeHtml(formatPhone(o.phone))}</span><br>
+                            <span>${escapeHtml(o.neighborhood || '')}</span>
+                        </td>
+                        <td>${items}</td>
+                        <td>${escapeHtml(o.payment || '')}</td>
+                        <td>${escapeHtml(o.status || '')}</td>
+                        <td>${escapeHtml(o.source || '')}</td>
+                        <td class="money">${escapeHtml(formatBRL(o.deliveryFee || 0))}</td>
+                        <td class="money">${escapeHtml(formatBRL(o.discount || 0))}</td>
+                        <td class="money total">${escapeHtml(formatBRL(orderTotal))}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const report = window.open('', '_blank');
+            if (!report) {
+                showToast('Bloqueado', 'Permita pop-ups para gerar o PDF.', true);
+                return;
+            }
+
+            report.document.write(`
+                <!DOCTYPE html>
+                <html lang="pt-BR">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Pedidos - PDF</title>
+                    <style>
+                        * { box-sizing: border-box; }
+                        body { font-family: Arial, sans-serif; color: #111827; margin: 24px; }
+                        h1 { font-size: 22px; margin: 0 0 6px; }
+                        .muted { color: #6b7280; font-size: 12px; }
+                        .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0; }
+                        .box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; }
+                        .box strong { display: block; font-size: 16px; margin-top: 3px; }
+                        table { width: 100%; border-collapse: collapse; font-size: 10px; }
+                        th { background: #f3f4f6; text-align: left; text-transform: uppercase; font-size: 9px; color: #4b5563; }
+                        th, td { border: 1px solid #e5e7eb; padding: 7px; vertical-align: top; }
+                        .money { text-align: right; white-space: nowrap; }
+                        .total { font-weight: 700; }
+                        @media print {
+                            body { margin: 12mm; }
+                            button { display: none; }
+                            tr { break-inside: avoid; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h1>Controle de Pedidos</h1>
+                    <p class="muted">Exportado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</p>
+                    <div class="summary">
+                        <div class="box">Periodo<strong>${escapeHtml(periodLabel)}</strong></div>
+                        <div class="box">Pedidos<strong>${filtered.length}</strong></div>
+                        <div class="box">Total<strong>${escapeHtml(formatBRL(total))}</strong></div>
+                    </div>
+                    <p class="muted">
+                        Status: ${escapeHtml(filters.status === 'all' ? 'Todos' : filters.status)} |
+                        Origem: ${escapeHtml(filters.source === 'all' ? 'Todas' : (filters.source === '__empty__' ? 'Sem origem' : filters.source))} |
+                        Busca: ${escapeHtml(filters.search || 'Sem busca')}
+                    </p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Data</th>
+                                <th>Cliente</th>
+                                <th>Itens</th>
+                                <th>Pagamento</th>
+                                <th>Status</th>
+                                <th>Origem</th>
+                                <th>Taxa</th>
+                                <th>Desconto</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <script>
+                        window.onload = () => {
+                            window.print();
+                            setTimeout(() => window.close(), 500);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            report.document.close();
+            showToast('PDF pronto', 'Escolha "Salvar como PDF" na janela de impressao.');
+        }
+
+        function formatPdfDate(value) {
+            if (!value) return '';
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return '';
+            return d.toLocaleString('pt-BR');
         }
 
         async function cancelOrder(id) {

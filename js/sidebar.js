@@ -161,7 +161,73 @@
                 background: #f9fafb;
             }
 
+            .sidebar-mobile-toggle {
+                width: 2.5rem;
+                height: 2.5rem;
+                border-radius: 9999px;
+                border: 1px solid #e5e7eb;
+                background: #ffffff;
+                color: #000000;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                transition: color .2s ease, border-color .2s ease, background .2s ease, transform .2s ease;
+            }
+
+            .sidebar-mobile-toggle:hover {
+                border-color: rgba(249, 115, 22, .55);
+                background: #f9fafb;
+            }
+
+            @media (max-width: 767px) {
+                aside {
+                    width: 100% !important;
+                    padding: 1rem !important;
+                    border-right: 0 !important;
+                    border-bottom: 1px solid #e5e7eb !important;
+                    position: sticky;
+                    top: 0;
+                    z-index: 50;
+                    max-height: 100vh;
+                    overflow-y: auto;
+                }
+
+                aside > div:first-child {
+                    width: 100%;
+                }
+
+                aside .sidebar-brand-row {
+                    margin-bottom: 0 !important;
+                    padding-right: 3.25rem;
+                }
+
+                aside nav,
+                aside > div:last-child {
+                    display: none !important;
+                }
+
+                body.sidebar-mobile-open aside nav {
+                    display: block !important;
+                    margin-top: 1.25rem;
+                }
+
+                .sidebar-toggle {
+                    display: none !important;
+                }
+
+                .sidebar-mobile-toggle {
+                    position: absolute;
+                    top: 1.25rem;
+                    right: 1rem;
+                    z-index: 60;
+                }
+            }
+
             @media (min-width: 768px) {
+                .sidebar-mobile-toggle {
+                    display: none !important;
+                }
+
                 body.sidebar-collapsed aside {
                     width: 5rem !important;
                     padding-left: .75rem !important;
@@ -250,6 +316,26 @@
         toggle.innerHTML = '<i data-lucide="panel-left-close" class="w-4 h-4 transition-transform"></i>';
         aside.appendChild(toggle);
 
+        const mobileToggle = document.createElement('button');
+        mobileToggle.type = 'button';
+        mobileToggle.className = 'sidebar-mobile-toggle';
+        mobileToggle.setAttribute('aria-label', 'Abrir menu');
+        mobileToggle.setAttribute('aria-expanded', 'false');
+        mobileToggle.title = 'Abrir menu';
+        mobileToggle.innerHTML = '<i data-lucide="menu" class="w-5 h-5"></i>';
+        aside.appendChild(mobileToggle);
+
+        const setMobileOpen = (open) => {
+            document.body.classList.toggle('sidebar-mobile-open', open);
+            mobileToggle.setAttribute('aria-expanded', String(open));
+            mobileToggle.setAttribute('aria-label', open ? 'Fechar menu' : 'Abrir menu');
+            mobileToggle.title = open ? 'Fechar menu' : 'Abrir menu';
+            mobileToggle.innerHTML = open
+                ? '<i data-lucide="x" class="w-5 h-5"></i>'
+                : '<i data-lucide="menu" class="w-5 h-5"></i>';
+            if (window.lucide) lucide.createIcons();
+        };
+
         const setCollapsed = (collapsed) => {
             document.body.classList.toggle('sidebar-collapsed', collapsed);
             toggle.setAttribute('aria-expanded', String(!collapsed));
@@ -260,6 +346,10 @@
 
         setCollapsed(localStorage.getItem(STORAGE_KEY) === '1');
         toggle.addEventListener('click', () => setCollapsed(!document.body.classList.contains('sidebar-collapsed')));
+        mobileToggle.addEventListener('click', () => setMobileOpen(!document.body.classList.contains('sidebar-mobile-open')));
+        aside.querySelectorAll('nav a').forEach(link => {
+            link.addEventListener('click', () => setMobileOpen(false));
+        });
 
         if (window.lucide) lucide.createIcons();
     }

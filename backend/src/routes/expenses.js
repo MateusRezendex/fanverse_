@@ -41,7 +41,7 @@ router.post('/', async (req, res, next) => {
 
         const { rows } = await query(
             `INSERT INTO expenses (category_id, description, amount, date, source)
-             VALUES ($1, $2, $3, COALESCE($4, CURRENT_DATE), $5) RETURNING *`,
+             VALUES ($1, $2, $3, COALESCE($4::date, (NOW() AT TIME ZONE 'America/Sao_Paulo')::date), $5) RETURNING *`,
             [categoryId || null, String(description), amount, date || null, source]
         );
         const exp = normalize(rows[0]);

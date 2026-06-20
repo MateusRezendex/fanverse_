@@ -173,7 +173,14 @@
                     <h4 class="text-white font-bold text-base">Despesas do período</h4>
                     <p class="text-xs text-gray-500" id="expenses-summary">—</p>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap justify-end">
+                    <div class="relative">
+                        <i data-lucide="filter" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"></i>
+                        <select id="expense-category-filter" onchange="setExpenseCategoryFilter(this.value)"
+                            class="appearance-none bg-black/20 border border-brand-border text-gray-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-brand-accentOrange/40 font-bold py-2 pl-9 pr-8 rounded-xl text-sm transition-all">
+                            <option value="">Todas categorias</option>
+                        </select>
+                    </div>
                     <button onclick="openManageCategoriesModal()"
                         class="border border-brand-border text-gray-300 hover:text-white hover:bg-white/5 font-bold py-2 px-4 rounded-xl text-sm flex items-center gap-2 transition-all">
                         <i data-lucide="tag" class="w-4 h-4"></i> Categorias
@@ -202,6 +209,7 @@
                     Nenhuma despesa lançada no período.
                 </div>
             </div>
+            <div id="expenses-category-totals" class="border-t border-brand-border p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
         </div>
 
         <!-- DESPESAS RECORRENTES -->
@@ -399,6 +407,7 @@
 	        let editingRecurringId = null;
 	        let categoryTargetSelectId = null;
 	        let _showAllFlavorMargins = false;
+            let selectedExpenseCategoryId = '';
 
         document.addEventListener('DOMContentLoaded', async () => {
             try { await initDb(); }
@@ -463,12 +472,23 @@
             const opts = cats.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
             const expSel = document.getElementById('exp-category');
             const recSel = document.getElementById('rec-category');
+            const filterSel = document.getElementById('expense-category-filter');
             const expCurrent = expSel.value;
             const recCurrent = recSel.value;
             expSel.innerHTML = opts;
             recSel.innerHTML = opts;
             if (expCurrent) expSel.value = expCurrent;
             if (recCurrent) recSel.value = recCurrent;
+            if (filterSel) {
+                filterSel.innerHTML = '<option value="">Todas categorias</option>' + opts;
+                filterSel.value = selectedExpenseCategoryId;
+            }
+        }
+
+        function setExpenseCategoryFilter(value) {
+            selectedExpenseCategoryId = value || '';
+            renderExpensesTable();
+            lucide.createIcons();
         }
 
         function openCategoryModal(targetSelectId) {
@@ -679,7 +699,6 @@
                 if (tooltip) tooltip.classList.add('hidden');
                 return;
             }
-            const safeNum = (v) => (isFinite(Number(v)) ? Number(v) : 0);
             const maxAbs = Math.max(1, ...data.map(d => Math.abs(safeNum(d.profit))));
 
             const peakIdx = (() => {
@@ -832,11 +851,20 @@
             const from = report.period.from, to = report.period.to;
 
             const all = getExpenses();
-            const list = all.filter(e => e.date >= from && e.date <= to);
+            const periodList = all.filter(e => e.date >= from && e.date <= to);
             const cats = getExpenseCategories();
             const catById = new Map(cats.map(c => [c.id, c]));
+            const selectedId = selectedExpenseCategoryId ? parseInt(selectedExpenseCategoryId, 10) : null;
+            const list = selectedId ? periodList.filter(e => Number(e.categoryId) === selectedId) : periodList;
+            const selectedCat = selectedId ? catById.get(selectedId) : null;
 
-            summary.textContent = `${list.length} despesa(s) entre ${formatDateBR(from)} e ${formatDateBR(to)}`;
+            renderExpensesCategoryTotals(periodList, catById, selectedId);
+
+            const filteredTotal = list.reduce((sum, e) => sum + safeNum(e.amount), 0);
+            const periodTotal = periodList.reduce((sum, e) => sum + safeNum(e.amount), 0);
+            summary.textContent = selectedCat
+                ? `${list.length} despesa(s) em ${selectedCat.name}: ${formatBRL(filteredTotal)} de ${formatBRL(periodTotal)} no periodo`
+                : `${periodList.length} despesa(s) entre ${formatDateBR(from)} e ${formatDateBR(to)} - total ${formatBRL(periodTotal)}`;
 
             if (list.length === 0) {
                 tbody.innerHTML = ''; empty.classList.remove('hidden');
@@ -868,6 +896,47 @@
                             <button onclick="removeExpense(${e.id})" class="text-red-400 hover:text-red-300 text-xs font-bold">excluir</button>
                         </td>
                     </tr>
+                `;
+            }).join('');
+        }
+
+        function renderExpensesCategoryTotals(periodList, catById, selectedId) {
+            const totalsEl = document.getElementById('expenses-category-totals');
+            if (!totalsEl) return;
+
+            const totals = new Map();
+            periodList.forEach(e => {
+                const id = e.categoryId || 'none';
+                const current = totals.get(id) || { id, amount: 0, count: 0 };
+                current.amount += safeNum(e.amount);
+                current.count += 1;
+                totals.set(id, current);
+            });
+
+            const rows = Array.from(totals.values()).sort((a, b) => b.amount - a.amount);
+            if (rows.length === 0) {
+                totalsEl.innerHTML = '';
+                return;
+            }
+
+            totalsEl.innerHTML = rows.map(row => {
+                const cat = row.id === 'none' ? null : catById.get(Number(row.id));
+                const isActive = selectedId && Number(row.id) === selectedId;
+                const icon = cat ? cat.icon : 'circle';
+                const name = cat ? cat.name : 'Sem categoria';
+                const value = row.id === 'none' ? '' : row.id;
+                return `
+                    <button onclick="setExpenseCategoryFilter('${value}')"
+                        class="text-left border ${isActive ? 'border-brand-accentOrange bg-brand-accentOrange/10' : 'border-brand-border bg-black/10 hover:bg-white/[0.03]'} rounded-xl px-4 py-3 transition-all">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="inline-flex items-center gap-2 text-xs font-bold text-gray-300 min-w-0">
+                                <i data-lucide="${escapeHtml(icon)}" class="w-4 h-4 shrink-0"></i>
+                                <span class="truncate">${escapeHtml(name)}</span>
+                            </span>
+                            <span class="text-[10px] text-gray-500 whitespace-nowrap">${row.count}x</span>
+                        </div>
+                        <div class="mt-2 text-lg font-black text-red-400">${formatBRL(row.amount)}</div>
+                    </button>
                 `;
             }).join('');
         }
@@ -909,12 +978,19 @@
         }
 
         // --- Expense modal ---
+        function localDateValue(date = new Date()) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
         function openExpenseModal(exp = null) {
             editingExpenseId = exp ? exp.id : null;
             document.getElementById('modal-expense-title').textContent = exp ? 'Editar despesa' : 'Nova despesa';
             document.getElementById('exp-category').value = exp ? exp.categoryId : (getExpenseCategories()[0] || {}).id;
             document.getElementById('exp-amount').value = exp ? exp.amount : '';
-            document.getElementById('exp-date').value = exp ? String(exp.date).slice(0, 10) : new Date().toISOString().slice(0, 10);
+            document.getElementById('exp-date').value = exp ? String(exp.date).slice(0, 10) : localDateValue();
             document.getElementById('exp-description').value = exp ? exp.description : '';
             const instEl = document.getElementById('exp-installments');
             if (instEl) {
@@ -1061,6 +1137,11 @@
         async function toggleRecurring(id, active) {
             try { await updateRecurringExpense(id, { active }); showToast(active ? 'Ativada' : 'Pausada', 'Recorrente atualizada.'); }
             catch (e) { showToast('Erro', e.message, true); }
+        }
+
+        function safeNum(value) {
+            const n = Number(value);
+            return isFinite(n) ? n : 0;
         }
 
         function formatDateBR(iso) {

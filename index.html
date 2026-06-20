@@ -364,6 +364,52 @@
                 <div id="source-breakdown" class="space-y-2"></div>
             </div>
 
+            <!-- Embalagens -->
+            <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-5">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <h4 class="text-white font-bold text-base">Análise de embalagens</h4>
+                        <p class="text-xs text-gray-500">Sugestão automática versus caixa utilizada no período.</p>
+                    </div>
+                    <i data-lucide="package-check" class="w-5 h-5 text-brand-accentOrange"></i>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
+                        <p class="text-[10px] uppercase font-bold text-gray-500">Médias usadas</p>
+                        <p id="packaging-medium-used" class="text-2xl font-black text-white mt-1">0</p>
+                    </div>
+                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
+                        <p class="text-[10px] uppercase font-bold text-gray-500">Grandes usadas</p>
+                        <p id="packaging-large-used" class="text-2xl font-black text-white mt-1">0</p>
+                    </div>
+                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
+                        <p class="text-[10px] uppercase font-bold text-gray-500">Múltiplas caixas</p>
+                        <p id="packaging-multiple-used" class="text-2xl font-black text-white mt-1">0</p>
+                    </div>
+                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
+                        <p class="text-[10px] uppercase font-bold text-gray-500">Sugestão alterada</p>
+                        <p id="packaging-changed-percent" class="text-2xl font-black text-white mt-1">0%</p>
+                    </div>
+                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
+                        <p class="text-[10px] uppercase font-bold text-gray-500">Ocupação média</p>
+                        <p id="packaging-avg-occupancy" class="text-2xl font-black text-white mt-1">0</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="border-b border-brand-border/60 text-xs uppercase tracking-wider text-gray-500 font-bold">
+                                <th class="pb-3">Pedido</th>
+                                <th class="pb-3">Ocupação</th>
+                                <th class="pb-3">Caixa Sugerida</th>
+                                <th class="pb-3">Caixa Utilizada</th>
+                            </tr>
+                        </thead>
+                        <tbody id="packaging-report-tbody" class="divide-y divide-brand-border/30"></tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Cabeçalho da seção de análise + filtro de período -->
             <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-4 border-t border-brand-border/40">
                 <div>
@@ -439,6 +485,7 @@
                                 <th class="pb-3 pl-4">ID</th>
                                 <th class="pb-3">Cliente</th>
                                 <th class="pb-3">Itens</th>
+                                <th class="pb-3">Caixa</th>
                                 <th class="pb-3">Taxa Entrega</th>
                                 <th class="pb-3">Valor Total</th>
                                 <th class="pb-3">Status</th>
@@ -479,6 +526,7 @@
             </div>
 
             <div class="p-5 space-y-4 overflow-y-auto flex-1">
+                <div class="grid grid-cols-1 min-[560px]:grid-cols-[minmax(0,1fr)_minmax(13.5rem,16rem)] lg:grid-cols-[minmax(0,1fr)_18rem] gap-4">
                 <div class="space-y-1.5">
                     <label class="text-xs font-bold uppercase text-gray-400">Nome do Cliente</label>
                     <div class="relative">
@@ -499,9 +547,10 @@
                     <input type="tel" id="order-phone" placeholder="Ex: (81) 98765-4321"
                         class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
                 </div>
+                </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_18rem] gap-4 items-start">
-                    <div class="order-2 md:order-1 space-y-3 min-w-0">
+                <div class="grid grid-cols-1 min-[560px]:grid-cols-[minmax(0,1fr)_minmax(13.5rem,16rem)] lg:grid-cols-[minmax(0,1fr)_18rem] gap-4 items-start">
+                    <div class="order-1 space-y-3 min-w-0">
                         <label class="text-xs font-bold uppercase text-gray-400 block">Escolher Sabores</label>
                         <div id="order-flavors-selection" class="space-y-3 max-h-[22rem] overflow-y-auto pr-1">
                             <!-- Gerado dinamicamente -->
@@ -509,7 +558,7 @@
                     </div>
 
                     <div id="order-items-preview"
-                        class="order-1 md:order-2 sticky top-0 z-20 bg-brand-dark/95 border border-brand-border/70 rounded-xl p-3 space-y-2 shadow-lg">
+                        class="order-2 min-[560px]:sticky min-[560px]:top-0 min-[560px]:z-20 bg-brand-dark/95 border border-brand-border/70 rounded-xl p-3 space-y-2 shadow-lg">
                         <div class="flex items-center justify-between gap-3">
                             <span class="text-xs font-bold uppercase text-gray-400">Prévia do pedido</span>
                             <span id="order-preview-count" class="text-[11px] font-bold text-gray-500">0 itens</span>
@@ -521,6 +570,29 @@
                         </div>
                         <div id="order-preview-adjustments"
                             class="hidden border-t border-brand-border/60 pt-2 space-y-1 text-xs">
+                        </div>
+                        <div class="border-t border-brand-border/60 pt-2 space-y-2">
+                            <div class="grid grid-cols-1 gap-2">
+                                <div>
+                                    <label class="text-[10px] font-bold uppercase text-gray-500">Caixa sugerida</label>
+                                    <input id="order-box-suggested" type="text" value="Média" readonly
+                                        class="mt-1 w-full bg-black/30 border border-brand-border rounded-lg px-3 py-2 text-gray-300 text-xs font-bold focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold uppercase text-gray-500">Caixa utilizada</label>
+                                    <select id="order-box-used"
+                                        class="mt-1 w-full bg-black/30 border border-brand-border rounded-lg px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-brand-accentOrange">
+                                        <option value="Sem Caixa">Sem Caixa</option>
+                                        <option value="Pequena">Pequena</option>
+                                        <option value="Média">Média</option>
+                                        <option value="Grande">Grande</option>
+                                        <option value="Grande + Pequena">Grande + Pequena</option>
+                                        <option value="2 Grandes">2 Grandes</option>
+                                        <option value="Múltiplas Caixas">Múltiplas Caixas</option>
+                                        <option value="Outro">Outro</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -544,7 +616,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 min-[560px]:grid-cols-3 gap-3">
                     <div class="space-y-1.5">
                         <label class="text-xs font-bold uppercase text-gray-400">Taxa de Entrega (Cliente)</label>
                         <input type="number" id="order-delivery-fee-customer" min="0" step="0.01" value="0" oninput="calculateTotalPreview()"
@@ -555,12 +627,11 @@
                         <input type="number" id="order-delivery-fee-cost" min="0" step="0.01" value="0" oninput="calculateTotalPreview()"
                             class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
                     </div>
-                </div>
-
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold uppercase text-gray-400">Desconto</label>
-                    <input type="number" id="order-discount" min="0" step="0.01" value="0" oninput="calculateTotalPreview()"
-                        class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold uppercase text-gray-400">Desconto</label>
+                        <input type="number" id="order-discount" min="0" step="0.01" value="0" oninput="calculateTotalPreview()"
+                            class="w-full bg-brand-dark/60 border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-accentOrange transition-all text-sm">
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
@@ -718,6 +789,7 @@
         let weeklyRevenue = null;
         let dashboardStats = null;
         let editingOrderId = null;
+        let lastSuggestedBox = '';
         let _refreshTimer = null;
         let _connectionTimer = null;
         let rankingPeriod = '30d';   // 'today' | '7d' | '30d'
@@ -1031,6 +1103,7 @@
             renderHourlyChart();
             renderRankings();
             renderSourceBreakdown();
+            renderPackagingAnalysis();
             renderInternalConsumptionCard();
             updateNeighborhoodOptions();
             renderTableFilterBadge();
@@ -1063,6 +1136,47 @@
                             <div class="${isUnknown ? 'bg-gray-600' : 'bg-gradient-to-r from-red-600 to-orange-500'} h-full rounded-full" style="width: ${pct}%"></div>
                         </div>
                     </div>
+                `;
+            }).join('');
+        }
+
+        function renderPackagingAnalysis() {
+            const packaging = (dashboardStats && dashboardStats.packaging) || {};
+            const setText = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = value;
+            };
+
+            setText('packaging-medium-used', Number(packaging.mediumUsed || 0));
+            setText('packaging-large-used', Number(packaging.largeUsed || 0));
+            setText('packaging-multiple-used', Number(packaging.multipleUsed || 0));
+            setText('packaging-changed-percent', `${Number(packaging.changedPercent || 0).toFixed(0)}%`);
+            setText('packaging-avg-occupancy', Number(packaging.avgOccupancy || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 }));
+
+            const tbody = document.getElementById('packaging-report-tbody');
+            if (!tbody) return;
+            const rows = packaging.report || [];
+            if (!rows.length) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td class="py-4 text-gray-500 text-center" colspan="4">Sem pedidos no período.</td>
+                    </tr>
+                `;
+                return;
+            }
+            tbody.innerHTML = rows.map(row => {
+                const changed = row.caixaSugerida !== row.caixaUtilizada;
+                return `
+                    <tr>
+                        <td class="py-3 font-bold text-gray-300">${escapeHtml(row.id)}</td>
+                        <td class="py-3 text-gray-400">${Number(row.ocupacao || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
+                        <td class="py-3 text-gray-300">${escapeHtml(row.caixaSugerida || 'Média')}</td>
+                        <td class="py-3">
+                            <span class="${changed ? 'text-amber-400' : 'text-emerald-400'} font-bold">
+                                ${escapeHtml(row.caixaUtilizada || row.caixaSugerida || 'Média')}
+                            </span>
+                        </td>
+                    </tr>
                 `;
             }).join('');
         }
@@ -1357,6 +1471,10 @@
                         <td class="py-4 pl-4 font-bold text-gray-400">${escapeHtml(order.id)}</td>
                         <td class="py-4 font-semibold text-white">${escapeHtml(order.customer)}</td>
                         <td class="py-4 text-gray-400 max-w-xs truncate" title="${escapeHtml(itemSummary)}">${escapeHtml(itemSummary)}</td>
+                        <td class="py-4 text-gray-300">
+                            <div class="font-bold">${escapeHtml(order.caixaUtilizada || order.caixaSugerida || 'Média')}</div>
+                            <div class="text-[11px] text-gray-500">${Number(order.ocupacaoTotal || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} pts</div>
+                        </td>
                         <td class="py-4 text-gray-400 font-semibold">${formatBRL(order.deliveryFee || 0)}</td>
                         <td class="py-4 font-bold text-brand-accentOrange">${formatBRL(order.total)}</td>
                         <td class="py-4">
@@ -1635,6 +1753,9 @@
             document.getElementById('order-source').value = '';
             document.getElementById('order-referrer').value = '';
             document.getElementById('order-preview-total').innerText = formatBRL(0);
+            lastSuggestedBox = 'Média';
+            document.getElementById('order-box-suggested').value = 'Média';
+            document.getElementById('order-box-used').value = 'Média';
             renderOrderItemsPreview([], 0, 0, 0);
             toggleReferrerField();
             document.getElementById('modal-novo-pedido').classList.remove('hidden');
@@ -1712,7 +1833,7 @@
                     const price = parseFloat(input.dataset.price) || 0;
                     if (qty > 0) {
                         const subtotal = qty * price;
-                        selectedItems.push({ name: flavor.name, quantity: qty, price, subtotal });
+                        selectedItems.push({ name: flavor.name, quantity: qty, price, subtotal, category: flavor.category });
                         itemsTotal += subtotal;
                     }
                 }
@@ -1723,8 +1844,33 @@
             const discount = Math.max(0, Number(String(discRaw).replace(',', '.')) || 0);
             const total = Math.max(0, itemsTotal + deliveryFee - discount);
             renderOrderItemsPreview(selectedItems, itemsTotal, deliveryFee, discount);
+            renderPackagingPreview(selectedItems);
             document.getElementById('order-preview-total').innerText = formatBRL(total);
             return total;
+        }
+
+        function calculatePackagingSuggestion(items) {
+            const occupancy = (items || []).reduce((acc, item) => {
+                const qty = Number(item.quantity || 0);
+                return acc + (item.category === 'Doce' ? qty * 1.5 : qty);
+            }, 0);
+            let suggested = 'Múltiplas Caixas';
+            if (occupancy <= 6) suggested = 'Média';
+            else if (occupancy <= 10) suggested = 'Grande';
+            return { occupancy, suggested };
+        }
+
+        function renderPackagingPreview(items) {
+            const { suggested } = calculatePackagingSuggestion(items);
+            const suggestedEl = document.getElementById('order-box-suggested');
+            const usedEl = document.getElementById('order-box-used');
+            if (!suggestedEl || !usedEl) return;
+
+            const currentUsed = usedEl.value;
+            const shouldFollowSuggestion = !currentUsed || currentUsed === lastSuggestedBox;
+            suggestedEl.value = suggested;
+            if (shouldFollowSuggestion) usedEl.value = suggested;
+            lastSuggestedBox = suggested;
         }
 
         function renderOrderItemsPreview(items, itemsTotal, deliveryFee, discount) {
@@ -1743,13 +1889,23 @@
                     </div>
                 `;
             } else {
-                listEl.innerHTML = items.map(item => `
+                const renderPreviewItem = item => `
                     <div class="flex items-center justify-between gap-3 bg-black/20 rounded-lg px-3 py-2">
                         <div class="min-w-0 flex items-center gap-2">
                             <span class="w-6 h-6 rounded-md bg-brand-accentOrange/15 text-brand-accentOrange flex items-center justify-center text-xs font-black shrink-0">${item.quantity}</span>
                             <span class="text-sm font-semibold text-white truncate">${escapeHtml(item.name)}</span>
                         </div>
                         <span class="text-xs font-bold text-gray-300 shrink-0">${formatBRL(item.subtotal)}</span>
+                    </div>
+                `;
+                const groups = [
+                    { title: 'Salgados', items: items.filter(item => item.category !== 'Doce') },
+                    { title: 'Doces', items: items.filter(item => item.category === 'Doce') },
+                ].filter(group => group.items.length > 0);
+                listEl.innerHTML = groups.map(group => `
+                    <div class="space-y-1.5">
+                        <div class="text-[10px] font-black uppercase tracking-wider text-gray-500 px-1">${group.title}</div>
+                        <div class="space-y-1.5">${group.items.map(renderPreviewItem).join('')}</div>
                     </div>
                 `).join('');
             }
@@ -1784,7 +1940,7 @@
                 if (!input) return;
                 const qty = parseInt(input.value, 10) || 0;
                 if (qty <= 0) return;
-                items.push({ flavorId: flavor.id, name: flavor.name, quantity: qty, price: flavor.price });
+                items.push({ flavorId: flavor.id, name: flavor.name, quantity: qty, price: flavor.price, category: flavor.category });
                 total += qty * flavor.price;
             });
             return { items, total };
@@ -1836,6 +1992,7 @@
             const source       = document.getElementById('order-source').value;
             const referrerRaw  = document.getElementById('order-referrer')?.value ?? '';
             const notes        = document.getElementById('order-notes').value.trim();
+            const caixaUtilizada = document.getElementById('order-box-used')?.value || '';
 
             const deliveryFeeCustomer = Number(String(feeRawCustomer).replace(',', '.'));
             if (!isFinite(deliveryFeeCustomer) || deliveryFeeCustomer < 0) {
@@ -1872,10 +2029,10 @@
                     : '';
                 if (editingOrderId) {
                     const id = editingOrderId;
-                    await updateOrder(id, { customer, phone, address, neighborhood, deliveryFeeCustomer, deliveryFeeCost, discount, payment, source, referrer, notes, items });
+                    await updateOrder(id, { customer, phone, address, neighborhood, deliveryFeeCustomer, deliveryFeeCost, discount, payment, source, referrer, notes, items, caixaUtilizada });
                     showToast('Pedido atualizado', `O pedido ${id} foi atualizado.`);
                 } else {
-                    await createOrder({ customer, phone, address, neighborhood, deliveryFeeCustomer, deliveryFeeCost, discount, payment, source, referrer, notes, items });
+                    await createOrder({ customer, phone, address, neighborhood, deliveryFeeCustomer, deliveryFeeCost, discount, payment, source, referrer, notes, items, caixaUtilizada });
                     showToast('Pedido criado', 'Pedido registrado com sucesso.');
                 }
                 editingOrderId = null;
@@ -1916,6 +2073,9 @@
                 }
             });
             calculateTotalPreview();
+            document.getElementById('order-box-suggested').value = order.caixaSugerida || 'Média';
+            document.getElementById('order-box-used').value = order.caixaUtilizada || order.caixaSugerida || 'Média';
+            lastSuggestedBox = order.caixaSugerida || 'Média';
 
             showToast('Modo edição', `Editando o pedido ${orderId}.`);
         }

@@ -2,6 +2,7 @@
 const { query, withTx } = require('../db');
 const { broadcast } = require('../ws');
 const whatsapp = require('../whatsapp');
+const { calculatePackaging, normalizeUsedBox } = require('../packaging');
 
 const router = express.Router();
 
@@ -35,12 +36,31 @@ function normalizeOrder(orderRow, itemRows) {
         total: Number(orderRow.total),
         status: orderRow.status,
         notes: orderRow.notes,
+        caixaSugerida: orderRow.caixa_sugerida || 'Média',
+        caixaUtilizada: orderRow.caixa_utilizada || orderRow.caixa_sugerida || 'Média',
+        ocupacaoTotal: Number(orderRow.ocupacao_total || 0),
         createdAt: orderRow.created_at,
         acceptedAt: orderRow.accepted_at,
         readyAt: orderRow.ready_at,
         deliveredAt: orderRow.delivered_at,
         items: itemRows.map(normalizeItem),
     };
+}
+
+async function enrichItemsWithCategories(client, items) {
+    const ids = items.map(i => i.flavorId).filter(v => v != null);
+    const names = items.map(i => i.name).filter(Boolean);
+    const { rows } = await client.query(
+        `SELECT id, name, category FROM flavors
+         WHERE id = ANY($1::int[]) OR LOWER(name) = ANY($2::text[])`,
+        [ids, names.map(n => String(n).toLowerCase())]
+    );
+    const byId = new Map(rows.map(r => [Number(r.id), r.category]));
+    const byName = new Map(rows.map(r => [String(r.name).toLowerCase(), r.category]));
+    return items.map(item => ({
+        ...item,
+        category: item.category || byId.get(Number(item.flavorId)) || byName.get(String(item.name || '').toLowerCase()) || 'Salgada',
+    }));
 }
 
 async function loadOrderById(client, id) {
@@ -126,6 +146,9 @@ router.post('/', async (req, res, next) => {
             notes = '',
             items = [],
             status = 'Pendente',
+            caixaUtilizada,
+            usedBox,
+            boxUsed,
         } = req.body || {};
         if (!customer || typeof customer !== 'string')          return res.status(400).json({ error: 'customer obrigatório' });
         if (!Array.isArray(items) || items.length === 0)        return res.status(400).json({ error: 'items vazio' });
@@ -143,16 +166,24 @@ router.post('/', async (req, res, next) => {
                 return res.status(400).json({ error: 'item inválido', item: it });
             }
         }
-        const itemsTotal = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
-        const total = Math.max(0, itemsTotal + feeCustomer - disc);
-
         const order = await withTx(async (client) => {
+            const enrichedItems = await enrichItemsWithCategories(client, items);
+            const packaging = calculatePackaging(enrichedItems);
+            const usedPackaging = normalizeUsedBox(caixaUtilizada ?? usedBox ?? boxUsed, packaging.suggestedBox);
+            const itemsTotal = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
+            const total = Math.max(0, itemsTotal + feeCustomer - disc);
             const { rows: [idRow] } = await client.query("SELECT '#' || nextval('order_id_seq') AS id");
             const id = idRow.id;
             await client.query(
-                `INSERT INTO orders (id, customer, phone, address, neighborhood, delivery_fee, delivery_fee_cost, discount, payment, source, referrer, total, status, notes)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-                [id, customer.trim(), phone, address, neighborhood, feeCustomer, feeCost, disc, payment, source, referrer, total, status, notes]
+                `INSERT INTO orders (
+                    id, customer, phone, address, neighborhood, delivery_fee, delivery_fee_cost, discount,
+                    payment, source, referrer, total, status, notes, caixa_sugerida, caixa_utilizada, ocupacao_total
+                 )
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+                [
+                    id, customer.trim(), phone, address, neighborhood, feeCustomer, feeCost, disc, payment,
+                    source, referrer, total, status, notes, packaging.suggestedBox, usedPackaging, packaging.occupancyTotal,
+                ]
             );
             for (const it of items) {
                 await client.query(
@@ -174,7 +205,11 @@ router.post('/', async (req, res, next) => {
 router.patch('/:id', async (req, res, next) => {
     try {
         const id = req.params.id;
-        const { customer, phone, address, neighborhood, deliveryFeeCustomer, deliveryFeeCost, deliveryFee, discount, payment, source, referrer, notes, status, items } = req.body || {};
+        const {
+            customer, phone, address, neighborhood, deliveryFeeCustomer, deliveryFeeCost, deliveryFee,
+            discount, payment, source, referrer, notes, status, items, caixaUtilizada, usedBox, boxUsed,
+        } = req.body || {};
+        const rawUsedBox = caixaUtilizada ?? usedBox ?? boxUsed;
         let previousStatus = null;
 
         if (status !== undefined && !VALID_STATUS.includes(status)) {
@@ -258,6 +293,23 @@ router.patch('/:id', async (req, res, next) => {
                     itemsTotal = Number(r.subtotal);
                 }
                 pushSet('total', Math.max(0, itemsTotal + nextFeeCustomer - nextDisc));
+            }
+
+            if (items !== undefined) {
+                const enrichedItems = await enrichItemsWithCategories(client, items);
+                const packaging = calculatePackaging(enrichedItems);
+                const existingSuggested = existing.rows[0].caixa_sugerida || 'Média';
+                const existingUsed = existing.rows[0].caixa_utilizada || existingSuggested;
+                const hasManualBox = existingUsed !== existingSuggested;
+                pushSet('caixa_sugerida', packaging.suggestedBox);
+                pushSet('ocupacao_total', packaging.occupancyTotal);
+                if (rawUsedBox !== undefined) {
+                    pushSet('caixa_utilizada', normalizeUsedBox(rawUsedBox, packaging.suggestedBox));
+                } else if (!hasManualBox) {
+                    pushSet('caixa_utilizada', packaging.suggestedBox);
+                }
+            } else if (rawUsedBox !== undefined) {
+                pushSet('caixa_utilizada', normalizeUsedBox(rawUsedBox, existing.rows[0].caixa_sugerida || 'Média'));
             }
 
             if (sets.length > 0) {
@@ -526,6 +578,46 @@ router.get('/stats/dashboard', async (req, res, next) => {
             ORDER BY orders DESC
         `)).rows.map(r => ({ source: r.source, orders: r.orders, revenue: Number(r.revenue) }));
 
+        const packagingSummaryRow = (await query(`
+            SELECT
+                COUNT(*)::int AS orders,
+                COUNT(*) FILTER (WHERE caixa_utilizada = 'Média')::int AS medium_used,
+                COUNT(*) FILTER (WHERE caixa_utilizada = 'Grande')::int AS large_used,
+                COUNT(*) FILTER (WHERE caixa_utilizada IN ('Grande + Pequena', '2 Grandes', 'Múltiplas Caixas')
+                    OR caixa_sugerida = 'Múltiplas Caixas')::int AS multiple_used,
+                COUNT(*) FILTER (WHERE caixa_utilizada <> caixa_sugerida)::int AS changed,
+                COALESCE(AVG(ocupacao_total), 0)::numeric AS avg_occupancy
+            FROM orders
+            WHERE created_at >= ${periodSql}
+              AND status <> 'Cancelado'
+        `)).rows[0];
+
+        const packagingReport = (await query(`
+            SELECT id, ocupacao_total, caixa_sugerida, caixa_utilizada
+            FROM orders
+            WHERE created_at >= ${periodSql}
+              AND status <> 'Cancelado'
+            ORDER BY created_at DESC
+            LIMIT 30
+        `)).rows.map(r => ({
+            id: r.id,
+            ocupacao: Number(r.ocupacao_total || 0),
+            caixaSugerida: r.caixa_sugerida || 'Média',
+            caixaUtilizada: r.caixa_utilizada || r.caixa_sugerida || 'Média',
+        }));
+
+        const packagingOrders = Number(packagingSummaryRow.orders || 0);
+        const packaging = {
+            mediumUsed: Number(packagingSummaryRow.medium_used || 0),
+            largeUsed: Number(packagingSummaryRow.large_used || 0),
+            multipleUsed: Number(packagingSummaryRow.multiple_used || 0),
+            changedPercent: packagingOrders
+                ? (Number(packagingSummaryRow.changed || 0) / packagingOrders) * 100
+                : 0,
+            avgOccupancy: Number(packagingSummaryRow.avg_occupancy || 0),
+            report: packagingReport,
+        };
+
         // Comparação hoje vs ontem
         const todayActive  = todayOrders.filter(o => o.status !== 'Cancelado');
         const yestActive   = yesterdayOrders.filter(o => o.status !== 'Cancelado');
@@ -642,6 +734,7 @@ router.get('/stats/dashboard', async (req, res, next) => {
             },
             topCustomers,
             sourceBreakdown,
+            packaging,
         });
     } catch (e) { next(e); }
 });

@@ -305,7 +305,7 @@ router.get('/analytics', async (_req, res, next) => {
                 SELECT COALESCE(NULLIF(source,''),'Não informado') source, COUNT(*)::int orders,
                        COALESCE(SUM(total),0)::numeric revenue
                 FROM orders WHERE status <> 'Cancelado'
-                  AND created_at >= date_trunc('month', CURRENT_DATE)
+                  AND (created_at AT TIME ZONE '${TZ}')::date BETWEEN date_trunc('month', CURRENT_DATE)::date AND CURRENT_DATE
                 GROUP BY source ORDER BY revenue DESC
             `),
             query(`
@@ -314,17 +314,19 @@ router.get('/analytics', async (_req, res, next) => {
                            COALESCE(SUM(delivery_fee_cost),0)::numeric delivery,
                            COALESCE(SUM(total * CASE WHEN payment IN ('Cartão de Débito','Cartão de Crédito') THEN .0057 WHEN payment='Crédito 12x' THEN .0797 ELSE 0 END),0)::numeric fees
                     FROM orders WHERE status='Entregue'
-                      AND COALESCE((delivered_at AT TIME ZONE '${TZ}')::date,(created_at AT TIME ZONE '${TZ}')::date)>=date_trunc('month',CURRENT_DATE)::date
+                      AND COALESCE((delivered_at AT TIME ZONE '${TZ}')::date,(created_at AT TIME ZONE '${TZ}')::date)
+                          BETWEEN date_trunc('month',CURRENT_DATE)::date AND CURRENT_DATE
                 ), cogs AS (
                     SELECT COALESCE(SUM(oi.quantity*COALESCE(f.cost_price,0)),0)::numeric value
                     FROM order_items oi JOIN orders o ON o.id=oi.order_id LEFT JOIN flavors f ON f.id=oi.flavor_id
-                    WHERE o.status='Entregue' AND COALESCE((o.delivered_at AT TIME ZONE '${TZ}')::date,(o.created_at AT TIME ZONE '${TZ}')::date)>=date_trunc('month',CURRENT_DATE)::date
+                    WHERE o.status='Entregue' AND COALESCE((o.delivered_at AT TIME ZONE '${TZ}')::date,(o.created_at AT TIME ZONE '${TZ}')::date)
+                        BETWEEN date_trunc('month',CURRENT_DATE)::date AND CURRENT_DATE
                 ), exp AS (
                     SELECT COALESCE(SUM(e.amount),0)::numeric operational,
                            COALESCE(SUM(e.amount) FILTER (WHERE lower(c.name) LIKE '%embalag%'),0)::numeric packaging,
                            COALESCE(SUM(e.amount) FILTER (WHERE lower(c.name) LIKE '%marketing%' OR lower(c.name) LIKE '%divulga%'),0)::numeric marketing
                     FROM expenses e LEFT JOIN expense_categories c ON c.id=e.category_id
-                    WHERE e.date>=date_trunc('month',CURRENT_DATE)::date
+                    WHERE e.date BETWEEN date_trunc('month',CURRENT_DATE)::date AND CURRENT_DATE
                 )
                 SELECT * FROM rev CROSS JOIN cogs CROSS JOIN exp
             `),
@@ -344,7 +346,9 @@ router.get('/analytics', async (_req, res, next) => {
                     WHERE o.status='Entregue' GROUP BY 1
                 ), exp AS (
                     SELECT date_trunc('month', date)::date AS month_start, SUM(amount)::numeric AS value
-                    FROM expenses GROUP BY 1
+                    FROM expenses
+                    WHERE date <= CURRENT_DATE
+                    GROUP BY 1
                 )
                 SELECT m.month_start, COALESCE(r.revenue,0)::numeric revenue,
                        (COALESCE(r.revenue,0)-COALESCE(c.value,0)-COALESCE(e.value,0)-COALESCE(r.delivery,0)-COALESCE(r.fees,0))::numeric profit
