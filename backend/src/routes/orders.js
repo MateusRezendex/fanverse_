@@ -20,6 +20,7 @@ function normalizeItem(row) {
 function normalizeOrder(orderRow, itemRows) {
     const deliveryFeeCustomer = Number(orderRow.delivery_fee || 0);
     const deliveryFeeCost = Number(orderRow.delivery_fee_cost || 0);
+    const priceMode = orderRow.price_mode || 'sale';
     return {
         id: orderRow.id,
         customer: orderRow.customer,
@@ -34,6 +35,8 @@ function normalizeOrder(orderRow, itemRows) {
         deliveryFeeCost,
         discount: Number(orderRow.discount || 0),
         total: Number(orderRow.total),
+        priceMode,
+        atCost: priceMode === 'cost',
         status: orderRow.status,
         notes: orderRow.notes,
         caixaSugerida: orderRow.caixa_sugerida || 'Média',
@@ -45,6 +48,25 @@ function normalizeOrder(orderRow, itemRows) {
         deliveredAt: orderRow.delivered_at,
         items: itemRows.map(normalizeItem),
     };
+}
+
+async function applyOrderPricing(client, items, atCost) {
+    if (!atCost) return items;
+    const ids = items.map(i => i.flavorId).filter(v => v != null);
+    const names = items.map(i => i.name).filter(Boolean);
+    const { rows } = await client.query(
+        `SELECT id, name, cost_price FROM flavors
+         WHERE id = ANY($1::int[]) OR LOWER(name) = ANY($2::text[])`,
+        [ids, names.map(n => String(n).toLowerCase())]
+    );
+    const byId = new Map(rows.map(r => [Number(r.id), Number(r.cost_price || 0)]));
+    const byName = new Map(rows.map(r => [String(r.name).toLowerCase(), Number(r.cost_price || 0)]));
+    return items.map(item => ({
+        ...item,
+        price: byId.get(Number(item.flavorId))
+            ?? byName.get(String(item.name || '').toLowerCase())
+            ?? Number(item.price || 0),
+    }));
 }
 
 async function enrichItemsWithCategories(client, items) {
@@ -146,46 +168,51 @@ router.post('/', async (req, res, next) => {
             notes = '',
             items = [],
             status = 'Pendente',
+            priceMode,
+            atCost = false,
             caixaUtilizada,
             usedBox,
             boxUsed,
         } = req.body || {};
-        if (!customer || typeof customer !== 'string')          return res.status(400).json({ error: 'customer obrigatório' });
-        if (!Array.isArray(items) || items.length === 0)        return res.status(400).json({ error: 'items vazio' });
+        if (!customer || typeof customer !== 'string')          return res.status(400).json({ error: 'cliente obrigatório' });
+        if (!Array.isArray(items) || items.length === 0)        return res.status(400).json({ error: 'pedido sem itens' });
         if (!VALID_STATUS.includes(status))                     return res.status(400).json({ error: 'status inválido' });
+        const finalPriceMode = (atCost || priceMode === 'cost') ? 'cost' : 'sale';
 
+        const pricedItems = await applyOrderPricing({ query }, items, finalPriceMode === 'cost');
         const feeCustomer = Number(deliveryFeeCustomer ?? deliveryFee);
         const feeCost = Number(deliveryFeeCost);
         const disc = Number(discount);
-        if (!isFinite(disc) || disc < 0) return res.status(400).json({ error: 'discount inválido' });
-        if (!isFinite(feeCustomer) || feeCustomer < 0) return res.status(400).json({ error: 'deliveryFeeCustomer inválido' });
-        if (!isFinite(feeCost) || feeCost < 0) return res.status(400).json({ error: 'deliveryFeeCost inválido' });
+        if (!isFinite(disc) || disc < 0) return res.status(400).json({ error: 'desconto inválido' });
+        if (!isFinite(feeCustomer) || feeCustomer < 0) return res.status(400).json({ error: 'taxa de entrega do cliente inválida' });
+        if (!isFinite(feeCost) || feeCost < 0) return res.status(400).json({ error: 'custo de entrega inválido' });
 
-        for (const it of items) {
+        for (const it of pricedItems) {
             if (!it || !it.name || !(it.quantity > 0) || !(it.price >= 0)) {
                 return res.status(400).json({ error: 'item inválido', item: it });
             }
         }
         const order = await withTx(async (client) => {
-            const enrichedItems = await enrichItemsWithCategories(client, items);
+            const finalItems = await applyOrderPricing(client, items, finalPriceMode === 'cost');
+            const enrichedItems = await enrichItemsWithCategories(client, finalItems);
             const packaging = calculatePackaging(enrichedItems);
             const usedPackaging = normalizeUsedBox(caixaUtilizada ?? usedBox ?? boxUsed, packaging.suggestedBox);
-            const itemsTotal = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
+            const itemsTotal = finalItems.reduce((acc, i) => acc + i.price * i.quantity, 0);
             const total = Math.max(0, itemsTotal + feeCustomer - disc);
             const { rows: [idRow] } = await client.query("SELECT '#' || nextval('order_id_seq') AS id");
             const id = idRow.id;
             await client.query(
                 `INSERT INTO orders (
                     id, customer, phone, address, neighborhood, delivery_fee, delivery_fee_cost, discount,
-                    payment, source, referrer, total, status, notes, caixa_sugerida, caixa_utilizada, ocupacao_total
+                    payment, source, referrer, total, status, notes, price_mode, caixa_sugerida, caixa_utilizada, ocupacao_total
                  )
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
                 [
                     id, customer.trim(), phone, address, neighborhood, feeCustomer, feeCost, disc, payment,
-                    source, referrer, total, status, notes, packaging.suggestedBox, usedPackaging, packaging.occupancyTotal,
+                    source, referrer, total, status, notes, finalPriceMode, packaging.suggestedBox, usedPackaging, packaging.occupancyTotal,
                 ]
             );
-            for (const it of items) {
+            for (const it of finalItems) {
                 await client.query(
                     `INSERT INTO order_items (order_id, flavor_id, name, quantity, price)
                      VALUES ($1, $2, $3, $4, $5)`,
@@ -207,7 +234,7 @@ router.patch('/:id', async (req, res, next) => {
         const id = req.params.id;
         const {
             customer, phone, address, neighborhood, deliveryFeeCustomer, deliveryFeeCost, deliveryFee,
-            discount, payment, source, referrer, notes, status, items, caixaUtilizada, usedBox, boxUsed,
+            discount, payment, source, referrer, notes, status, items, priceMode, atCost, caixaUtilizada, usedBox, boxUsed,
         } = req.body || {};
         const rawUsedBox = caixaUtilizada ?? usedBox ?? boxUsed;
         let previousStatus = null;
@@ -219,21 +246,22 @@ router.patch('/:id', async (req, res, next) => {
         const rawFeeCustomer = (deliveryFeeCustomer !== undefined) ? deliveryFeeCustomer : deliveryFee;
         const feeCustomer = rawFeeCustomer !== undefined ? Number(rawFeeCustomer) : null;
         if (rawFeeCustomer !== undefined && (!isFinite(feeCustomer) || feeCustomer < 0)) {
-            return res.status(400).json({ error: 'deliveryFeeCustomer inválido' });
+            return res.status(400).json({ error: 'taxa de entrega do cliente inválida' });
         }
 
         const feeCost = deliveryFeeCost !== undefined ? Number(deliveryFeeCost) : null;
         if (deliveryFeeCost !== undefined && (!isFinite(feeCost) || feeCost < 0)) {
-            return res.status(400).json({ error: 'deliveryFeeCost inválido' });
+            return res.status(400).json({ error: 'custo de entrega inválido' });
         }
         const disc = discount !== undefined ? Number(discount) : null;
         if (discount !== undefined && (!isFinite(disc) || disc < 0)) {
-            return res.status(400).json({ error: 'discount inválido' });
+            return res.status(400).json({ error: 'desconto inválido' });
         }
 
         if (items !== undefined) {
-            if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'items vazio' });
-            for (const it of items) {
+            if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'pedido sem itens' });
+            const pricedItems = await applyOrderPricing({ query }, items, (atCost || priceMode === 'cost') === true);
+            for (const it of pricedItems) {
                 if (!it || !it.name || !(it.quantity > 0) || !(it.price >= 0)) {
                     return res.status(400).json({ error: 'item inválido', item: it });
                 }
@@ -244,6 +272,9 @@ router.patch('/:id', async (req, res, next) => {
             const existing = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
             if (existing.rows.length === 0) return null;
             previousStatus = existing.rows[0].status;
+            const finalPriceMode = (atCost !== undefined || priceMode !== undefined)
+                ? ((atCost || priceMode === 'cost') ? 'cost' : 'sale')
+                : (existing.rows[0].price_mode || 'sale');
             const finalStatus = status !== undefined ? status : previousStatus;
             const needsStockRecalculation = previousStatus === 'Entregue'
                 && (items !== undefined || finalStatus !== 'Entregue');
@@ -252,6 +283,7 @@ router.patch('/:id', async (req, res, next) => {
             const sets = [];
             const values = [];
             let i = 1;
+            let finalItems = null;
             const pushSet = (col, val) => { sets.push(`${col} = $${i++}`); values.push(val); };
 
             if (customer     !== undefined) pushSet('customer', customer);
@@ -262,6 +294,7 @@ router.patch('/:id', async (req, res, next) => {
             if (source       !== undefined) pushSet('source', source);
             if (referrer     !== undefined) pushSet('referrer', referrer);
             if (notes        !== undefined) pushSet('notes', notes);
+            if (atCost !== undefined || priceMode !== undefined) pushSet('price_mode', finalPriceMode);
             if (rawFeeCustomer !== undefined) pushSet('delivery_fee', feeCustomer);
             if (deliveryFeeCost !== undefined) pushSet('delivery_fee_cost', feeCost);
             if (discount     !== undefined) pushSet('discount', disc);
@@ -284,7 +317,8 @@ router.patch('/:id', async (req, res, next) => {
 
                 let itemsTotal;
                 if (items !== undefined) {
-                    itemsTotal = items.reduce((acc, x) => acc + x.price * x.quantity, 0);
+                    finalItems = await applyOrderPricing(client, items, finalPriceMode === 'cost');
+                    itemsTotal = finalItems.reduce((acc, x) => acc + x.price * x.quantity, 0);
                 } else {
                     const { rows: [r] } = await client.query(
                         'SELECT COALESCE(SUM(quantity * price), 0)::numeric AS subtotal FROM order_items WHERE order_id = $1',
@@ -296,7 +330,8 @@ router.patch('/:id', async (req, res, next) => {
             }
 
             if (items !== undefined) {
-                const enrichedItems = await enrichItemsWithCategories(client, items);
+                finalItems = finalItems || await applyOrderPricing(client, items, finalPriceMode === 'cost');
+                const enrichedItems = await enrichItemsWithCategories(client, finalItems);
                 const packaging = calculatePackaging(enrichedItems);
                 const existingSuggested = existing.rows[0].caixa_sugerida || 'Média';
                 const existingUsed = existing.rows[0].caixa_utilizada || existingSuggested;
@@ -322,7 +357,7 @@ router.patch('/:id', async (req, res, next) => {
 
             if (items !== undefined) {
                 await client.query('DELETE FROM order_items WHERE order_id = $1', [id]);
-                for (const it of items) {
+                for (const it of finalItems) {
                     await client.query(
                         `INSERT INTO order_items (order_id, flavor_id, name, quantity, price)
                          VALUES ($1, $2, $3, $4, $5)`,
@@ -370,7 +405,7 @@ router.get('/customers/aggregate', async (_req, res, next) => {
             WITH base AS (
                 SELECT
                     o.*,
-                    LOWER(REGEXP_REPLACE(TRIM(customer), '\\s+', ' ', 'g')) AS name_key,
+                    LOWER(REGEXP_REPLACE(unaccent(TRIM(customer)), '\\s+', ' ', 'g')) AS name_key,
                     NULLIF(REGEXP_REPLACE(phone, '\\D', '', 'g'), '') AS phone_key
                 FROM orders o
                 WHERE status <> 'Cancelado'
@@ -385,7 +420,11 @@ router.get('/customers/aggregate', async (_req, res, next) => {
             identified AS (
                 SELECT
                     b.*,
-                    COALESCE(b.phone_key, p.phone_key, 'name:' || b.name_key) AS customer_key
+                    CASE
+                        WHEN b.phone_key IS NOT NULL THEN b.name_key || '|phone:' || b.phone_key
+                        WHEN p.phone_key IS NOT NULL THEN b.name_key || '|phone:' || p.phone_key
+                        ELSE 'name:' || b.name_key
+                    END AS customer_key
                 FROM base b
                 LEFT JOIN phones_by_name p ON p.name_key = b.name_key
             ),

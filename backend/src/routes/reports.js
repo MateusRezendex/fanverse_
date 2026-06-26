@@ -11,6 +11,9 @@ const PAYMENT_FEE_RATES = {
     'Crédito 12x': 0.0797,
 };
 
+const PROFIT_EXCLUDED_EXPENSE_CATEGORIES = ['ingredientes', 'embalagens'];
+const PROFIT_EXCLUDED_EXPENSE_DESCRIPTIONS = ['%gás%', '%gas%'];
+
 function isoDateInTz(date, timeZone) {
     // en-CA => YYYY-MM-DD
     return new Intl.DateTimeFormat('en-CA', {
@@ -100,12 +103,19 @@ async function computeProfit(fromDate, toDate) {
               AND COALESCE((o.delivered_at AT TIME ZONE 'America/Sao_Paulo')::date, (o.created_at AT TIME ZONE 'America/Sao_Paulo')::date) BETWEEN $1::date AND $2::date
         `, [fromDate, toDate])).rows[0];
 
-        // DESPESAS
+        // DESPESAS DA DRE
+        // Compras de ingredientes, embalagens e gas sao saida de caixa, mas nao entram aqui para
+        // evitar duplicidade com o CPV calculado pelos itens vendidos.
         const expensesRow = (await query(`
-            SELECT COALESCE(SUM(amount), 0)::numeric AS total
-            FROM expenses
-            WHERE date BETWEEN $1::date AND $2::date
-        `, [fromDate, toDate])).rows[0];
+            SELECT COALESCE(SUM(e.amount), 0)::numeric AS total
+            FROM expenses e
+            LEFT JOIN expense_categories c ON c.id = e.category_id
+            WHERE e.date BETWEEN $1::date AND $2::date
+              AND NOT (
+                  COALESCE(lower(c.name), '') = ANY($3::text[])
+                  OR COALESCE(lower(e.description), '') LIKE ANY($4::text[])
+              )
+        `, [fromDate, toDate, PROFIT_EXCLUDED_EXPENSE_CATEGORIES, PROFIT_EXCLUDED_EXPENSE_DESCRIPTIONS])).rows[0];
 
         // CUSTO DE ENTREGA (o que pagamos para a plataforma/terceiro)
         const deliveryCostRow = (await query(`
@@ -121,12 +131,16 @@ async function computeProfit(fromDate, toDate) {
                    COUNT(e.id)::int AS count
             FROM expense_categories c
             LEFT JOIN expenses e
-              ON e.category_id = c.id
+             ON e.category_id = c.id
              AND e.date BETWEEN $1::date AND $2::date
+             AND NOT (
+                 lower(c.name) = ANY($3::text[])
+                 OR COALESCE(lower(e.description), '') LIKE ANY($4::text[])
+             )
             GROUP BY c.id
             HAVING COUNT(e.id) > 0
             ORDER BY total DESC
-        `, [fromDate, toDate])).rows.map(r => ({
+        `, [fromDate, toDate, PROFIT_EXCLUDED_EXPENSE_CATEGORIES, PROFIT_EXCLUDED_EXPENSE_DESCRIPTIONS])).rows.map(r => ({
             id: r.id, name: r.name, icon: r.icon, color: r.color, isFixed: r.is_fixed,
             total: Number(r.total), count: r.count,
         }));
@@ -157,10 +171,15 @@ async function computeProfit(fromDate, toDate) {
                 GROUP BY COALESCE((o.delivered_at AT TIME ZONE 'America/Sao_Paulo')::date, (o.created_at AT TIME ZONE 'America/Sao_Paulo')::date)
             ),
             exp AS (
-                SELECT date AS day, COALESCE(SUM(amount), 0)::numeric AS expenses
-                FROM expenses
-                WHERE date BETWEEN $1::date AND $2::date
-                GROUP BY date
+                SELECT e.date AS day, COALESCE(SUM(e.amount), 0)::numeric AS expenses
+                FROM expenses e
+                LEFT JOIN expense_categories c ON c.id = e.category_id
+                WHERE e.date BETWEEN $1::date AND $2::date
+                  AND NOT (
+                      COALESCE(lower(c.name), '') = ANY($3::text[])
+                      OR COALESCE(lower(e.description), '') LIKE ANY($4::text[])
+                  )
+                GROUP BY e.date
             )
             SELECT days.day,
                    COALESCE(rev.revenue, 0)::numeric AS revenue,
@@ -172,7 +191,7 @@ async function computeProfit(fromDate, toDate) {
             LEFT JOIN rev ON rev.day = days.day
             LEFT JOIN exp ON exp.day = days.day
             ORDER BY days.day
-        `, [fromDate, toDate])).rows.map(r => {
+        `, [fromDate, toDate, PROFIT_EXCLUDED_EXPENSE_CATEGORIES, PROFIT_EXCLUDED_EXPENSE_DESCRIPTIONS])).rows.map(r => {
             const revenue = Number(r.revenue);
             const cogs = Number(r.cogs);
             const expensesOperational = Number(r.expenses);

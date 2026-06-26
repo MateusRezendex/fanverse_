@@ -26,7 +26,7 @@ router.get('/', async (_req, res, next) => {
 router.post('/', async (req, res, next) => {
     try {
         const { categoryId, description, amount, dayOfMonth, active = true } = req.body || {};
-        if (!description || typeof description !== 'string') return res.status(400).json({ error: 'description é obrigatória' });
+        if (!description || typeof description !== 'string') return res.status(400).json({ error: 'descrição obrigatória' });
         if (!(amount >= 0))                                  return res.status(400).json({ error: 'amount inválido' });
         if (!(dayOfMonth >= 1 && dayOfMonth <= 28))          return res.status(400).json({ error: 'dayOfMonth deve estar entre 1 e 28' });
 

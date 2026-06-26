@@ -107,6 +107,7 @@
     <script>
         let orders = [];
         let flavors = [];
+        let waitTimer = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
             try { await initDb(); }
@@ -114,6 +115,7 @@
             onDataChange(() => { syncCache(); renderKanban(); });
             syncCache();
             renderKanban();
+            waitTimer = setInterval(renderKanban, 30000);
             lucide.createIcons();
         });
 
@@ -178,6 +180,15 @@
                 if (isOld) card.classList.add('opacity-80');
                 const itemsList = renderGroupedItems(order.items);
                 const totalItems = (order.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+                const waitMinutes = typeof getOrderWaitMinutes === 'function' ? getOrderWaitMinutes(order) : 0;
+                const waitLabel = typeof formatDurationMinutes === 'function'
+                    ? formatDurationMinutes(waitMinutes)
+                    : `${Math.floor(waitMinutes)} min`;
+                const waitClass = waitMinutes >= 30
+                    ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                    : waitMinutes >= 15
+                        ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                        : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20';
                 const notes = String(order.notes || '').trim();
                 const notesBlock = notes
                     ? `
@@ -202,8 +213,9 @@
 
                 card.innerHTML = `
                     <div class="flex items-center justify-between gap-3">
-                        <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
                         <span class="rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${order.status === 'Em Preparo' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}">${escapeHtml(order.status)}</span>
+                        <span class="rounded-full border px-2 py-0.5 text-[10px] font-black uppercase ${waitClass}">Espera: ${escapeHtml(waitLabel)}</span>
                         ${isOld ? `<div class="text-[10px] text-gray-500 mt-0.5">Pedido antigo • ${formatTime(order.createdAt)}</div>` : ``}
                         </div>
                         <div class="flex gap-1.5">${backBtn}${fwdBtn}</div>

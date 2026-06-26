@@ -3,10 +3,42 @@ const { query, withTx } = require('../db');
 
 const router = express.Router();
 const TZ = process.env.REPORT_TZ || 'America/Sao_Paulo';
+const PROFIT_EXCLUDED_EXPENSE_CATEGORIES_SQL = "'ingredientes','embalagens'";
+const PROFIT_EXCLUDED_EXPENSE_DESCRIPTION_SQL = "COALESCE(lower(e.description), '') LIKE '%gás%' OR COALESCE(lower(e.description), '') LIKE '%gas%'";
 
 const num = value => Number(value || 0);
 const pct = (value, base) => base ? (value / base) * 100 : 0;
 const deltaPct = (current, previous) => previous ? ((current - previous) / previous) * 100 : (current ? 100 : 0);
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isoDateInTz(date = new Date()) {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: TZ,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(date);
+}
+
+function addDaysIso(iso, days) {
+    const [y, m, d] = String(iso).split('-').map(Number);
+    const dt = new Date(Date.UTC(y, (m || 1) - 1, (d || 1) + Number(days || 0)));
+    return dt.toISOString().slice(0, 10);
+}
+
+function resolveAnalyticsRange(queryParams = {}) {
+    const today = isoDateInTz();
+    let fromDate = ISO_DATE_RE.test(String(queryParams.from || '')) ? String(queryParams.from) : today.slice(0, 8) + '01';
+    let toDate = ISO_DATE_RE.test(String(queryParams.to || '')) ? String(queryParams.to) : today;
+    if (fromDate > toDate) [fromDate, toDate] = [toDate, fromDate];
+    return { fromDate, toDate };
+}
+
+function previousRange(fromDate, toDate) {
+    const days = Math.round((new Date(toDate) - new Date(fromDate)) / 86400000) + 1;
+    const previousTo = addDaysIso(fromDate, -1);
+    return { fromDate: addDaysIso(previousTo, -(days - 1)), toDate: previousTo };
+}
 
 function normalizeIngredient(row) {
     return {
@@ -227,6 +259,289 @@ async function periodSummary(fromSql, toSql) {
     return { orders: r.orders, revenue: num(r.revenue), customers: r.customers, ticket: r.orders ? num(r.revenue) / r.orders : 0 };
 }
 
+router.get('/analytics', async (req, res, next) => {
+    try {
+        const { fromDate, toDate } = resolveAnalyticsRange(req.query || {});
+        const previous = previousRange(fromDate, toDate);
+        const saleDate = `COALESCE((delivered_at AT TIME ZONE '${TZ}')::date, (created_at AT TIME ZONE '${TZ}')::date)`;
+        const orderDate = `(created_at AT TIME ZONE '${TZ}')::date`;
+
+        async function summary(from, to) {
+            const { rows: [r] } = await query(`
+                SELECT COUNT(*)::int orders, COALESCE(SUM(total),0)::numeric revenue,
+                       COUNT(DISTINCT CASE
+                           WHEN NULLIF(REGEXP_REPLACE(phone, '\\D', '', 'g'), '') IS NOT NULL
+                           THEN LOWER(REGEXP_REPLACE(unaccent(TRIM(customer)), '\\s+', ' ', 'g')) || '|phone:' || REGEXP_REPLACE(phone, '\\D', '', 'g')
+                           ELSE 'name:' || LOWER(REGEXP_REPLACE(unaccent(TRIM(customer)), '\\s+', ' ', 'g'))
+                       END)::int customers
+                FROM orders
+                WHERE status='Entregue' AND ${saleDate} BETWEEN $1::date AND $2::date
+            `, [from, to]);
+            return { orders: r.orders, revenue: num(r.revenue), customers: r.customers, ticket: r.orders ? num(r.revenue) / r.orders : 0 };
+        }
+
+        const current = await summary(fromDate, toDate);
+        const previousSummary = await summary(previous.fromDate, previous.toDate);
+        const todayIso = isoDateInTz();
+        const today = await summary(todayIso, todayIso);
+        const yesterday = await summary(addDaysIso(todayIso, -1), addDaysIso(todayIso, -1));
+
+        const [daily, weekly, monthly, weekdays, ticketsByChannel, topCustomers, flavorStats, marketing, financial, marginMonthly, customers, campaigns, goalRows, stockRows] = await Promise.all([
+            query(`
+                WITH days AS (SELECT generate_series($1::date, $2::date, '1 day')::date AS sale_day)
+                SELECT d.sale_day, COALESCE(SUM(o.total),0)::numeric revenue, COUNT(o.id)::int orders
+                FROM days d
+                LEFT JOIN orders o ON o.status='Entregue' AND ${saleDate.replaceAll('delivered_at', 'o.delivered_at').replaceAll('created_at', 'o.created_at')}=d.sale_day
+                GROUP BY d.sale_day ORDER BY d.sale_day
+            `, [fromDate, toDate]),
+            query(`
+                WITH weeks AS (SELECT generate_series(date_trunc('week',$1::date), date_trunc('week',$2::date), '1 week')::date AS week_start)
+                SELECT w.week_start, COALESCE(SUM(o.total),0)::numeric revenue, COUNT(o.id)::int orders
+                FROM weeks w
+                LEFT JOIN orders o ON o.status='Entregue' AND date_trunc('week', COALESCE(o.delivered_at,o.created_at) AT TIME ZONE '${TZ}')::date=w.week_start
+                GROUP BY w.week_start ORDER BY w.week_start
+            `, [fromDate, toDate]),
+            query(`
+                WITH months AS (SELECT generate_series(date_trunc('month',$1::date), date_trunc('month',$2::date), '1 month')::date AS month_start)
+                SELECT m.month_start, COALESCE(SUM(o.total),0)::numeric revenue, COUNT(o.id)::int orders
+                FROM months m
+                LEFT JOIN orders o ON o.status='Entregue' AND date_trunc('month', COALESCE(o.delivered_at,o.created_at) AT TIME ZONE '${TZ}')::date=m.month_start
+                GROUP BY m.month_start ORDER BY m.month_start
+            `, [fromDate, toDate]),
+            query(`
+                SELECT EXTRACT(ISODOW FROM COALESCE(delivered_at,created_at) AT TIME ZONE '${TZ}')::int weekday,
+                       COUNT(*)::int orders, COALESCE(SUM(total),0)::numeric revenue
+                FROM orders
+                WHERE status='Entregue' AND ${saleDate} BETWEEN $1::date AND $2::date
+                GROUP BY weekday ORDER BY weekday
+            `, [fromDate, toDate]),
+            query(`
+                SELECT COALESCE(NULLIF(source,''),'Não informado') channel, COUNT(*)::int orders,
+                       COALESCE(SUM(total),0)::numeric revenue
+                FROM orders
+                WHERE status='Entregue' AND ${saleDate} BETWEEN $1::date AND $2::date
+                GROUP BY channel ORDER BY revenue DESC
+            `, [fromDate, toDate]),
+            query(`
+                SELECT MAX(customer) name, COALESCE(NULLIF(phone,''), customer) customer_key,
+                       COUNT(*)::int orders, COALESCE(SUM(total),0)::numeric spent, MAX(created_at) last_buy
+                FROM orders
+                WHERE status <> 'Cancelado' AND ${orderDate} BETWEEN $1::date AND $2::date
+                GROUP BY COALESCE(NULLIF(phone,''), customer)
+                ORDER BY spent DESC LIMIT 20
+            `, [fromDate, toDate]),
+            query(`
+                SELECT oi.name, COALESCE(f.category,'Outros') category, SUM(oi.quantity)::int quantity,
+                       COALESCE(SUM(oi.quantity*oi.price),0)::numeric revenue,
+                       COALESCE(SUM(oi.quantity*(oi.price-COALESCE(f.cost_price,0))),0)::numeric profit,
+                       CASE WHEN SUM(oi.quantity*oi.price)>0 THEN
+                           SUM(oi.quantity*(oi.price-COALESCE(f.cost_price,0)))/SUM(oi.quantity*oi.price)*100 ELSE 0 END::numeric margin
+                FROM order_items oi JOIN orders o ON o.id=oi.order_id
+                LEFT JOIN flavors f ON f.id=oi.flavor_id
+                WHERE o.status='Entregue' AND ${saleDate.replaceAll('delivered_at', 'o.delivered_at').replaceAll('created_at', 'o.created_at')} BETWEEN $1::date AND $2::date
+                GROUP BY oi.name, f.category
+            `, [fromDate, toDate]),
+            query(`
+                SELECT COALESCE(NULLIF(source,''),'Não informado') source, COUNT(*)::int orders,
+                       COALESCE(SUM(total),0)::numeric revenue
+                FROM orders
+                WHERE status <> 'Cancelado' AND ${orderDate} BETWEEN $1::date AND $2::date
+                GROUP BY source ORDER BY revenue DESC
+            `, [fromDate, toDate]),
+            query(`
+                WITH rev AS (
+                    SELECT COALESCE(SUM(total),0)::numeric revenue,
+                           COALESCE(SUM(delivery_fee_cost),0)::numeric delivery,
+                           COALESCE(SUM(total * CASE WHEN payment IN ('Cartão de Débito','Cartão de Crédito') THEN .0057 WHEN payment='Crédito 12x' THEN .0797 ELSE 0 END),0)::numeric fees
+                    FROM orders WHERE status='Entregue' AND ${saleDate} BETWEEN $1::date AND $2::date
+                ), cogs AS (
+                    SELECT COALESCE(SUM(oi.quantity*COALESCE(f.cost_price,0)),0)::numeric value
+                    FROM order_items oi JOIN orders o ON o.id=oi.order_id LEFT JOIN flavors f ON f.id=oi.flavor_id
+                    WHERE o.status='Entregue' AND ${saleDate.replaceAll('delivered_at', 'o.delivered_at').replaceAll('created_at', 'o.created_at')} BETWEEN $1::date AND $2::date
+                ), exp AS (
+                    SELECT COALESCE(SUM(e.amount),0)::numeric operational,
+                           COALESCE(SUM(e.amount) FILTER (WHERE lower(c.name) LIKE '%embalag%'),0)::numeric packaging,
+                           COALESCE(SUM(e.amount) FILTER (WHERE lower(c.name) LIKE '%marketing%' OR lower(c.name) LIKE '%divulga%'),0)::numeric marketing
+                    FROM expenses e LEFT JOIN expense_categories c ON c.id=e.category_id
+                    WHERE e.date BETWEEN $1::date AND $2::date
+                      AND NOT (
+                          COALESCE(lower(c.name), '') IN (${PROFIT_EXCLUDED_EXPENSE_CATEGORIES_SQL})
+                          OR ${PROFIT_EXCLUDED_EXPENSE_DESCRIPTION_SQL}
+                      )
+                )
+                SELECT * FROM rev CROSS JOIN cogs CROSS JOIN exp
+            `, [fromDate, toDate]),
+            query(`
+                WITH months AS (SELECT generate_series(date_trunc('month',$1::date), date_trunc('month',$2::date), '1 month')::date AS month_start),
+                rev AS (
+                    SELECT date_trunc('month', COALESCE(delivered_at,created_at) AT TIME ZONE '${TZ}')::date AS month_start,
+                           SUM(total)::numeric AS revenue, SUM(delivery_fee_cost)::numeric AS delivery,
+                           SUM(total * CASE WHEN payment IN ('Cartão de Débito','Cartão de Crédito') THEN .0057 WHEN payment='Crédito 12x' THEN .0797 ELSE 0 END)::numeric AS fees
+                    FROM orders WHERE status='Entregue' GROUP BY 1
+                ), cogs AS (
+                    SELECT date_trunc('month', COALESCE(o.delivered_at,o.created_at) AT TIME ZONE '${TZ}')::date AS month_start,
+                           SUM(oi.quantity*COALESCE(f.cost_price,0))::numeric AS value
+                    FROM order_items oi JOIN orders o ON o.id=oi.order_id LEFT JOIN flavors f ON f.id=oi.flavor_id
+                    WHERE o.status='Entregue' GROUP BY 1
+                ), exp AS (
+                    SELECT date_trunc('month', e.date)::date AS month_start, SUM(e.amount)::numeric AS value
+                    FROM expenses e LEFT JOIN expense_categories c ON c.id=e.category_id
+                    WHERE e.date BETWEEN $1::date AND $2::date
+                      AND NOT (
+                          COALESCE(lower(c.name), '') IN (${PROFIT_EXCLUDED_EXPENSE_CATEGORIES_SQL})
+                          OR ${PROFIT_EXCLUDED_EXPENSE_DESCRIPTION_SQL}
+                      )
+                    GROUP BY 1
+                )
+                SELECT m.month_start, COALESCE(r.revenue,0)::numeric revenue,
+                       (COALESCE(r.revenue,0)-COALESCE(c.value,0)-COALESCE(e.value,0)-COALESCE(r.delivery,0)-COALESCE(r.fees,0))::numeric profit
+                FROM months m LEFT JOIN rev r USING(month_start) LEFT JOIN cogs c USING(month_start) LEFT JOIN exp e USING(month_start)
+                ORDER BY m.month_start
+            `, [fromDate, toDate]),
+            query(`
+                WITH period_orders AS (
+                    SELECT CASE
+                               WHEN NULLIF(REGEXP_REPLACE(phone, '\\D', '', 'g'), '') IS NOT NULL
+                               THEN LOWER(REGEXP_REPLACE(unaccent(TRIM(customer)), '\\s+', ' ', 'g')) || '|phone:' || REGEXP_REPLACE(phone, '\\D', '', 'g')
+                               ELSE 'name:' || LOWER(REGEXP_REPLACE(unaccent(TRIM(customer)), '\\s+', ' ', 'g'))
+                           END customer_key,
+                           COUNT(*)::int orders, COALESCE(SUM(total),0)::numeric spent
+                    FROM orders
+                    WHERE status <> 'Cancelado' AND ${orderDate} BETWEEN $1::date AND $2::date
+                    GROUP BY customer_key
+                ), first_orders AS (
+                    SELECT CASE
+                               WHEN NULLIF(REGEXP_REPLACE(phone, '\\D', '', 'g'), '') IS NOT NULL
+                               THEN LOWER(REGEXP_REPLACE(unaccent(TRIM(customer)), '\\s+', ' ', 'g')) || '|phone:' || REGEXP_REPLACE(phone, '\\D', '', 'g')
+                               ELSE 'name:' || LOWER(REGEXP_REPLACE(unaccent(TRIM(customer)), '\\s+', ' ', 'g'))
+                           END customer_key,
+                           MIN((created_at AT TIME ZONE '${TZ}')::date) first_buy
+                    FROM orders WHERE status <> 'Cancelado'
+                    GROUP BY customer_key
+                )
+                SELECT COUNT(*)::int total,
+                       COUNT(*) FILTER (WHERE f.first_buy BETWEEN $1::date AND $2::date)::int new_customers,
+                       COUNT(*) FILTER (WHERE p.orders>1)::int recurring,
+                       COALESCE(AVG(p.orders),0)::numeric frequency,
+                       COALESCE(AVG(p.spent),0)::numeric ltv
+                FROM period_orders p LEFT JOIN first_orders f USING(customer_key)
+            `, [fromDate, toDate]),
+            query('SELECT * FROM campaigns ORDER BY start_date DESC'),
+            query("SELECT * FROM monthly_goals WHERE month=date_trunc('month',$1::date)::date LIMIT 1", [fromDate]),
+            query('SELECT * FROM ingredients ORDER BY current_stock <= minimum_stock DESC, name'),
+        ]);
+
+        const fin = financial.rows[0] || {};
+        const revenue = num(fin.revenue);
+        const cogs = num(fin.value);
+        const operational = num(fin.operational);
+        const packaging = num(fin.packaging);
+        const delivery = num(fin.delivery);
+        const marketingCost = num(fin.marketing);
+        const operationalOther = Math.max(0, operational - packaging - marketingCost);
+        const fees = num(fin.fees);
+        const netProfit = revenue - cogs - operational - delivery - fees;
+        const customerData = customers.rows[0] || {};
+        const goal = goalRows.rows[0] || {};
+        const campaignList = campaigns.rows.map(normalizeCampaign);
+        const campaignInvestment = campaignList.reduce((a, c) => a + c.investment, 0);
+        const flavorList = flavorStats.rows.map(r => ({
+            name: r.name, category: r.category, quantity: r.quantity, revenue: num(r.revenue),
+            profit: num(r.profit), margin: num(r.margin),
+        }));
+        const dayNames = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+        const weekdayList = dayNames.map((name, i) => {
+            const row = weekdays.rows.find(r => r.weekday === i + 1) || {};
+            return { name, orders: Number(row.orders || 0), revenue: num(row.revenue) };
+        });
+        const bestDay = [...weekdayList].sort((a, b) => b.revenue - a.revenue)[0];
+        const topFlavor = [...flavorList].sort((a, b) => b.profit - a.profit)[0];
+        const periodDays = Math.max(1, Math.round((new Date(toDate) - new Date(fromDate)) / 86400000) + 1);
+        const recurring = Number(customerData.recurring || 0);
+        const totalCustomers = Number(customerData.total || 0);
+        const newCustomers = Number(customerData.new_customers || 0);
+        const comparisons = [
+            { label: 'Hoje vs Ontem', current: today, previous: yesterday },
+            { label: 'Período vs Período anterior', current, previous: previousSummary },
+            { label: 'Selecionado vs anterior', current, previous: previousSummary },
+        ].map(c => ({ ...c, revenueDelta: deltaPct(c.current.revenue, c.previous.revenue), ordersDelta: deltaPct(c.current.orders, c.previous.orders) }));
+
+        const insights = [];
+        if (bestDay && bestDay.orders) insights.push(`Seu melhor dia é ${bestDay.name.toLowerCase()}, com ${bestDay.orders} pedidos no período.`);
+        if (topFlavor) insights.push(`${topFlavor.name} é o sabor com maior lucro no período (${topFlavor.margin.toFixed(1)}% de margem).`);
+        const leadingSource = marketing.rows[0];
+        if (leadingSource && current.orders) insights.push(`${leadingSource.source} lidera as vendas do período com ${leadingSource.orders} pedidos.`);
+        if (stockRows.rows.some(r => num(r.current_stock) <= num(r.minimum_stock))) insights.push('Existem ingredientes abaixo ou no estoque mínimo que precisam de reposição.');
+
+        res.json({
+            generatedAt: new Date().toISOString(),
+            period: { from: fromDate, to: toDate, previous },
+            kpis: {
+                revenue: current.revenue, profit: netProfit, ticket: current.ticket,
+                orders: current.orders, customers: current.customers, newCustomers,
+                recurringCustomers: recurring, growth: deltaPct(current.revenue, previousSummary.revenue),
+                revenueGoalProgress: pct(current.revenue, num(goal.revenue_target)),
+            },
+            comparisons,
+            sales: {
+                daily: daily.rows.map(r => ({ date: r.sale_day, revenue: num(r.revenue), orders: r.orders })),
+                weekly: weekly.rows.map(r => ({ date: r.week_start, revenue: num(r.revenue), orders: r.orders })),
+                monthly: monthly.rows.map(r => ({ date: r.month_start, revenue: num(r.revenue), orders: r.orders })),
+                weekdays: weekdayList,
+            },
+            tickets: {
+                general: current.ticket,
+                monthly: monthly.rows.map(r => ({ date: r.month_start, ticket: r.orders ? num(r.revenue) / r.orders : 0 })),
+                byChannel: ticketsByChannel.rows.map(r => ({ channel: r.channel, orders: r.orders, revenue: num(r.revenue), ticket: r.orders ? num(r.revenue) / r.orders : 0 })),
+            },
+            customers: {
+                total: totalCustomers, new: newCustomers, recurring,
+                retentionRate: pct(recurring, totalCustomers),
+                averageFrequency: num(customerData.frequency),
+                ltv: num(customerData.ltv),
+                ranking: topCustomers.rows.map(r => ({ name: r.name, orders: r.orders, spent: num(r.spent), lastBuy: r.last_buy })),
+            },
+            products: {
+                top: [...flavorList].sort((a, b) => b.quantity - a.quantity).slice(0, 10),
+                bottom: [...flavorList].filter(x => x.quantity > 0).sort((a, b) => a.quantity - b.quantity).slice(0, 10),
+                highestMargin: [...flavorList].sort((a, b) => b.margin - a.margin).slice(0, 10),
+                lowestMargin: [...flavorList].sort((a, b) => a.margin - b.margin).slice(0, 10),
+                combos: [...flavorList].filter(x => /combo/i.test(x.name) || /combo/i.test(x.category)).sort((a, b) => b.quantity - a.quantity).slice(0, 10),
+            },
+            financial: {
+                grossRevenue: revenue, cogs, operationalExpenses: operationalOther,
+                packaging, delivery, marketing: marketingCost, fees, netProfit,
+                margin: pct(netProfit, revenue),
+                marginEvolution: marginMonthly.rows.map(r => ({ date: r.month_start, margin: pct(num(r.profit), num(r.revenue)) })),
+            },
+            marketing: marketing.rows.map(r => ({
+                source: r.source, orders: r.orders, revenue: num(r.revenue),
+                ticket: r.orders ? num(r.revenue) / r.orders : 0, conversion: null,
+            })),
+            campaigns: campaignList,
+            goals: {
+                month: goal.month || `${fromDate.slice(0, 7)}-01`,
+                revenue: { target: num(goal.revenue_target), current: current.revenue, progress: pct(current.revenue, num(goal.revenue_target)) },
+                profit: { target: num(goal.profit_target), current: netProfit, progress: pct(netProfit, num(goal.profit_target)) },
+                orders: { target: Number(goal.orders_target || 0), current: current.orders, progress: pct(current.orders, Number(goal.orders_target || 0)) },
+            },
+            insights,
+            forecast: { revenue: current.revenue, profit: netProfit, orders: Math.round(current.orders / periodDays * periodDays) },
+            strategic: {
+                ticket: current.ticket,
+                cac: newCustomers ? campaignInvestment / newCustomers : 0,
+                ltv: num(customerData.ltv),
+                repurchaseRate: pct(recurring, totalCustomers),
+                netMargin: pct(netProfit, revenue),
+                monthlyGrowth: deltaPct(current.revenue, previousSummary.revenue),
+                campaignRoi: campaignInvestment ? pct(campaignList.reduce((a, c) => a + c.revenueGenerated, 0) - campaignInvestment, campaignInvestment) : 0,
+                activeCustomers: current.customers,
+            },
+            stock: stockRows.rows.map(normalizeIngredient),
+        });
+    } catch (e) { next(e); }
+});
+
 router.get('/analytics', async (_req, res, next) => {
     try {
         const currentMonth = await periodSummary("date_trunc('month', CURRENT_DATE)::date", 'CURRENT_DATE');
@@ -327,6 +642,10 @@ router.get('/analytics', async (_req, res, next) => {
                            COALESCE(SUM(e.amount) FILTER (WHERE lower(c.name) LIKE '%marketing%' OR lower(c.name) LIKE '%divulga%'),0)::numeric marketing
                     FROM expenses e LEFT JOIN expense_categories c ON c.id=e.category_id
                     WHERE e.date BETWEEN date_trunc('month',CURRENT_DATE)::date AND CURRENT_DATE
+                      AND NOT (
+                          COALESCE(lower(c.name), '') IN (${PROFIT_EXCLUDED_EXPENSE_CATEGORIES_SQL})
+                          OR ${PROFIT_EXCLUDED_EXPENSE_DESCRIPTION_SQL}
+                      )
                 )
                 SELECT * FROM rev CROSS JOIN cogs CROSS JOIN exp
             `),
@@ -345,9 +664,13 @@ router.get('/analytics', async (_req, res, next) => {
                     FROM order_items oi JOIN orders o ON o.id=oi.order_id LEFT JOIN flavors f ON f.id=oi.flavor_id
                     WHERE o.status='Entregue' GROUP BY 1
                 ), exp AS (
-                    SELECT date_trunc('month', date)::date AS month_start, SUM(amount)::numeric AS value
-                    FROM expenses
-                    WHERE date <= CURRENT_DATE
+                    SELECT date_trunc('month', e.date)::date AS month_start, SUM(e.amount)::numeric AS value
+                    FROM expenses e LEFT JOIN expense_categories c ON c.id=e.category_id
+                    WHERE e.date <= CURRENT_DATE
+                      AND NOT (
+                          COALESCE(lower(c.name), '') IN (${PROFIT_EXCLUDED_EXPENSE_CATEGORIES_SQL})
+                          OR ${PROFIT_EXCLUDED_EXPENSE_DESCRIPTION_SQL}
+                      )
                     GROUP BY 1
                 )
                 SELECT m.month_start, COALESCE(r.revenue,0)::numeric revenue,
