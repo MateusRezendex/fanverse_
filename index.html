@@ -364,52 +364,6 @@
                 <div id="source-breakdown" class="space-y-2"></div>
             </div>
 
-            <!-- Embalagens -->
-            <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-5">
-                <div class="flex items-center justify-between gap-3">
-                    <div>
-                        <h4 class="text-white font-bold text-base">Análise de embalagens</h4>
-                        <p class="text-xs text-gray-500">Sugestão automática versus caixa utilizada no período.</p>
-                    </div>
-                    <i data-lucide="package-check" class="w-5 h-5 text-brand-accentOrange"></i>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
-                        <p class="text-[10px] uppercase font-bold text-gray-500">Médias usadas</p>
-                        <p id="packaging-medium-used" class="text-2xl font-black text-white mt-1">0</p>
-                    </div>
-                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
-                        <p class="text-[10px] uppercase font-bold text-gray-500">Grandes usadas</p>
-                        <p id="packaging-large-used" class="text-2xl font-black text-white mt-1">0</p>
-                    </div>
-                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
-                        <p class="text-[10px] uppercase font-bold text-gray-500">Múltiplas caixas</p>
-                        <p id="packaging-multiple-used" class="text-2xl font-black text-white mt-1">0</p>
-                    </div>
-                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
-                        <p class="text-[10px] uppercase font-bold text-gray-500">Sugestão alterada</p>
-                        <p id="packaging-changed-percent" class="text-2xl font-black text-white mt-1">0%</p>
-                    </div>
-                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
-                        <p class="text-[10px] uppercase font-bold text-gray-500">Ocupação média</p>
-                        <p id="packaging-avg-occupancy" class="text-2xl font-black text-white mt-1">0</p>
-                    </div>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse text-sm">
-                        <thead>
-                            <tr class="border-b border-brand-border/60 text-xs uppercase tracking-wider text-gray-500 font-bold">
-                                <th class="pb-3">Pedido</th>
-                                <th class="pb-3">Ocupação</th>
-                                <th class="pb-3">Caixa Sugerida</th>
-                                <th class="pb-3">Caixa Utilizada</th>
-                            </tr>
-                        </thead>
-                        <tbody id="packaging-report-tbody" class="divide-y divide-brand-border/30"></tbody>
-                    </table>
-                </div>
-            </div>
-
             <!-- Cabeçalho da seção de análise + filtro de período -->
             <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-4 border-t border-brand-border/40">
                 <div>

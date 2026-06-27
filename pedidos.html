@@ -303,11 +303,11 @@
                     // Resolve nome/preço atual: prioriza cadastro atual (por flavorId), com fallback ao snapshot
                     const flavor = flavors.find(f => f.id === item.flavorId);
                     const flavorName  = flavor ? flavor.name  : (item.name  || 'Sabor removido');
-                    const currentPrice = flavor ? flavor.price : (item.price || 0);
                     return `
-                        <div class="rounded-lg bg-black/20 border border-brand-border/40 px-3 py-2 min-w-0">
-                            <span class="text-white font-semibold block truncate">${item.quantity}x ${escapeHtml(flavorName)}</span>
-                        </div>
+                        <li class="flex items-start gap-2 text-sm leading-snug">
+                            <span class="text-brand-accentOrange font-black shrink-0">${item.quantity}x</span>
+                            <span class="text-white font-semibold">${escapeHtml(flavorName)}</span>
+                        </li>
                     `;
                 }).join('');
 
@@ -342,7 +342,7 @@
                         <div class="text-xs text-gray-500 font-normal">${escapeHtml(formatPhone(o.phone))}</div>
                     </td>
                     <td class="py-4 px-6 align-top">
-                        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">${itemsList}</div>
+                        <ul class="space-y-1.5">${itemsList}</ul>
                     </td>
                     <td class="py-4 px-6 align-top text-right">
                         <div class="text-[10px] uppercase font-bold text-gray-500">Entrega</div>
