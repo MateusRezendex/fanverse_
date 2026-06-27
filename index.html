@@ -364,8 +364,8 @@
                 <div id="source-breakdown" class="space-y-2"></div>
             </div>
 
-            <!-- Embalagens desativado na tela inicial -->
-            <template id="dashboard-packaging-disabled">
+            <!-- Embalagens -->
+            <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-5">
                 <div class="flex items-center justify-between gap-3">
                     <div>
                         <h4 class="text-white font-bold text-base">Análise de embalagens</h4>
@@ -408,7 +408,7 @@
                         <tbody id="packaging-report-tbody" class="divide-y divide-brand-border/30"></tbody>
                     </table>
                 </div>
-            </template>
+            </div>
 
             <!-- Cabeçalho da seção de análise + filtro de período -->
             <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-4 border-t border-brand-border/40">
@@ -485,6 +485,7 @@
                                 <th class="pb-3 pl-4">ID</th>
                                 <th class="pb-3">Cliente</th>
                                 <th class="pb-3">Itens</th>
+                                <th class="pb-3">Caixa</th>
                                 <th class="pb-3">Taxa Entrega</th>
                                 <th class="pb-3">Valor Total</th>
                                 <th class="pb-3">Status</th>
@@ -562,11 +563,6 @@
                             <span class="text-xs font-bold uppercase text-gray-400">Prévia do pedido</span>
                             <span id="order-preview-count" class="text-[11px] font-bold text-gray-500">0 itens</span>
                         </div>
-                        <label class="flex items-center justify-between gap-3 rounded-lg border border-brand-border/60 bg-black/20 px-3 py-2">
-                            <span class="text-xs font-bold text-gray-300">Preço de custo</span>
-                            <input id="order-at-cost" type="checkbox" onchange="calculateTotalPreview()"
-                                class="w-4 h-4 rounded border-brand-border text-brand-accentOrange focus:ring-0 focus:ring-offset-0 bg-brand-dark">
-                        </label>
                         <div id="order-preview-items" class="space-y-1.5 max-h-60 overflow-y-auto pr-1">
                             <div class="text-xs text-gray-500 text-center py-3 border border-dashed border-brand-border/60 rounded-lg">
                                 Nenhum sabor selecionado.
@@ -956,29 +952,6 @@
             internalConsumption = (typeof getInternalConsumption === 'function') ? getInternalConsumption() : [];
         }
 
-        function normalizeCustomerLookupText(value) {
-            return String(value || '')
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/\s+/g, ' ')
-                .trim();
-        }
-
-        function customerPhoneDigits(value) {
-            return String(value || '').replace(/\D/g, '');
-        }
-
-        function findCustomerByNameAndPhone(name, phone) {
-            const targetName = normalizeCustomerLookupText(name);
-            const targetPhone = customerPhoneDigits(phone);
-            if (!targetName || !targetPhone) return null;
-            return (customers || []).find(c =>
-                normalizeCustomerLookupText(c.name) === targetName
-                && customerPhoneDigits(c.phone) === targetPhone
-            ) || null;
-        }
-
         function initCustomerLookup() {
             const nameInput = document.getElementById('order-customer');
             const phoneInput = document.getElementById('order-phone');
@@ -989,14 +962,23 @@
             const hide = () => { box.classList.add('hidden'); listEl.innerHTML = ''; };
             const show = () => { box.classList.remove('hidden'); };
 
+            function normalizeText(value) {
+                return String(value || '')
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+
             function render(query) {
-                const q = normalizeCustomerLookupText(query);
+                const q = normalizeText(query);
                 if (!q || q.length < 2) { hide(); return; }
 
                 const rows = (customers || [])
                     .filter(c => {
-                        const name = normalizeCustomerLookupText(c.name);
-                        const phone = normalizeCustomerLookupText((c.phone || '').replace(/\D/g, ''));
+                        const name = normalizeText(c.name);
+                        const phone = normalizeText((c.phone || '').replace(/\D/g, ''));
                         const qPhone = q.replace(/\D/g, '');
                         return name.includes(q) || (qPhone && phone.includes(qPhone));
                     })
@@ -1045,11 +1027,11 @@
             function applyExactCustomerMatch() {
                 if (editingOrderId) return;
                 const phone = String(phoneInput.value || '').replace(/\D/g, '');
-                const name = normalizeCustomerLookupText(nameInput.value);
+                const name = normalizeText(nameInput.value);
                 const match = (customers || []).find(c => {
                     const customerPhone = String(c.phone || '').replace(/\D/g, '');
                     return (phone && customerPhone === phone)
-                        || (!phone && name && normalizeCustomerLookupText(c.name) === name);
+                        || (!phone && name && normalizeText(c.name) === name);
                 });
                 if (match) applyCustomer(match);
             }
@@ -1121,6 +1103,7 @@
             renderHourlyChart();
             renderRankings();
             renderSourceBreakdown();
+            renderPackagingAnalysis();
             renderInternalConsumptionCard();
             updateNeighborhoodOptions();
             renderTableFilterBadge();
@@ -1488,6 +1471,10 @@
                         <td class="py-4 pl-4 font-bold text-gray-400">${escapeHtml(order.id)}</td>
                         <td class="py-4 font-semibold text-white">${escapeHtml(order.customer)}</td>
                         <td class="py-4 text-gray-400 max-w-xs truncate" title="${escapeHtml(itemSummary)}">${escapeHtml(itemSummary)}</td>
+                        <td class="py-4 text-gray-300">
+                            <div class="font-bold">${escapeHtml(order.caixaUtilizada || order.caixaSugerida || 'Média')}</div>
+                            <div class="text-[11px] text-gray-500">${Number(order.ocupacaoTotal || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} pts</div>
+                        </td>
                         <td class="py-4 text-gray-400 font-semibold">${formatBRL(order.deliveryFee || 0)}</td>
                         <td class="py-4 font-bold text-brand-accentOrange">${formatBRL(order.total)}</td>
                         <td class="py-4">
@@ -1511,7 +1498,7 @@
                         </td>
                         <td class="py-4 text-gray-400 text-xs">
                             <div class="font-bold text-white">${escapeHtml(order.payment || '—')}</div>
-                            <div>${escapeHtml(order.neighborhood || order.address || '')}</div>
+                            <div>${escapeHtml(order.address || '')}</div>
                         </td>
                     </tr>
                 `;
@@ -1718,7 +1705,12 @@
             }
 
             listEl.innerHTML = items.map(item => `
-                <div class="text-sm font-semibold text-white leading-snug break-words">${item.quantity}x ${escapeHtml(item.name)}</div>
+                <div class="flex items-center justify-between gap-3 bg-black/20 rounded-lg px-3 py-2">
+                    <div class="min-w-0 flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-md bg-brand-accentOrange/15 text-brand-accentOrange flex items-center justify-center text-xs font-black shrink-0">${item.quantity}</span>
+                        <span class="text-sm font-semibold text-white truncate">${escapeHtml(item.name)}</span>
+                    </div>
+                </div>
             `).join('');
         }
 
@@ -1760,7 +1752,6 @@
             document.getElementById('order-payment').value = 'Pix';
             document.getElementById('order-source').value = '';
             document.getElementById('order-referrer').value = '';
-            document.getElementById('order-at-cost').checked = false;
             document.getElementById('order-preview-total').innerText = formatBRL(0);
             lastSuggestedBox = 'Média';
             document.getElementById('order-box-suggested').value = 'Média';
@@ -1835,12 +1826,11 @@
         function calculateTotalPreview() {
             let itemsTotal = 0;
             const selectedItems = [];
-            const atCost = !!document.getElementById('order-at-cost')?.checked;
             flavors.filter(f => f.available).forEach(flavor => {
                 const input = document.getElementById(`flavor-qty-${flavor.id}`);
                 if (input) {
                     const qty = parseInt(input.value, 10) || 0;
-                    const price = atCost ? (Number(flavor.costPrice || 0)) : (parseFloat(input.dataset.price) || 0);
+                    const price = parseFloat(input.dataset.price) || 0;
                     if (qty > 0) {
                         const subtotal = qty * price;
                         selectedItems.push({ name: flavor.name, quantity: qty, price, subtotal, category: flavor.category });
@@ -1900,8 +1890,11 @@
                 `;
             } else {
                 const renderPreviewItem = item => `
-                    <div class="flex items-baseline justify-between gap-3">
-                        <span class="text-sm font-semibold text-white leading-snug break-words">${item.quantity}x ${escapeHtml(item.name)}</span>
+                    <div class="flex items-center justify-between gap-3 bg-black/20 rounded-lg px-3 py-2">
+                        <div class="min-w-0 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-md bg-brand-accentOrange/15 text-brand-accentOrange flex items-center justify-center text-xs font-black shrink-0">${item.quantity}</span>
+                            <span class="text-sm font-semibold text-white truncate">${escapeHtml(item.name)}</span>
+                        </div>
                         <span class="text-xs font-bold text-gray-300 shrink-0">${formatBRL(item.subtotal)}</span>
                     </div>
                 `;
@@ -1912,20 +1905,12 @@
                 listEl.innerHTML = groups.map(group => `
                     <div class="space-y-1.5">
                         <div class="text-[10px] font-black uppercase tracking-wider text-gray-500 px-1">${group.title}</div>
-                        <div class="space-y-1">${group.items.map(renderPreviewItem).join('')}</div>
+                        <div class="space-y-1.5">${group.items.map(renderPreviewItem).join('')}</div>
                     </div>
                 `).join('');
             }
 
             const adjustmentRows = [];
-            if (document.getElementById('order-at-cost')?.checked) {
-                adjustmentRows.push(`
-                    <div class="flex items-center justify-between">
-                        <span class="text-gray-500">Modo de preço</span>
-                        <span class="font-bold text-amber-300">Custo</span>
-                    </div>
-                `);
-            }
             if (deliveryFee > 0) {
                 adjustmentRows.push(`
                     <div class="flex items-center justify-between">
@@ -1950,15 +1935,13 @@
         function collectSelectedItems() {
             const items = [];
             let total = 0;
-            const atCost = !!document.getElementById('order-at-cost')?.checked;
             flavors.filter(f => f.available).forEach(flavor => {
                 const input = document.getElementById(`flavor-qty-${flavor.id}`);
                 if (!input) return;
                 const qty = parseInt(input.value, 10) || 0;
                 if (qty <= 0) return;
-                const price = atCost ? Number(flavor.costPrice || 0) : Number(flavor.price || 0);
-                items.push({ flavorId: flavor.id, name: flavor.name, quantity: qty, price, category: flavor.category });
-                total += qty * price;
+                items.push({ flavorId: flavor.id, name: flavor.name, quantity: qty, price: flavor.price, category: flavor.category });
+                total += qty * flavor.price;
             });
             return { items, total };
         }
@@ -1998,10 +1981,10 @@
         }
 
         async function submitNewOrder() {
-            let customer       = document.getElementById('order-customer').value.trim();
-            let phone          = document.getElementById('order-phone').value.trim();
-            let address        = document.getElementById('order-address').value.trim();
-            let neighborhood   = document.getElementById('order-neighborhood').value.trim();
+            const customer     = document.getElementById('order-customer').value.trim();
+            const phone        = document.getElementById('order-phone').value.trim();
+            const address      = document.getElementById('order-address').value.trim();
+            const neighborhood = document.getElementById('order-neighborhood').value.trim();
             const feeRawCustomer = document.getElementById('order-delivery-fee-customer').value;
             const feeRawCost     = document.getElementById('order-delivery-fee-cost').value;
             const discRaw      = document.getElementById('order-discount').value;
@@ -2010,7 +1993,6 @@
             const referrerRaw  = document.getElementById('order-referrer')?.value ?? '';
             const notes        = document.getElementById('order-notes').value.trim();
             const caixaUtilizada = document.getElementById('order-box-used')?.value || '';
-            const atCost = !!document.getElementById('order-at-cost')?.checked;
 
             const deliveryFeeCustomer = Number(String(feeRawCustomer).replace(',', '.'));
             if (!isFinite(deliveryFeeCustomer) || deliveryFeeCustomer < 0) {
@@ -2034,22 +2016,6 @@
                 showToast('Campos obrigatórios', 'Informe o nome do cliente e o endereço de entrega.', true);
                 return;
             }
-            if (!phone) {
-                showToast('Telefone obrigatório', 'Informe o telefone para identificar cadastros repetidos.', true);
-                return;
-            }
-            const existingCustomer = !editingOrderId ? findCustomerByNameAndPhone(customer, phone) : null;
-            if (existingCustomer) {
-                customer = String(existingCustomer.name || customer).trim();
-                phone = formatPhone(existingCustomer.phone || phone);
-                address = String(existingCustomer.address || address).trim();
-                neighborhood = String(existingCustomer.neighborhood || neighborhood).trim();
-                const addrEl = document.getElementById('order-address');
-                const neighEl = document.getElementById('order-neighborhood');
-                if (addrEl && existingCustomer.address) addrEl.value = address;
-                if (neighEl && existingCustomer.neighborhood) neighEl.value = neighborhood;
-                showToast('Cliente jÃ¡ cadastrado', 'Usei o cadastro existente com este nome e telefone.');
-            }
             const { items } = collectSelectedItems();
             if (items.length === 0) {
                 showToast('Sem itens', 'Selecione pelo menos um sabor para o pedido.', true);
@@ -2063,10 +2029,10 @@
                     : '';
                 if (editingOrderId) {
                     const id = editingOrderId;
-                    await updateOrder(id, { customer, phone, address, neighborhood, deliveryFeeCustomer, deliveryFeeCost, discount, payment, source, referrer, notes, items, caixaUtilizada, atCost });
+                    await updateOrder(id, { customer, phone, address, neighborhood, deliveryFeeCustomer, deliveryFeeCost, discount, payment, source, referrer, notes, items, caixaUtilizada });
                     showToast('Pedido atualizado', `O pedido ${id} foi atualizado.`);
                 } else {
-                    await createOrder({ customer, phone, address, neighborhood, deliveryFeeCustomer, deliveryFeeCost, discount, payment, source, referrer, notes, items, caixaUtilizada, atCost });
+                    await createOrder({ customer, phone, address, neighborhood, deliveryFeeCustomer, deliveryFeeCost, discount, payment, source, referrer, notes, items, caixaUtilizada });
                     showToast('Pedido criado', 'Pedido registrado com sucesso.');
                 }
                 editingOrderId = null;
@@ -2095,7 +2061,6 @@
             toggleReferrerField();
             document.getElementById('order-referrer').value     = order.referrer     || '';
             document.getElementById('order-notes').value        = order.notes        || '';
-            document.getElementById('order-at-cost').checked    = !!order.atCost;
 
             // Pré-popula quantidades
             order.items.forEach(item => {

@@ -22,9 +22,9 @@ router.get('/', async (_req, res, next) => {
 router.post('/', async (req, res, next) => {
     try {
         const { name } = req.body || {};
-        if (!name || typeof name !== 'string') return res.status(400).json({ error: 'nome obrigatório' });
+        if (!name || typeof name !== 'string') return res.status(400).json({ error: 'name é obrigatório' });
         const trimmed = name.trim();
-        if (!trimmed) return res.status(400).json({ error: 'nome obrigatório' });
+        if (!trimmed) return res.status(400).json({ error: 'name é obrigatório' });
 
         const { rows } = await query(
             `INSERT INTO neighborhoods (name)
@@ -40,3 +40,4 @@ router.post('/', async (req, res, next) => {
 });
 
 module.exports = router;
+

@@ -53,7 +53,7 @@ router.post('/', async (req, res, next) => {
     try {
         const { items = [], notes = '', expenseCategoryId = null } = req.body || {};
         if (!Array.isArray(items) || items.length === 0) {
-            return res.status(400).json({ error: 'lista de itens vazia' });
+            return res.status(400).json({ error: 'items vazio' });
         }
 
         for (const it of items) {

@@ -219,12 +219,6 @@
             if(from)params.set('from',from); if(to)params.set('to',to);
             location.href=`/api/management/export.csv?${params}`;
         }
-        function selectedPeriodParams() {
-            const params=new URLSearchParams(), from=document.getElementById('export-from').value, to=document.getElementById('export-to').value;
-            if(from)params.set('from',from); if(to)params.set('to',to);
-            params.set('_',Date.now());
-            return params;
-        }
         function kpi(label, value, sub='', tone='orange') {
             return `<article class="card p-4"><div class="flex items-start justify-between gap-2"><p class="text-[10px] uppercase tracking-wider font-black text-gray-500">${label}</p><span class="w-2 h-2 rounded-full bg-${tone}-500"></span></div><p class="kpi-value mt-2">${value}</p><p class="text-[11px] text-gray-500 mt-1">${sub}</p></article>`;
         }
@@ -249,13 +243,13 @@
         function render() {
             const k=data.kpis;
             document.getElementById('kpis').innerHTML = [
-                kpi('Faturamento do período',money(k.revenue),`${percent(k.growth)} vs período anterior`,k.growth>=0?'emerald':'red'),
-                kpi('Lucro do período',money(k.profit),`${percent(data.financial.margin)} de margem`,k.profit>=0?'emerald':'red'),
+                kpi('Faturamento do mês',money(k.revenue),`${percent(k.growth)} vs mês anterior`,k.growth>=0?'emerald':'red'),
+                kpi('Lucro do mês',money(k.profit),`${percent(data.financial.margin)} de margem`,k.profit>=0?'emerald':'red'),
                 kpi('Ticket médio',money(k.ticket),'Receita ÷ pedidos'),
-                kpi('Número de pedidos',number(k.orders),'Entregues no período'),
-                kpi('Clientes no período',number(k.customers),`${k.newCustomers} novos`),
+                kpi('Número de pedidos',number(k.orders),'Entregues no mês'),
+                kpi('Clientes no mês',number(k.customers),`${k.newCustomers} novos`),
                 kpi('Clientes recorrentes',number(k.recurringCustomers),`${percent(data.customers.retentionRate)} retenção`),
-                kpi('Crescimento',percent(k.growth),'Em relação ao período anterior',k.growth>=0?'emerald':'red'),
+                kpi('Crescimento mensal',percent(k.growth),'Em relação ao mês anterior',k.growth>=0?'emerald':'red'),
                 kpi('Meta mensal',percent(k.revenueGoalProgress),'Percentual atingido',k.revenueGoalProgress>=80?'emerald':'amber'),
             ].join('');
             document.getElementById('comparisons').innerHTML=data.comparisons.map(c=>`<article class="card p-4"><p class="font-black text-sm">${c.label}</p><div class="grid grid-cols-2 gap-3 mt-3"><div><p class="text-[10px] text-gray-500 uppercase">Receita</p><p class="font-black">${money(c.current.revenue)}</p><p class="text-xs font-bold ${c.revenueDelta>=0?'text-emerald-600':'text-red-600'}">${c.revenueDelta>=0?'↑':'↓'} ${percent(Math.abs(c.revenueDelta))}</p></div><div><p class="text-[10px] text-gray-500 uppercase">Pedidos</p><p class="font-black">${c.current.orders}</p><p class="text-xs font-bold ${c.ordersDelta>=0?'text-emerald-600':'text-red-600'}">${c.ordersDelta>=0?'↑':'↓'} ${percent(Math.abs(c.ordersDelta))}</p></div></div></article>`).join('');
@@ -406,7 +400,7 @@
             setRefreshState(true);
             try {
                 [data]=await Promise.all([
-                    api(`/api/management/analytics?${selectedPeriodParams()}`),
+                    api(`/api/management/analytics?_=${Date.now()}`),
                     loadSupport()
                 ]);
                 render();
@@ -428,8 +422,6 @@
         });
         document.getElementById('recipe-flavor').addEventListener('change',renderRecipe);
         document.getElementById('refresh-button').addEventListener('click',()=>loadAll({notify:true}));
-        document.getElementById('export-from').addEventListener('change',()=>loadAll());
-        document.getElementById('export-to').addEventListener('change',()=>loadAll());
         document.getElementById('ingredient-form').addEventListener('submit',createIngredient);
         document.getElementById('campaign-form').addEventListener('submit',async e=>{
             e.preventDefault(); const b=Object.fromEntries(new FormData(e.target)); await api('/api/management/campaigns',{method:'POST',body:b}); e.target.reset(); e.target.classList.add('hidden'); toast('Campanha cadastrada'); await loadAll();

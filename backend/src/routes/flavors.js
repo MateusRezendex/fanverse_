@@ -36,8 +36,8 @@ router.post('/', async (req, res, next) => {
         const { name, description = '', price, fillingCost, costPrice = 0, category, available = true } = req.body || {};
         const filling = fillingCost !== undefined ? Number(fillingCost) : Number(costPrice);
 
-        if (!name || typeof name !== 'string')            return res.status(400).json({ error: 'nome obrigatório' });
-        if (!(price >= 0))                                return res.status(400).json({ error: 'preço inválido' });
+        if (!name || typeof name !== 'string')            return res.status(400).json({ error: 'name é obrigatório' });
+        if (!(price >= 0))                                return res.status(400).json({ error: 'price inválido' });
         if (!(filling >= 0))                              return res.status(400).json({ error: 'fillingCost inválido' });
         if (!VALID_CATEGORIES.includes(category))         return res.status(400).json({ error: 'category inválida' });
 
@@ -134,3 +134,4 @@ router.delete('/:id', async (req, res, next) => {
 });
 
 module.exports = router;
+

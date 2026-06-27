@@ -304,7 +304,11 @@
                     const flavor = flavors.find(f => f.id === item.flavorId);
                     const flavorName  = flavor ? flavor.name  : (item.name  || 'Sabor removido');
                     const currentPrice = flavor ? flavor.price : (item.price || 0);
-                    return `<li class="text-white font-semibold leading-snug break-words">${item.quantity}x ${escapeHtml(flavorName)}</li>`;
+                    return `
+                        <div class="rounded-lg bg-black/20 border border-brand-border/40 px-3 py-2 min-w-0">
+                            <span class="text-white font-semibold block truncate">${item.quantity}x ${escapeHtml(flavorName)}</span>
+                        </div>
+                    `;
                 }).join('');
 
                 // Total: usa snapshot do pedido para histórico imutável
@@ -334,12 +338,11 @@
                 tr.innerHTML = `
                     <td class="py-4 px-6 align-top">
                         <div class="font-black text-brand-accentOrange">${escapeHtml(o.id)}</div>
-                        ${o.atCost ? '<div class="text-[10px] font-black text-amber-400 uppercase mt-1">Preço de custo</div>' : ''}
                         <div class="text-white font-bold mt-1">${escapeHtml(o.customer)}</div>
                         <div class="text-xs text-gray-500 font-normal">${escapeHtml(formatPhone(o.phone))}</div>
                     </td>
                     <td class="py-4 px-6 align-top">
-                        <ul class="space-y-1">${itemsList}</ul>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">${itemsList}</div>
                     </td>
                     <td class="py-4 px-6 align-top text-right">
                         <div class="text-[10px] uppercase font-bold text-gray-500">Entrega</div>

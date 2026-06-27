@@ -175,52 +175,6 @@
                 </div>
             </div>
 
-            <!-- Análise de embalagens -->
-            <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-5">
-                <div class="flex items-center justify-between gap-3">
-                    <div>
-                        <h3 class="text-white font-extrabold text-lg">Análise de embalagens</h3>
-                        <p class="text-xs text-gray-500" data-period-caption="Sugestão automática versus caixa utilizada {period}.">Sugestão automática versus caixa utilizada hoje.</p>
-                    </div>
-                    <i data-lucide="package-check" class="w-5 h-5 text-brand-accentOrange"></i>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
-                        <p class="text-[10px] uppercase font-bold text-gray-500">Médias usadas</p>
-                        <p id="packaging-medium-used" class="text-2xl font-black text-white mt-1">0</p>
-                    </div>
-                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
-                        <p class="text-[10px] uppercase font-bold text-gray-500">Grandes usadas</p>
-                        <p id="packaging-large-used" class="text-2xl font-black text-white mt-1">0</p>
-                    </div>
-                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
-                        <p class="text-[10px] uppercase font-bold text-gray-500">Múltiplas caixas</p>
-                        <p id="packaging-multiple-used" class="text-2xl font-black text-white mt-1">0</p>
-                    </div>
-                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
-                        <p class="text-[10px] uppercase font-bold text-gray-500">Sugestão alterada</p>
-                        <p id="packaging-changed-percent" class="text-2xl font-black text-white mt-1">0%</p>
-                    </div>
-                    <div class="bg-black/20 border border-brand-border/60 rounded-xl p-3">
-                        <p class="text-[10px] uppercase font-bold text-gray-500">Ocupação média</p>
-                        <p id="packaging-avg-occupancy" class="text-2xl font-black text-white mt-1">0</p>
-                    </div>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse text-sm">
-                        <thead>
-                            <tr class="border-b border-brand-border/60 text-xs uppercase tracking-wider text-gray-500 font-bold">
-                                <th class="pb-3">Pedido</th>
-                                <th class="pb-3">Ocupação</th>
-                                <th class="pb-3">Caixa Sugerida</th>
-                                <th class="pb-3">Caixa Utilizada</th>
-                            </tr>
-                        </thead>
-                        <tbody id="packaging-report-tbody" class="divide-y divide-brand-border/30"></tbody>
-                    </table>
-                </div>
-            </div>
-
             <!-- Quadro de Ranking de Vendas por Sabor (Conforme a imagem enviada) -->
             <div class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-6">
                 <h3 class="text-white font-extrabold text-lg">Ranking de Vendas por Sabor</h3>
@@ -443,8 +397,6 @@
                 ? (typeof formatDurationMinutes === 'function' ? formatDurationMinutes(avgService) : `${Math.round(avgService)} min`)
                 : '—';
 
-            renderPackagingAnalysis(nonCancelled);
-
             const volumes = {};
             nonCancelled.forEach(o => o.items.forEach(i => {
                 volumes[i.name] = (volumes[i.name] || 0) + i.quantity;
@@ -490,67 +442,6 @@
                             <div class="bg-gradient-to-r from-red-600 to-orange-500 h-full rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
                         </div>
                     </div>
-                `;
-            }).join('');
-        }
-
-        function renderPackagingAnalysis(scopedOrders) {
-            const list = scopedOrders || [];
-            const isMultipleBox = value => ['Grande + Pequena', '2 Grandes', 'Múltiplas Caixas', 'Multiplas Caixas'].includes(value);
-            const setText = (id, value) => {
-                const el = document.getElementById(id);
-                if (el) el.textContent = value;
-            };
-
-            const mediumUsed = list.filter(o => (o.caixaUtilizada || o.caixaSugerida) === 'Média').length;
-            const largeUsed = list.filter(o => (o.caixaUtilizada || o.caixaSugerida) === 'Grande').length;
-            const multipleUsed = list.filter(o => isMultipleBox(o.caixaUtilizada || o.caixaSugerida) || isMultipleBox(o.caixaSugerida)).length;
-            const changed = list.filter(o => (o.caixaUtilizada || o.caixaSugerida || 'Média') !== (o.caixaSugerida || 'Média')).length;
-            const occupancyValues = list
-                .map(o => Number(o.ocupacaoTotal || 0))
-                .filter(v => Number.isFinite(v) && v > 0);
-            const avgOccupancy = occupancyValues.length
-                ? occupancyValues.reduce((sum, value) => sum + value, 0) / occupancyValues.length
-                : 0;
-
-            setText('packaging-medium-used', mediumUsed);
-            setText('packaging-large-used', largeUsed);
-            setText('packaging-multiple-used', multipleUsed);
-            setText('packaging-changed-percent', `${list.length ? ((changed / list.length) * 100).toFixed(0) : 0}%`);
-            setText('packaging-avg-occupancy', avgOccupancy.toLocaleString('pt-BR', { maximumFractionDigits: 1 }));
-
-            const tbody = document.getElementById('packaging-report-tbody');
-            if (!tbody) return;
-
-            const rows = list
-                .slice()
-                .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-                .slice(0, 30);
-
-            if (!rows.length) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td class="py-4 text-gray-500 text-center" colspan="4">Sem pedidos no período.</td>
-                    </tr>
-                `;
-                return;
-            }
-
-            tbody.innerHTML = rows.map(order => {
-                const suggested = order.caixaSugerida || 'Média';
-                const used = order.caixaUtilizada || suggested;
-                const changedBox = used !== suggested;
-                return `
-                    <tr>
-                        <td class="py-3 font-bold text-gray-300">${escapeHtml(order.id)}</td>
-                        <td class="py-3 text-gray-400">${Number(order.ocupacaoTotal || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
-                        <td class="py-3 text-gray-300">${escapeHtml(suggested)}</td>
-                        <td class="py-3">
-                            <span class="${changedBox ? 'text-amber-400' : 'text-emerald-400'} font-bold">
-                                ${escapeHtml(used)}
-                            </span>
-                        </td>
-                    </tr>
                 `;
             }).join('');
         }
@@ -639,8 +530,11 @@
             }
 
             listEl.innerHTML = items.map(item => `
-                <div class="flex items-baseline justify-between gap-3">
-                    <span class="text-sm font-semibold text-white leading-snug break-words">${item.quantity}x ${escapeHtml(item.name)}</span>
+                <div class="flex items-center justify-between gap-3 bg-black/20 rounded-lg px-3 py-2">
+                    <div class="min-w-0 flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-md bg-brand-accentOrange/15 text-brand-accentOrange flex items-center justify-center text-xs font-black shrink-0">${item.quantity}</span>
+                        <span class="text-sm font-semibold text-white truncate">${escapeHtml(item.name)}</span>
+                    </div>
                     <span class="text-xs font-bold text-gray-300 shrink-0">${formatBRL(item.subtotal)}</span>
                 </div>
             `).join('');

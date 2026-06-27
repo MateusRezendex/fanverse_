@@ -24,7 +24,7 @@ router.get('/', async (_req, res, next) => {
 router.post('/', async (req, res, next) => {
     try {
         const { name, icon = 'circle', color = 'gray', isFixed = false } = req.body || {};
-        if (!name || typeof name !== 'string') return res.status(400).json({ error: 'nome obrigatório' });
+        if (!name || typeof name !== 'string') return res.status(400).json({ error: 'name é obrigatório' });
         const { rows } = await query(
             `INSERT INTO expense_categories (name, icon, color, is_fixed)
              VALUES ($1, $2, $3, $4)
@@ -96,3 +96,4 @@ router.delete('/:id', async (req, res, next) => {
 });
 
 module.exports = router;
+
